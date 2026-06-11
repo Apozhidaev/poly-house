@@ -23,7 +23,7 @@ class GammaClient:
         if tag_ids:
             params["tag_id"] = tag_ids  # httpx развернёт в tag_id=1&tag_id=2
         if cursor:
-            params["cursor"] = cursor
+            params["after_cursor"] = cursor
         payload = await self._http.get(f"{self._base_url}/markets/keyset", params=params)
         markets = payload.get("markets") or []
         next_cursor = payload.get("next_cursor") or None

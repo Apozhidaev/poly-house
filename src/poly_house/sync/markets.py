@@ -48,7 +48,7 @@ async def _fetch_pages(
         if not raw:
             break
         page = [Market.model_validate(m) for m in raw]
-        fresh = [m for m in page if m.updated_at is None or m.updated_at >= watermark]
+        fresh = [m for m in page if m.updated_at is None or m.updated_at > watermark]
         kept = [m for m in fresh if not excluded & {t.id for t in m.tags}]
         pages.append(kept)
         logger.info(

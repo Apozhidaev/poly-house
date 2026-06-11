@@ -49,8 +49,13 @@ class Market(BaseModel):
     @classmethod
     def _parse_dt(cls, v: Any) -> Any:
         if isinstance(v, str):
-            return datetime.fromisoformat(v.replace("Z", "+00:00"))
-        return v
+            dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        elif isinstance(v, datetime):
+            dt = v
+        else:
+            return v
+        # MongoDB хранит datetime с точностью до миллисекунд
+        return dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
 
     @field_validator("outcomes", mode="before")
     @classmethod
