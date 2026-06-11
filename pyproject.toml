@@ -24,3 +24,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/poly_house"]
+
+[tool.basedpyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+include = ["src"]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.7",
+]

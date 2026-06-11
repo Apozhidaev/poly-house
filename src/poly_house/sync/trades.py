@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import structlog
 from pymongo import UpdateOne
@@ -24,9 +25,9 @@ async def _get_watermark(db: AsyncDatabase, condition_id: str) -> int | None:
 
 async def _fetch_new_trades(
     data: DataClient, settings: Settings, condition_id: str, watermark: int | None
-) -> list[Trade]:
+) -> list[dict[str, Any]]:
     """Качаем страницы (новые первыми) до watermark или потолка offset, возвращаем по возрастанию timestamp."""
-    pages: list[list[Trade]] = []
+    pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.trades_max_offset:
         raw = await data.trades_page(
@@ -34,10 +35,11 @@ async def _fetch_new_trades(
         )
         if not raw:
             break
-        trades = [Trade.model_validate(t) for t in raw]
-        fresh = [t for t in trades if watermark is None or t.timestamp > watermark]
+        fresh = [
+            t for t in raw if watermark is None or t["timestamp"] > watermark
+        ]
         pages.append(fresh)
-        if len(fresh) < len(trades):
+        if len(fresh) < len(raw):
             break  # дошли до watermark
         if len(raw) < settings.trades_page_limit:
             break  # конец истории
@@ -45,11 +47,14 @@ async def _fetch_new_trades(
     return [t for page in reversed(pages) for t in reversed(page)]
 
 
-async def _write_trades(db: AsyncDatabase, trades: list[Trade]) -> int:
+async def _write_trades(db: AsyncDatabase, raw_trades: list[dict[str, Any]]) -> int:
     """Пишем users, затем трейды (трейды двигают watermark — последними)."""
     users: dict[str, User] = {}
-    for trade in trades:
-        users[trade.proxy_wallet] = User.from_trade(trade)
+    trade_docs: list[dict[str, Any]] = []
+    for raw in raw_trades:
+        trade = Trade.model_validate(raw)
+        users[trade.proxy_wallet] = User.from_payload(raw)
+        trade_docs.append(trade.to_doc())
     if users:
         await db.users.bulk_write(
             [
@@ -57,7 +62,7 @@ async def _write_trades(db: AsyncDatabase, trades: list[Trade]) -> int:
                 for u in users.values()
             ]
         )
-    await db.trades.insert_many([t.to_doc() for t in trades])
+    await db.trades.insert_many(trade_docs)
     return len(users)
 
 

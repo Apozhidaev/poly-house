@@ -27,7 +27,7 @@ class Market(BaseModel):
     slug: str | None = None
     description: str | None = None
     outcomes: list[str] = []
-    outcome_prices: list[str] = []
+    outcome_prices: list[float] = []
     closed: bool | None = None
     active: bool | None = None
     start_date: datetime | None = None
@@ -36,8 +36,6 @@ class Market(BaseModel):
     updated_at: datetime | None = None
     volume_num: float | None = None
     liquidity_num: float | None = None
-    image: str | None = None
-    icon: str | None = None
     tags: list[Tag] = []
     events: list[Event] = []
 
@@ -50,13 +48,22 @@ class Market(BaseModel):
             return datetime.fromisoformat(v.replace("Z", "+00:00"))
         return v
 
-    @field_validator("outcomes", "outcome_prices", mode="before")
+    @field_validator("outcomes", mode="before")
     @classmethod
-    def _parse_json_list(cls, v: Any) -> Any:
+    def _parse_outcomes(cls, v: Any) -> Any:
         # Gamma отдаёт списки строками: '["Yes", "No"]'
         if isinstance(v, str):
             return json.loads(v) if v else []
         return v if v is not None else []
+
+    @field_validator("outcome_prices", mode="before")
+    @classmethod
+    def _parse_outcome_prices(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            v = json.loads(v) if v else []
+        if v is None:
+            return []
+        return [float(x) for x in v]
 
     @field_validator("tags", "events", mode="before")
     @classmethod

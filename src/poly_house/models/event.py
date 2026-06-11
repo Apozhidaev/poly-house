@@ -31,8 +31,6 @@ class Event(BaseModel):
     updated_at: datetime | None = None
     volume: float | None = None
     liquidity: float | None = None
-    image: str | None = None
-    icon: str | None = None
     tags: list[Tag] = []
     series: list[dict] = []
 

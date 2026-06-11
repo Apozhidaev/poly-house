@@ -22,10 +22,6 @@ class Trade(BaseModel):
     outcome: str | None = None
     outcome_index: int | None = None
     transaction_hash: str | None = None
-    name: str | None = None
-    pseudonym: str | None = None
-    bio: str | None = None
-    profile_image: str | None = None
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()

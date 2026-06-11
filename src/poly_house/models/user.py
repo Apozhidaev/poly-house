@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
-
-from poly_house.models.trade import Trade
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 
 
 class User(BaseModel):
+    model_config = ConfigDict(
+        extra="ignore", alias_generator=to_camel, populate_by_name=True
+    )
+
     proxy_wallet: str
     name: str | None = None
     pseudonym: str | None = None
@@ -15,14 +18,8 @@ class User(BaseModel):
     profile_image: str | None = None
 
     @classmethod
-    def from_trade(cls, trade: Trade) -> User:
-        return cls(
-            proxy_wallet=trade.proxy_wallet,
-            name=trade.name,
-            pseudonym=trade.pseudonym,
-            bio=trade.bio,
-            profile_image=trade.profile_image,
-        )
+    def from_payload(cls, raw: dict[str, Any]) -> User:
+        return cls.model_validate(raw)
 
     def to_update(self) -> dict[str, Any]:
         return self.model_dump(exclude={"proxy_wallet"})
