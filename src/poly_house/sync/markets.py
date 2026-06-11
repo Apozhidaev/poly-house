@@ -32,9 +32,11 @@ async def _fetch_pages(
     page_limit: int,
     max_pages: int | None,
     tag_ids: list[int],
+    exclude_tag_ids: list[int],
     stop: asyncio.Event | None,
 ) -> list[list[Market]]:
     """Качаем страницы по убыванию updatedAt, пока не дойдём до watermark."""
+    excluded = {str(t) for t in exclude_tag_ids}
     pages: list[list[Market]] = []
     cursor: str | None = None
     while True:
@@ -47,12 +49,14 @@ async def _fetch_pages(
             break
         page = [Market.model_validate(m) for m in raw]
         fresh = [m for m in page if m.updated_at is None or m.updated_at >= watermark]
-        pages.append(fresh)
+        kept = [m for m in fresh if not excluded & {t.id for t in m.tags}]
+        pages.append(kept)
         logger.info(
             "markets_page_fetched",
             page=len(pages),
             markets=len(page),
             fresh=len(fresh),
+            excluded=len(fresh) - len(kept),
         )
         if len(fresh) < len(page):
             break  # дошли до watermark
@@ -119,6 +123,7 @@ async def sync_markets(
         page_limit=page_limit or settings.markets_page_limit,
         max_pages=max_pages,
         tag_ids=settings.markets_tag_ids,
+        exclude_tag_ids=settings.markets_exclude_tag_ids,
         stop=stop,
     )
 
