@@ -29,11 +29,17 @@ def sync(
     limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /markets/keyset.")] = None,
     max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц маркетов (для теста).")] = None,
     skip_trades: Annotated[bool, typer.Option("--skip-trades", help="Не выгружать трейды.")] = False,
+    skip_open: Annotated[bool, typer.Option("--skip-open", help="Синхронизировать только закрытые маркеты (closed=true).")] = False,
 ) -> None:
     """Прогон синхронизации Polymarket → MongoDB."""
     _configure_logging()
     settings = Settings()
-    options = SyncOptions(page_limit=limit, max_pages=max_pages, skip_trades=skip_trades)
+    options = SyncOptions(
+        page_limit=limit,
+        max_pages=max_pages,
+        skip_trades=skip_trades,
+        skip_open=skip_open,
+    )
     asyncio.run(run_sync(settings, options, watch=watch))
 
 

@@ -23,6 +23,7 @@ async def _fetch_pages(
     max_pages: int | None,
     tag_ids: list[int],
     exclude_tag_ids: list[int],
+    closed_only: bool,
     stop: asyncio.Event | None,
 ) -> tuple[list[list[Market]], str | None]:
     """Качаем страницы по убыванию updatedAt, пока не дойдём до watermark."""
@@ -35,7 +36,10 @@ async def _fetch_pages(
         if stop is not None and stop.is_set():
             break
         raw, next_cursor = await gamma.markets_page(
-            limit=page_limit, cursor=cursor, tag_ids=tag_ids
+            limit=page_limit,
+            cursor=cursor,
+            tag_ids=tag_ids,
+            closed=True if closed_only else None,
         )
         if not raw:
             break
@@ -109,6 +113,7 @@ async def sync_markets(
     *,
     page_limit: int | None = None,
     max_pages: int | None = None,
+    closed_only: bool = False,
     stop: asyncio.Event | None = None,
 ) -> list[Market]:
     """Инкрементальный sync маркетов; возвращает записанные маркеты (по возрастанию updated_at)."""
@@ -122,6 +127,7 @@ async def sync_markets(
         max_pages=max_pages,
         tag_ids=settings.markets_tag_ids,
         exclude_tag_ids=settings.markets_exclude_tag_ids,
+        closed_only=closed_only,
         stop=stop,
     )
 

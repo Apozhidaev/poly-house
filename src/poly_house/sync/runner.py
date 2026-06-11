@@ -26,6 +26,7 @@ class SyncOptions:
     page_limit: int | None = None
     max_pages: int | None = None
     skip_trades: bool = False
+    skip_open: bool = False
 
 
 async def run_once(
@@ -44,6 +45,7 @@ async def run_once(
         settings,
         page_limit=options.page_limit,
         max_pages=options.max_pages,
+        closed_only=options.skip_open,
         stop=stop,
     )
     n_trades = n_users = 0
