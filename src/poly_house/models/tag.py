@@ -13,6 +13,6 @@ class Tag(BaseModel):
     slug: str | None = None
 
     def to_doc(self) -> dict[str, Any]:
-        doc = self.model_dump()
+        doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
         return doc

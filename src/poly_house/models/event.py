@@ -44,7 +44,7 @@ class Event(BaseModel):
 
     def to_doc(self, *, fallback_tags: list[Tag], synced_at: datetime) -> dict[str, Any]:
         """Документ события без _id (для $set) и без вложенных tags/series."""
-        doc = self.model_dump(exclude={"tags", "series"})
+        doc = self.model_dump(exclude={"tags", "series", "id"})
         tags = self.tags or fallback_tags
         doc["tag_ids"] = [t.id for t in tags]
         doc["series_ids"] = [s["id"] for s in self.series if isinstance(s, dict) and s.get("id")]

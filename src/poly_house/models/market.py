@@ -84,7 +84,7 @@ class Market(BaseModel):
         return self.events[0].id if self.events else None
 
     def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:
-        doc = self.model_dump(exclude={"tags", "events"})
+        doc = self.model_dump(exclude={"tags", "events", "id"})
         doc["_id"] = self.id
         # пустой condition_id убираем, чтобы не ломать sparse-unique индекс
         if not doc.get("condition_id"):

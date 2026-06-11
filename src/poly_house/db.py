@@ -7,19 +7,17 @@ from poly_house.config import Settings
 
 
 def create_client(settings: Settings) -> AsyncMongoClient:
-    # tz_aware: updatedAt из базы должен сравниваться с aware-датами watermark'а
     return AsyncMongoClient(settings.mongo_uri, tz_aware=True)
 
 
 async def ensure_indexes(db: AsyncDatabase) -> None:
     await db.events.create_index("slug")
-    await db.events.create_index("closed_time")
+    await db.events.create_index("tag_ids")
 
     await db.markets.create_index("condition_id", unique=True, sparse=True)
     await db.markets.create_index("event_id")
     await db.markets.create_index("slug")
     await db.markets.create_index("tag_ids")
-    await db.markets.create_index("updated_at")
 
     await db.tags.create_index("slug")
 
