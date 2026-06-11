@@ -16,7 +16,7 @@ async def trade_prices_by_user(
     outcome_index: int,
     side: str,
 ) -> dict[str, Any]:
-    """Уникальные цены сделок (округлённые до 2 знаков) по каждому proxy_wallet."""
+    """Уникальные цены на пользователя (2 знака), собранные в один список."""
     pipeline: list[dict[str, Any]] = [
         {
             "$match": {
@@ -32,10 +32,10 @@ async def trade_prices_by_user(
                 "prices": {"$addToSet": {"$round": ["$price", 2]}},
             }
         },
-        {"$project": {"_id": 0, "proxy_wallet": "$_id", "prices": 1}},
     ]
     cursor = await db.trades.aggregate(pipeline)
-    items = await cursor.to_list(length=None)
+    rows = await cursor.to_list(length=None)
+    items = [price for row in rows for price in row["prices"]]
     return {"items": items}
 
 
