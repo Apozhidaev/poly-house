@@ -25,23 +25,14 @@ class Event(BaseModel):
     description: str | None = None
     closed: bool | None = None
     active: bool | None = None
-    start_date: datetime | None = None
-    end_date: datetime | None = None
-    closed_time: datetime | None = None
-    updated_at: datetime | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    closed_time: str | None = None
+    updated_at: str | None = None
     volume: float | None = None
     liquidity: float | None = None
     tags: list[Tag] = []
     series: list[dict] = []
-
-    @field_validator(
-        "start_date", "end_date", "closed_time", "updated_at", mode="before"
-    )
-    @classmethod
-    def _parse_dt(cls, v: Any) -> Any:
-        if isinstance(v, str):
-            return datetime.fromisoformat(v.replace("Z", "+00:00"))
-        return v
 
     @field_validator("tags", "series", mode="before")
     @classmethod

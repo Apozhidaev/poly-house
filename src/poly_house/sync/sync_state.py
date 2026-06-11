@@ -1,0 +1,33 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+from pymongo.asynchronous.database import AsyncDatabase
+
+from poly_house.config import Settings
+
+MARKETS_WATERMARK_ID = "markets_watermark"
+
+
+def parse_iso(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def default_markets_watermark(settings: Settings) -> str:
+    dt = datetime.now(UTC) - timedelta(days=settings.updated_in_days)
+    return dt.isoformat().replace("+00:00", "Z")
+
+
+async def get_markets_watermark(db: AsyncDatabase, settings: Settings) -> str:
+    doc = await db.sync_state.find_one({"_id": MARKETS_WATERMARK_ID})
+    if doc and doc.get("updated_at"):
+        return doc["updated_at"]
+    return default_markets_watermark(settings)
+
+
+async def set_markets_watermark(db: AsyncDatabase, updated_at: str) -> None:
+    await db.sync_state.replace_one(
+        {"_id": MARKETS_WATERMARK_ID},
+        {"_id": MARKETS_WATERMARK_ID, "updated_at": updated_at},
+        upsert=True,
+    )

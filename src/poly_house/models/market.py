@@ -32,30 +32,16 @@ class Market(BaseModel):
     outcome_prices: list[float] = []
     closed: bool | None = None
     active: bool | None = None
-    start_date: datetime | None = None
-    end_date: datetime | None = None
-    closed_time: datetime | None = None
-    updated_at: datetime | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    closed_time: str | None = None
+    updated_at: str | None = None
     uma_resolution_status: str | None = None
-    uma_end_date: datetime | None = None
+    uma_end_date: str | None = None
     volume_num: float | None = None
     liquidity_num: float | None = None
     tags: list[Tag] = []
     events: list[Event] = []
-
-    @field_validator(
-        "start_date", "end_date", "closed_time", "updated_at", "uma_end_date", mode="before"
-    )
-    @classmethod
-    def _parse_dt(cls, v: Any) -> Any:
-        if isinstance(v, str):
-            dt = datetime.fromisoformat(v.replace("Z", "+00:00"))
-        elif isinstance(v, datetime):
-            dt = v
-        else:
-            return v
-        # MongoDB хранит datetime с точностью до миллисекунд
-        return dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
 
     @field_validator("outcomes", mode="before")
     @classmethod
