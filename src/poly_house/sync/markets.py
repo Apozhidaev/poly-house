@@ -31,6 +31,7 @@ async def _fetch_pages(
     *,
     page_limit: int,
     max_pages: int | None,
+    tag_ids: list[int],
     stop: asyncio.Event | None,
 ) -> list[list[Market]]:
     """Качаем страницы по убыванию updatedAt, пока не дойдём до watermark."""
@@ -39,7 +40,9 @@ async def _fetch_pages(
     while True:
         if stop is not None and stop.is_set():
             break
-        raw, next_cursor = await gamma.markets_page(limit=page_limit, cursor=cursor)
+        raw, next_cursor = await gamma.markets_page(
+            limit=page_limit, cursor=cursor, tag_ids=tag_ids
+        )
         if not raw:
             break
         page = [Market.model_validate(m) for m in raw]
@@ -115,6 +118,7 @@ async def sync_markets(
         watermark,
         page_limit=page_limit or settings.markets_page_limit,
         max_pages=max_pages,
+        tag_ids=settings.markets_tag_ids,
         stop=stop,
     )
 

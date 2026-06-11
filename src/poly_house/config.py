@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     rate_limit_interval: float = 1.0
     rate_limit_count: int = 5
 
+    # необязательный фильтр маркетов по тегам (tag_id=1&tag_id=2)
+    markets_tag_ids: list[int] = []
+
     # размеры страниц API
     markets_page_limit: int = 100
     trades_page_limit: int = 1000  # максимум Data API
