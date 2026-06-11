@@ -1,32 +1,62 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic.alias_generators import to_camel
 
 from poly_house.models.event import Event
 from poly_house.models.tag import Tag
 
 
 class Market(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    """Маркет; camelCase-ключи payload'а маппятся на snake_case-поля через алиасы.
+
+    В базу сохраняются только описанные здесь поля.
+    """
+
+    model_config = ConfigDict(
+        extra="ignore", alias_generator=to_camel, populate_by_name=True
+    )
 
     id: str
     question: str | None = None
-    conditionId: str | None = None
+    condition_id: str | None = None
     slug: str | None = None
+    description: str | None = None
+    outcomes: list[str] = []
+    outcome_prices: list[str] = []
     closed: bool | None = None
-    updatedAt: datetime | None = None
+    active: bool | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    closed_time: datetime | None = None
+    updated_at: datetime | None = None
+    volume_num: float | None = None
+    liquidity_num: float | None = None
+    image: str | None = None
+    icon: str | None = None
     tags: list[Tag] = []
     events: list[Event] = []
 
-    @field_validator("updatedAt", mode="before")
+    @field_validator(
+        "start_date", "end_date", "closed_time", "updated_at", mode="before"
+    )
     @classmethod
     def _parse_dt(cls, v: Any) -> Any:
         if isinstance(v, str):
             return datetime.fromisoformat(v.replace("Z", "+00:00"))
         return v
+
+    @field_validator("outcomes", "outcome_prices", mode="before")
+    @classmethod
+    def _parse_json_list(cls, v: Any) -> Any:
+        # Gamma отдаёт списки строками: '["Yes", "No"]'
+        if isinstance(v, str):
+            return json.loads(v) if v else []
+        return v if v is not None else []
 
     @field_validator("tags", "events", mode="before")
     @classmethod
@@ -40,10 +70,10 @@ class Market(BaseModel):
     def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:
         doc = self.model_dump(exclude={"tags", "events"})
         doc["_id"] = self.id
-        # пустой conditionId убираем, чтобы не ломать sparse-unique индекс
-        if not doc.get("conditionId"):
-            doc.pop("conditionId", None)
-        doc["eventId"] = self.event_id
-        doc["tagIds"] = [t.id for t in self.tags]
-        doc["syncedAt"] = synced_at
+        # пустой condition_id убираем, чтобы не ломать sparse-unique индекс
+        if not doc.get("condition_id"):
+            doc.pop("condition_id", None)
+        doc["event_id"] = self.event_id
+        doc["tag_ids"] = [t.id for t in self.tags]
+        doc["synced_at"] = synced_at
         return doc

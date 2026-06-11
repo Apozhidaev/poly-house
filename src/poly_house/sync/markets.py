@@ -16,12 +16,12 @@ logger = structlog.get_logger()
 
 async def get_watermark(db: AsyncDatabase, settings: Settings) -> datetime:
     doc = await db.markets.find_one(
-        {"updatedAt": {"$ne": None}},
-        sort=[("updatedAt", -1)],
-        projection={"updatedAt": 1},
+        {"updated_at": {"$ne": None}},
+        sort=[("updated_at", -1)],
+        projection={"updated_at": 1},
     )
-    if doc and doc.get("updatedAt"):
-        return doc["updatedAt"]
+    if doc and doc.get("updated_at"):
+        return doc["updated_at"]
     return datetime.now(UTC) - timedelta(days=settings.updated_in_days)
 
 
@@ -43,7 +43,7 @@ async def _fetch_pages(
         if not raw:
             break
         page = [Market.model_validate(m) for m in raw]
-        fresh = [m for m in page if m.updatedAt is None or m.updatedAt >= watermark]
+        fresh = [m for m in page if m.updated_at is None or m.updated_at >= watermark]
         pages.append(fresh)
         logger.info(
             "markets_page_fetched",
@@ -64,7 +64,7 @@ async def _fetch_pages(
 async def _write_page(db: AsyncDatabase, markets: list[Market], synced_at: datetime) -> None:
     """Пишем страницу: tags → events → markets.
 
-    Маркеты — последними: их updatedAt двигает watermark, поэтому всё
+    Маркеты — последними: их updated_at двигает watermark, поэтому всё
     связанное должно оказаться в базе раньше.
     """
     tag_ops: dict[str, ReplaceOne] = {}
@@ -81,7 +81,7 @@ async def _write_page(db: AsyncDatabase, markets: list[Market], synced_at: datet
             event_ops.append(
                 UpdateOne(
                     {"_id": event.id},
-                    {"$set": event_doc, "$addToSet": {"marketIds": market.id}},
+                    {"$set": event_doc, "$addToSet": {"market_ids": market.id}},
                     upsert=True,
                 )
             )
@@ -106,7 +106,7 @@ async def sync_markets(
     max_pages: int | None = None,
     stop: asyncio.Event | None = None,
 ) -> list[Market]:
-    """Инкрементальный sync маркетов; возвращает записанные маркеты (по возрастанию updatedAt)."""
+    """Инкрементальный sync маркетов; возвращает записанные маркеты (по возрастанию updated_at)."""
     watermark = await get_watermark(db, settings)
     logger.info("markets_sync_start", watermark=watermark.isoformat())
 
@@ -120,7 +120,7 @@ async def sync_markets(
 
     written: list[Market] = []
     synced_at = datetime.now(UTC)
-    # запись в порядке возрастания updatedAt: страницы и маркеты в обратном порядке
+    # запись в порядке возрастания updated_at: страницы и маркеты в обратном порядке
     for page in reversed(pages):
         markets = list(reversed(page))
         if not markets:

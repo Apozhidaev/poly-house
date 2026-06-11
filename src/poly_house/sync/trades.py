@@ -15,7 +15,7 @@ logger = structlog.get_logger()
 
 async def _get_watermark(db: AsyncDatabase, condition_id: str) -> int | None:
     doc = await db.trades.find_one(
-        {"conditionId": condition_id},
+        {"condition_id": condition_id},
         sort=[("timestamp", -1)],
         projection={"timestamp": 1},
     )
@@ -49,11 +49,11 @@ async def _write_trades(db: AsyncDatabase, trades: list[Trade]) -> int:
     """Пишем users, затем трейды (трейды двигают watermark — последними)."""
     users: dict[str, User] = {}
     for trade in trades:
-        users[trade.proxyWallet] = User.from_trade(trade)
+        users[trade.proxy_wallet] = User.from_trade(trade)
     if users:
         await db.users.bulk_write(
             [
-                UpdateOne({"_id": u.proxyWallet}, {"$set": u.to_update()}, upsert=True)
+                UpdateOne({"_id": u.proxy_wallet}, {"$set": u.to_update()}, upsert=True)
                 for u in users.values()
             ]
         )
@@ -75,10 +75,10 @@ async def sync_trades(
     for market in markets:
         if stop is not None and stop.is_set():
             break
-        if not market.conditionId:
+        if not market.condition_id:
             continue
-        watermark = await _get_watermark(db, market.conditionId)
-        trades = await _fetch_new_trades(data, settings, market.conditionId, watermark)
+        watermark = await _get_watermark(db, market.condition_id)
+        trades = await _fetch_new_trades(data, settings, market.condition_id, watermark)
         if not trades:
             continue
         n_users = await _write_trades(db, trades)

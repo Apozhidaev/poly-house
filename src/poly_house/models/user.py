@@ -8,21 +8,21 @@ from poly_house.models.trade import Trade
 
 
 class User(BaseModel):
-    proxyWallet: str
+    proxy_wallet: str
     name: str | None = None
     pseudonym: str | None = None
     bio: str | None = None
-    profileImage: str | None = None
+    profile_image: str | None = None
 
     @classmethod
     def from_trade(cls, trade: Trade) -> User:
         return cls(
-            proxyWallet=trade.proxyWallet,
+            proxy_wallet=trade.proxy_wallet,
             name=trade.name,
             pseudonym=trade.pseudonym,
             bio=trade.bio,
-            profileImage=trade.profileImage,
+            profile_image=trade.profile_image,
         )
 
     def to_update(self) -> dict[str, Any]:
-        return self.model_dump(exclude={"proxyWallet"})
+        return self.model_dump(exclude={"proxy_wallet"})

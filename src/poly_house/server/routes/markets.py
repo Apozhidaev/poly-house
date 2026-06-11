@@ -23,13 +23,13 @@ async def list_markets(
     if closed is not None:
         query["closed"] = closed
     if event_id:
-        query["eventId"] = event_id
+        query["event_id"] = event_id
     if tag_id:
-        query["tagIds"] = tag_id
+        query["tag_ids"] = tag_id
     if slug:
         query["slug"] = slug
     if condition_id:
-        query["conditionId"] = condition_id
+        query["condition_id"] = condition_id
     cursor = db.markets.find(query).skip(page.offset).limit(page.limit)
     return {"items": await cursor.to_list(page.limit)}
 

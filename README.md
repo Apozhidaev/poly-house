@@ -36,6 +36,7 @@ uv run poly-house sync --max-pages 2 --skip-trades
 - Первый прогон загружает всё, что обновлялось за последние `UPDATED_IN_DAYS` дней (по умолчанию 30).
 - События, теги и `seriesIds` извлекаются из payload'а маркетов; отдельных запросов нет.
 - Трейды качаются из Data API (`/trades?takerOnly=true`) по watermark `timestamp` для каждого маркета, пришедшего в прогоне (потолок API: `limit=1000`, `offset<=3000`). Пользователи извлекаются из трейдов.
+- Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
 ### REST API
 

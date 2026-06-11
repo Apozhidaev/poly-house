@@ -28,10 +28,10 @@ Warehouse для Polymarket: сохраняем в MongoDB маркеты, со�
 
 Всё берём из одного payload'а `/markets/keyset` с параметром `include_tag=true`. Важно: списки тегов **раздельные** — у маркета свой `markets[].tags`, у события свой `markets[].events[].tags`:
 
-- события — из вложенных `events`, их `tagIds` — из `events[].tags`; если у события тегов нет — fallback на теги маркета (`markets[].tags`);
-- `tagIds` маркета — из его собственного `markets[].tags` (не копия событийных);
+- события — из вложенных `events`, их `tag_ids` — из `events[].tags`; если у события тегов нет — fallback на теги маркета (`markets[].tags`);
+- `tag_ids` маркета — из его собственного `markets[].tags` (не копия событийных);
 - в коллекцию `tags` upsert'им объекты тегов из обоих списков;
-- из `series` сохраняем только id (`seriesIds` внутри события).
+- из `series` сохраняем только id (`series_ids` внутри события).
 
 Никаких дополнительных запросов не нужно.
 
@@ -112,15 +112,19 @@ poly-house/
 
 ## 4. Модель данных MongoDB
 
+camelCase-ключи payload'ов маппятся на snake_case-поля моделей через pydantic-алиасы (`alias_generator=to_camel`: `conditionId` → `condition_id` и т.д.) — сервис будет использоваться из питоновских приложений, храним и отдаём в питоновском стиле.
+
+В базу попадают **только поля, описанные в pydantic-моделях** (`extra="ignore"`) — остальные свойства payload'а отбрасываются. Нужно новое поле — добавляем его в модель.
+
 | Коллекция | `_id` | Содержимое | Индексы |
 |---|---|---|---|
-| `events` | gamma `id` | событие из payload маркета (вложенные markets заменяем на `marketIds`; ссылки `tagIds`, `seriesIds`) | `slug`, `closedTime` |
-| `markets` | gamma `id` | маркет + `eventId`, `conditionId`, `tagIds` (собственные теги маркета из `include_tag=true`) | `conditionId` (unique), `eventId`, `slug`, `tagIds` |
-| `tags` | gamma `id` | tag как есть (из payload маркетов и событий) | `slug` |
-| `trades` | ObjectId (авто) | сделка как есть (`conditionId`, `proxyWallet`, `timestamp`, ...) | `(conditionId, timestamp)`, `proxyWallet`, `timestamp` |
-| `users` | `proxyWallet` | профиль из трейдов: name, pseudonym, bio, profileImage | — |
+| `events` | gamma `id` | событие из payload маркета (вложенные markets заменяем на `market_ids`; ссылки `tag_ids`, `series_ids`) | `slug`, `closed_time` |
+| `markets` | gamma `id` | маркет + `event_id`, `condition_id`, `tag_ids` (собственные теги маркета из `include_tag=true`) | `condition_id` (unique), `event_id`, `slug`, `tag_ids` |
+| `tags` | gamma `id` | `id`, `label`, `slug` (из payload маркетов и событий) | `slug` |
+| `trades` | ObjectId (авто) | поля модели Trade (`condition_id`, `proxy_wallet`, `timestamp`, `side`, `size`, `price`, ...) | `(condition_id, timestamp)`, `proxy_wallet`, `timestamp` |
+| `users` | `proxy_wallet` | профиль из трейдов: name, pseudonym, bio, profile_image | — |
 
-Markets/events/tags/users — upsert по стабильным `_id`; trades — обычные insert, от дублей защищает watermark по `timestamp`. У events/markets дополнительно храним `syncedAt`; по `markets.updatedAt` — индекс (нужен для вычисления watermark). Составной индекс `(conditionId, timestamp)` обслуживает и watermark трейдов по маркету, и фильтры REST API.
+Markets/events/tags/users — upsert по стабильным `_id`; trades — обычные insert, от дублей защищает watermark по `timestamp`. У events/markets дополнительно храним `synced_at`; по `markets.updated_at` — индекс (нужен для вычисления watermark). Составной индекс `(condition_id, timestamp)` обслуживает и watermark трейдов по маркету, и фильтры REST API.
 
 ## 5. Утилита sync — алгоритм
 
@@ -129,8 +133,8 @@ Markets/events/tags/users — upsert по стабильным `_id`; trades —
 Один прогон:
 
 1. **Маркеты**: вычисляем watermark = max(`updatedAt`) по коллекции `markets` (база пустая → `now - updated_in_days`); качаем страницы `/markets/keyset?order=updatedAt&ascending=false`, пока не дойдём до watermark, затем пишем в базу **в порядке возрастания `updatedAt`**:
-   - маркет → upsert в `markets` (с его `tagIds`);
-   - вложенные `events` → upsert в `events` (с `tagIds` — при их отсутствии берём `tagIds` маркета — и `seriesIds`);
+   - маркет → upsert в `markets` (с его `tag_ids`);
+   - вложенные `events` → upsert в `events` (с `tag_ids` — при их отсутствии берём `tag_ids` маркета — и `series_ids`);
    - объекты тегов из `markets[].tags` и `events[].tags` → upsert в `tags`.
 2. **Трейды + users**: для каждого маркета, пришедшего в этом прогоне, — watermark = max(`timestamp`) его трейдов; качаем `/trades?market={conditionId}` страницами до watermark (или до потолка `offset=3000`), затем пишем **в порядке возрастания `timestamp`**:
    - трейды insert в `trades`;
@@ -165,7 +169,7 @@ CLI-опции: `--watch` (бесконечный цикл с интервало
 | `GET /tags/{id}` | — | тег по id |
 | `GET /trades` | `condition_id`, `user` (proxyWallet), `side`, `from`/`to` (timestamp; в коде — alias, `from` зарезервирован), сортировка по `timestamp` desc | список сделок |
 
-Фильтры ложатся на уже заложенные индексы (`tagIds`, `eventId`, `(conditionId, timestamp)`, `proxyWallet`, `timestamp`).
+Фильтры ложатся на уже заложенные индексы (`tag_ids`, `event_id`, `(condition_id, timestamp)`, `proxy_wallet`, `timestamp`).
 
 ## 7. Этапы реализации
 

@@ -21,9 +21,9 @@ async def list_trades(
 ) -> dict[str, Any]:
     query: dict[str, Any] = {}
     if condition_id:
-        query["conditionId"] = condition_id
+        query["condition_id"] = condition_id
     if user:
-        query["proxyWallet"] = user
+        query["proxy_wallet"] = user
     if side:
         query["side"] = side.upper()
     timestamp: dict[str, int] = {}

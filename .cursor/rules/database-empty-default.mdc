@@ -1,0 +1,11 @@
+---
+description: Treat the database as recreated from scratch every time unless the user states otherwise
+alwaysApply: true
+---
+
+# Database default state
+
+- **Default assumption:** There is **no database** carrying over from earlier work. The datastore is **created from scratch** for each run/session—or equivalently, **no rows**, no leftover collections, and no implicit state from “what was already synced” unless the user **explicitly** says otherwise (fixtures, seeds, “I have data in X”).
+- **Implications:** Do not reason as if there are pre-populated tables, cached rows from prior CLI commands, “typical” documents, or legacy BSON from older schema versions—unless the user states that scenario.
+- When the user **does** describe concrete data in DB or a specific persistence scenario, follow that; otherwise assume a **fresh** store and prefer idempotent setup steps only when the task requires touching the DB.
+- Do not add or recommend **legacy / backward-compat** paths (optional fields for “old documents”, migration shims, etc.) **solely** on the theory that some deployment might still hold historical rows—unless the user or product contract explicitly requires supporting old data.

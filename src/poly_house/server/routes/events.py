@@ -21,7 +21,7 @@ async def list_events(
     if closed is not None:
         query["closed"] = closed
     if tag_id:
-        query["tagIds"] = tag_id
+        query["tag_ids"] = tag_id
     if slug:
         query["slug"] = slug
     cursor = db.events.find(query).skip(page.offset).limit(page.limit)

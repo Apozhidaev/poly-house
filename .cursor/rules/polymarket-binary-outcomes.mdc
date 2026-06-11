@@ -1,0 +1,15 @@
+---
+description: Polymarket binary markets — outcomes are absent or exactly two; avoid redundant length checks
+alwaysApply: true
+---
+
+# Polymarket binary outcomes
+
+- **Domain assumption:** For Polymarket, a resolved/normal market has **exactly two outcomes** (binary Yes/No–style). There is no third outcome.
+- **In code:** Treat `outcomes` as either **missing / empty** (no data, not loaded, parse error) **or** **a pair**. Do **not** add routine `len(outcomes) == 2`, extra assertions on count, or defensive branching for “not 2” unless the user **explicitly** asks for validation, or the code handles **raw untrusted** payloads before they are normalized into our model.
+- **Reviews / suggestions:** Do not recommend “always verify outcome count” as a default pattern for internal types that already represent Polymarket markets.
+
+```python
+# Prefer: handle absence vs presence, then index [0]/[1] or unpack two names.
+# Avoid unless asked: assert len(outcomes) == 2  # redundant for Polymarket domain types
+```

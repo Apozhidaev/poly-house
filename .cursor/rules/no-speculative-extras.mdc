@@ -1,0 +1,11 @@
+---
+description: No speculative "just in case" code or behavior unless the user asks
+alwaysApply: true
+---
+
+# No speculative extras
+
+- **Do not** add defensive logic, fallbacks, deduplication, extra options, or alternate code paths **"на всякий случай"** when the user (or an explicit API/product contract they gave) does **not** call for it.
+- **Prefer** the minimal change that matches what the user stated: if they say the API does not return duplicates, do not dedupe; if they specify query params, trust that contract until proven wrong in this repo.
+- **When** a real failure appears (logs, errors, tests), fix the **concrete** cause instead of layering speculative guards everywhere.
+- **Reviews / suggestions:** Do not recommend "you might also want…" breadth unless the user asked for robustness, hardening, or exploration of edge cases.
