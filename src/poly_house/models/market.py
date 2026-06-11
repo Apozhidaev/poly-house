@@ -26,6 +26,8 @@ class Market(BaseModel):
     condition_id: str | None = None
     slug: str | None = None
     description: str | None = None
+    group_item_title: str | None = None
+    group_item_threshold: int | None = None
     outcomes: list[str] = []
     outcome_prices: list[float] = []
     closed: bool | None = None
@@ -34,13 +36,15 @@ class Market(BaseModel):
     end_date: datetime | None = None
     closed_time: datetime | None = None
     updated_at: datetime | None = None
+    uma_resolution_status: str | None = None
+    uma_end_date: datetime | None = None
     volume_num: float | None = None
     liquidity_num: float | None = None
     tags: list[Tag] = []
     events: list[Event] = []
 
     @field_validator(
-        "start_date", "end_date", "closed_time", "updated_at", mode="before"
+        "start_date", "end_date", "closed_time", "updated_at", "uma_end_date", mode="before"
     )
     @classmethod
     def _parse_dt(cls, v: Any) -> Any:
