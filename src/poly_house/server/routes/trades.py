@@ -9,6 +9,36 @@ from poly_house.server.deps import Db, Page
 router = APIRouter(prefix="/trades", tags=["trades"])
 
 
+@router.get("/take-prices")
+async def trade_prices_by_user(
+    db: Db,
+    condition_id: str,
+    outcome_index: int,
+    side: str,
+) -> dict[str, Any]:
+    """Уникальные цены сделок (округлённые до 2 знаков) по каждому proxy_wallet."""
+    pipeline: list[dict[str, Any]] = [
+        {
+            "$match": {
+                "condition_id": condition_id,
+                "outcome_index": outcome_index,
+                "side": side.upper(),
+                "price": {"$ne": None},
+            }
+        },
+        {
+            "$group": {
+                "_id": "$proxy_wallet",
+                "prices": {"$addToSet": {"$round": ["$price", 2]}},
+            }
+        },
+        {"$project": {"_id": 0, "proxy_wallet": "$_id", "prices": 1}},
+    ]
+    cursor = await db.trades.aggregate(pipeline)
+    items = await cursor.to_list(length=None)
+    return {"items": items}
+
+
 @router.get("")
 async def list_trades(
     db: Db,
