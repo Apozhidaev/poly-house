@@ -1,0 +1,26 @@
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+
+from poly_house.server.deps import Db, Page
+
+router = APIRouter(prefix="/tags", tags=["tags"])
+
+
+@router.get("")
+async def list_tags(db: Db, page: Page, slug: str | None = None) -> dict[str, Any]:
+    query: dict[str, Any] = {}
+    if slug:
+        query["slug"] = slug
+    cursor = db.tags.find(query).skip(page.offset).limit(page.limit)
+    return {"items": await cursor.to_list(page.limit)}
+
+
+@router.get("/{tag_id}")
+async def get_tag(tag_id: str, db: Db) -> dict[str, Any]:
+    doc = await db.tags.find_one({"_id": tag_id})
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    return doc

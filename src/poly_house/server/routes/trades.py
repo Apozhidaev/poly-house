@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+from typing import Annotated, Any
+
+from fastapi import APIRouter, Query
+
+from poly_house.server.deps import Db, Page
+
+router = APIRouter(prefix="/trades", tags=["trades"])
+
+
+@router.get("")
+async def list_trades(
+    db: Db,
+    page: Page,
+    condition_id: str | None = None,
+    user: str | None = None,
+    side: str | None = None,
+    from_ts: Annotated[int | None, Query(alias="from")] = None,
+    to_ts: Annotated[int | None, Query(alias="to")] = None,
+) -> dict[str, Any]:
+    query: dict[str, Any] = {}
+    if condition_id:
+        query["conditionId"] = condition_id
+    if user:
+        query["proxyWallet"] = user
+    if side:
+        query["side"] = side.upper()
+    timestamp: dict[str, int] = {}
+    if from_ts is not None:
+        timestamp["$gte"] = from_ts
+    if to_ts is not None:
+        timestamp["$lte"] = to_ts
+    if timestamp:
+        query["timestamp"] = timestamp
+    cursor = (
+        db.trades.find(query, {"_id": 0})
+        .sort("timestamp", -1)
+        .skip(page.offset)
+        .limit(page.limit)
+    )
+    return {"items": await cursor.to_list(page.limit)}

@@ -7,15 +7,16 @@ from typing import Any, Self
 import httpx
 import structlog
 
-logger = structlog.get_logger()
+from poly_house.api.rate_limiter import RateLimiter
 
-rate_limiter = RateLimiter(interval=1.0, count=5)
+logger = structlog.get_logger()
 
 
 class RateLimitedClient:
     """Async HTTP client with rate limiting (semaphore) and retry with exponential backoff."""
 
-    def __init__(self) -> None:
+    def __init__(self, rate_limiter: RateLimiter) -> None:
+        self._rate_limiter = rate_limiter
         self._max_retries = 3
         self._backoff_base = 2
         self._client = httpx.AsyncClient(timeout=30)
@@ -38,7 +39,7 @@ class RateLimitedClient:
 
         for attempt in range(1, self._max_retries + 1):
             try:
-                await rate_limiter.acquire()
+                await self._rate_limiter.acquire()
                 resp = await self._client.get(url, params=params)
                 resp.raise_for_status()
                 return resp.json()

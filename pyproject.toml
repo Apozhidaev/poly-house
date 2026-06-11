@@ -1,0 +1,26 @@
+[project]
+name = "poly-house"
+version = "0.1.0"
+description = "Polymarket warehouse: incremental sync into MongoDB + REST API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.136.3",
+    "httpx>=0.28.1",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "pymongo>=4.17.0",
+    "structlog>=26.1.0",
+    "typer>=0.26.7",
+    "uvicorn>=0.49.0",
+]
+
+[project.scripts]
+poly-house = "poly_house.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/poly_house"]
