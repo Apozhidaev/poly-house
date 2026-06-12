@@ -35,6 +35,7 @@ class Market(BaseModel):
     group_item_threshold: int | None = None
     outcomes: list[str] = []
     outcome_prices: list[float] = []
+    clob_token_ids: list[str] = []
     closed: bool | None = None
     active: bool | None = None
     accepting_orders: bool | None = None
@@ -62,7 +63,7 @@ class Market(BaseModel):
     tags: list[Tag] = []
     events: list[Event] = []
 
-    @field_validator("outcomes", mode="before")
+    @field_validator("outcomes", "clob_token_ids", mode="before")
     @classmethod
     def _parse_outcomes(cls, v: Any) -> Any:
         # Gamma отдаёт списки строками: '["Yes", "No"]'
