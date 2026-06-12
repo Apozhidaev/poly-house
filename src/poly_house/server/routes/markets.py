@@ -15,7 +15,7 @@ async def list_markets(
     page: Page,
     closed: bool | None = None,
     event_id: int | None = None,
-    tag_id: int | None = None,
+    tag_ids: list[int] | None = None,
     slug: str | None = None,
     condition_id: str | None = None,
 ) -> dict[str, Any]:
@@ -24,8 +24,8 @@ async def list_markets(
         query["closed"] = closed
     if event_id:
         query["event_id"] = event_id
-    if tag_id:
-        query["tag_ids"] = tag_id
+    if tag_ids:
+        query["tag_ids"] = {"$in": tag_ids}
     if slug:
         query["slug"] = slug
     if condition_id:
