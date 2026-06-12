@@ -111,11 +111,11 @@ async def sync_trades(
             n_users = await _write_trades(db, trades)
             total_trades += len(trades)
             total_users += n_users
-            logger.info(
-                "market_trades_synced",
-                market=market.get("slug") or market["_id"],
-                trades=len(trades),
-            )
+        logger.info(
+            "market_trades_synced",
+            market=market.get("slug") or market["_id"],
+            trades=len(trades),
+        )
         synced_at = market.get("synced_at")
         if synced_at is not None and (max_synced_at is None or synced_at > max_synced_at):
             max_synced_at = synced_at
