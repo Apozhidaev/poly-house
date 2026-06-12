@@ -33,7 +33,7 @@ _MONTH_FULL: dict[str, int] = {
 
 def deadline_from_end_date(raw: dict[str, Any]) -> datetime | None:
     value = raw.get("end_date")
-    if value is None:
+    if not value:
         return None
     return datetime.fromisoformat(value)
 
@@ -73,7 +73,7 @@ def deadline_from_group_item_title(raw: dict[str, Any]) -> Deadline | None:
     title = raw.get("group_item_title")
     threshold = raw.get("group_item_threshold")
 
-    if title is None:
+    if not title:
         return None
     if threshold is None:
         return None
