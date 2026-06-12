@@ -8,7 +8,7 @@ import typer
 import uvicorn
 
 from poly_house.config import Settings
-from poly_house.sync.runner import SyncOptions, run_sync
+from poly_house.sync.runner import MarketSyncOptions, run_sync_markets, run_sync_trades
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
 
@@ -23,24 +23,28 @@ def _configure_logging() -> None:
     )
 
 
-@app.command()
-def sync(
+@app.command("sync-market")
+def sync_market(
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /markets/keyset.")] = None,
     max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц маркетов (для теста).")] = None,
-    skip_trades: Annotated[bool, typer.Option("--skip-trades", help="Не выгружать трейды.")] = False,
     skip_open: Annotated[bool, typer.Option("--skip-open", help="Синхронизировать только закрытые маркеты (closed=true).")] = False,
 ) -> None:
-    """Прогон синхронизации Polymarket → MongoDB."""
+    """Синхронизация маркетов (+ события, теги) Polymarket → MongoDB."""
     _configure_logging()
     settings = Settings()
-    options = SyncOptions(
-        page_limit=limit,
-        max_pages=max_pages,
-        skip_trades=skip_trades,
-        skip_open=skip_open,
-    )
-    asyncio.run(run_sync(settings, options, watch=watch))
+    options = MarketSyncOptions(page_limit=limit, max_pages=max_pages, skip_open=skip_open)
+    asyncio.run(run_sync_markets(settings, options, watch=watch))
+
+
+@app.command("sync-trade")
+def sync_trade(
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+) -> None:
+    """Синхронизация трейдов (+ пользователи) для маркетов, обновлённых после прошлого прогона."""
+    _configure_logging()
+    settings = Settings()
+    asyncio.run(run_sync_trades(settings, watch=watch))
 
 
 @app.command()

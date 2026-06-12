@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -9,12 +10,13 @@ from pymongo.asynchronous.database import AsyncDatabase
 
 from poly_house.api.data import DataClient
 from poly_house.config import Settings
-from poly_house.models import Market, Trade, User
+from poly_house.models import Trade, User
+from poly_house.sync.sync_state import get_trades_watermark, set_trades_watermark
 
 logger = structlog.get_logger()
 
 
-async def _get_watermark(db: AsyncDatabase, condition_id: str) -> int | None:
+async def _get_market_watermark(db: AsyncDatabase, condition_id: str) -> int | None:
     doc = await db.trades.find_one(
         {"condition_id": condition_id},
         sort=[("timestamp", -1)],
@@ -66,33 +68,67 @@ async def _write_trades(db: AsyncDatabase, raw_trades: list[dict[str, Any]]) -> 
     return len(users)
 
 
+async def _select_markets(
+    db: AsyncDatabase, watermark: datetime | None
+) -> list[dict[str, Any]]:
+    """Маркеты с condition_id, синхронизированные позже watermark'а трейдов."""
+    query: dict[str, Any] = {"condition_id": {"$ne": None}}
+    if watermark is not None:
+        query["synced_at"] = {"$gt": watermark}
+    cursor = db.markets.find(
+        query, projection={"condition_id": 1, "slug": 1, "synced_at": 1}
+    )
+    return await cursor.to_list(length=None)
+
+
 async def sync_trades(
     db: AsyncDatabase,
     data: DataClient,
     settings: Settings,
-    markets: list[Market],
     *,
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
-    """Догружает трейды по маркетам прогона; возвращает (трейдов, пользователей)."""
+    """Догружает трейды по маркетам, обновлённым после watermark'а; возвращает (трейдов, пользователей)."""
+    watermark = await get_trades_watermark(db)
+    markets = await _select_markets(db, watermark)
+    logger.info(
+        "trades_sync_start",
+        watermark=watermark.isoformat() if watermark else None,
+        markets=len(markets),
+    )
+
     total_trades = 0
     total_users = 0
+    max_synced_at: datetime | None = None
     for market in markets:
         if stop is not None and stop.is_set():
             break
-        if not market.condition_id:
-            continue
-        watermark = await _get_watermark(db, market.condition_id)
-        trades = await _fetch_new_trades(data, settings, market.condition_id, watermark)
-        if not trades:
-            continue
-        n_users = await _write_trades(db, trades)
-        total_trades += len(trades)
-        total_users += n_users
-        logger.info(
-            "market_trades_synced",
-            market=market.slug or market.id,
-            trades=len(trades),
+        market_watermark = await _get_market_watermark(db, market["condition_id"])
+        trades = await _fetch_new_trades(
+            data, settings, market["condition_id"], market_watermark
         )
-    logger.info("trades_sync_done", trades=total_trades, users=total_users)
+        if trades:
+            n_users = await _write_trades(db, trades)
+            total_trades += len(trades)
+            total_users += n_users
+            logger.info(
+                "market_trades_synced",
+                market=market.get("slug") or market["_id"],
+                trades=len(trades),
+            )
+        synced_at = market.get("synced_at")
+        if synced_at is not None and (max_synced_at is None or synced_at > max_synced_at):
+            max_synced_at = synced_at
+
+    interrupted = stop is not None and stop.is_set()
+    if not interrupted and max_synced_at is not None:
+        await set_trades_watermark(db, max_synced_at)
+        logger.info("trades_watermark_saved", watermark=max_synced_at.isoformat())
+
+    logger.info(
+        "trades_sync_done",
+        trades=total_trades,
+        users=total_users,
+        interrupted=interrupted,
+    )
     return total_trades, total_users

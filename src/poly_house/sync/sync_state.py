@@ -7,6 +7,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from poly_house.config import Settings
 
 MARKETS_WATERMARK_ID = "markets_watermark"
+TRADES_WATERMARK_ID = "trades_watermark"
 
 
 def parse_iso(value: str) -> datetime:
@@ -29,5 +30,18 @@ async def set_markets_watermark(db: AsyncDatabase, updated_at: str) -> None:
     await db.sync_state.replace_one(
         {"_id": MARKETS_WATERMARK_ID},
         {"_id": MARKETS_WATERMARK_ID, "updated_at": updated_at},
+        upsert=True,
+    )
+
+
+async def get_trades_watermark(db: AsyncDatabase) -> datetime | None:
+    doc = await db.sync_state.find_one({"_id": TRADES_WATERMARK_ID})
+    return doc["synced_at"] if doc else None
+
+
+async def set_trades_watermark(db: AsyncDatabase, synced_at: datetime) -> None:
+    await db.sync_state.replace_one(
+        {"_id": TRADES_WATERMARK_ID},
+        {"_id": TRADES_WATERMARK_ID, "synced_at": synced_at},
         upsert=True,
     )

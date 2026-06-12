@@ -1,6 +1,6 @@
 # poly-house — план проекта
 
-Warehouse для Polymarket: сохраняем в MongoDB маркеты, события и связанные с ними данные. Утилита `sync` работает инкрементально по watermark'ам: маркеты — по `updatedAt`, трейды — по `timestamp`; каждый прогон забирает только то, что новее сохранённого, и пишет данные в порядке возрастания (упавший прогон не сдвигает watermark вперёд). Из трейдов попутно извлекаются users. Поверх базы — собственный REST API (`poly-house serve`), отдающий events, markets, tags, trades, users. MongoDB — локальная, без Docker.
+Warehouse для Polymarket: сохраняем в MongoDB маркеты, события и связанные с ними данные. Синхронизация разбита на две утилиты: `sync-market` (маркеты + события + теги, инкрементально по watermark `updatedAt`) и `sync-trade` (трейды + users для маркетов с `synced_at` позже watermark'а трейдов; внутри маркета — инкрементально по `timestamp`). Watermark'и хранятся в `sync_state` и сдвигаются только после успешного прогона. Поверх базы — собственный REST API (`poly-house serve`), отдающий events, markets, tags, trades, users. MongoDB — локальная, без Docker.
 
 ## 1. Источники данных
 
@@ -98,7 +98,7 @@ poly-house/
     │   ├── __init__.py
     │   ├── runner.py       # оркестрация прогона + режим watch
     │   ├── markets.py      # инкрементальный обход /markets/keyset по updatedAt до watermark (+events/tags)
-    │   └── trades.py       # инкрементальная выгрузка trades по watermark timestamp + upsert users из трейдов
+    │   └── trades.py       # выборка маркетов по synced_at > watermark + выгрузка trades по watermark timestamp + upsert users
     ├── server/
     │   ├── __init__.py
     │   ├── app.py          # FastAPI-приложение, lifespan (подключение к Mongo)
@@ -107,7 +107,7 @@ poly-house/
     │       ├── markets.py  # GET /markets, GET /markets/{id}
     │       ├── tags.py     # GET /tags, GET /tags/{id}
     │       └── trades.py   # GET /trades
-    └── cli.py              # entrypoints: `poly-house sync [--watch]`, `poly-house serve`
+    └── cli.py              # entrypoints: `poly-house sync-market [--watch]`, `poly-house sync-trade [--watch]`, `poly-house serve`
 ```
 
 ## 4. Модель данных MongoDB
@@ -126,32 +126,43 @@ camelCase-ключи payload'ов маппятся на snake_case-поля мо
 
 Markets/events/tags/users — upsert по стабильным `_id`; trades — обычные insert, от дублей защищает watermark по `timestamp`. У events/markets дополнительно храним `synced_at`; по `markets.updated_at` — индекс (нужен для вычисления watermark). Составной индекс `(condition_id, timestamp)` обслуживает и watermark трейдов по маркету, и фильтры REST API.
 
-## 5. Утилита sync — алгоритм
+## 5. Утилиты sync — алгоритм
 
-`poly-house sync` — один прогон; `poly-house sync --watch` — бесконечный цикл прогонов с интервалом из конфига (`WATCH_INTERVAL`, сек), до остановки Ctrl+C (обрабатываем SIGINT, корректно завершаем текущую операцию).
+Синхронизация разбита на две команды; обе поддерживают `--watch` — бесконечный цикл прогонов с интервалом из конфига (`WATCH_INTERVAL`, сек), до остановки Ctrl+C (обрабатываем SIGINT, корректно завершаем текущую операцию).
 
-Один прогон:
+### `poly-house sync-market` — маркеты + события + теги
 
-1. **Маркеты**: вычисляем watermark = max(`updatedAt`) по коллекции `markets` (база пустая → `now - updated_in_days`); качаем страницы `/markets/keyset?order=updatedAt&ascending=false`, пока не дойдём до watermark, затем пишем в базу **в порядке возрастания `updatedAt`**:
-   - маркет → upsert в `markets` (с его `tag_ids`);
-   - вложенные `events` → upsert в `events` (с `tag_ids` — при их отсутствии берём `tag_ids` маркета — и `series_ids`);
-   - объекты тегов из `markets[].tags` и `events[].tags` → upsert в `tags`.
-2. **Трейды + users**: для каждого маркета, пришедшего в этом прогоне, — watermark = max(`timestamp`) его трейдов; качаем `/trades?market={conditionId}` страницами до watermark (или до потолка `offset=3000`), затем пишем **в порядке возрастания `timestamp`**:
-   - трейды insert в `trades`;
-   - из каждого трейда — upsert профиля в `users` (proxyWallet, name, pseudonym, bio, profileImage).
+Берём watermark из `sync_state` (`_id: markets_watermark`; нет документа → `now - updated_in_days`); качаем страницы `/markets/keyset?order=updatedAt&ascending=false`, пока не дойдём до watermark, затем пишем в базу **в порядке возрастания `updatedAt`**:
 
-Свойства:
+- маркет → upsert в `markets` (с его `tag_ids` и `synced_at` прогона);
+- вложенные `events` → upsert в `events` (с `tag_ids` — при их отсутствии берём `tag_ids` маркета — и `series_ids`);
+- объекты тегов из `markets[].tags` и `events[].tags` → upsert в `tags`.
+
+После успешного (не прерванного) прогона watermark в `sync_state` сдвигается на максимальный увиденный `updatedAt`.
+
+CLI-опции: `--watch`, `--limit` (размер страницы), `--max-pages` (ограничить прогон для теста), `--skip-open` (только закрытые маркеты, `closed=true`).
+
+### `poly-house sync-trade` — трейды + users
+
+Берём watermark из `sync_state` (`_id: trades_watermark`; нет документа → обрабатываем все маркеты); выбираем из `markets` документы с `condition_id` и `synced_at` позже watermark'а. Для каждого маркета — watermark = max(`timestamp`) его трейдов; качаем `/trades?market={conditionId}` страницами до watermark (или до потолка `offset=3000`), затем пишем **в порядке возрастания `timestamp`**:
+
+- трейды insert в `trades`;
+- из каждого трейда — upsert профиля в `users` (proxy_wallet, name, pseudonym, bio, profile_image).
+
+После успешного (не прерванного) прогона watermark в `sync_state` сдвигается на максимальный `synced_at` обработанных маркетов.
+
+CLI-опции: `--watch`.
+
+### Свойства
 
 - **Идемпотентность** — markets/events/tags/users upsert'ятся по стабильным `_id`, трейды отсекаются watermark'ом по `timestamp`.
-- **Восстановление после сбоя** — данные пишутся в порядке возрастания watermark-поля, поэтому упавший прогон не сдвигает watermark вперёд: следующий прогон докачивает ровно с места обрыва.
+- **Восстановление после сбоя** — watermark'и сдвигаются только после успешного прогона: упавший/прерванный прогон оставляет их на месте, следующий прогон переобрабатывает те же данные (upsert'ы и watermark по `timestamp` делают это безопасным).
 - **Rate limiting** — готовый `RateLimiter` (скользящее окно, лимиты из конфига) + ретраи с экспоненциальным бэкофом в `RateLimitedClient`.
 - **Логирование** — прогресс: страницы keyset, маркеты, число трейдов; сводка по итогам прогона (в watch-режиме — после каждой итерации).
 
-CLI-опции: `--watch` (бесконечный цикл с интервалом из конфига), `--limit` (размер страницы), `--max-pages` (ограничить прогон для теста), `--skip-trades`.
-
 ## 6. REST API
 
-`poly-house serve` — запускает FastAPI через uvicorn (host/port из конфига). Read-only API поверх MongoDB, отдаёт данные warehouse. Параллельно может работать `sync --watch`.
+`poly-house serve` — запускает FastAPI через uvicorn (host/port из конфига). Read-only API поверх MongoDB, отдаёт данные warehouse. Параллельно могут работать `sync-market --watch` / `sync-trade --watch`.
 
 Общие правила:
 
