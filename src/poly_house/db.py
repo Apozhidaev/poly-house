@@ -1,16 +1,24 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
 from poly_house.config import Settings
 
+# Тип документа MongoDB и параметризованные им алиасы pymongo-классов:
+# в строгом режиме basedpyright generic-классы без параметра дают
+# reportMissingTypeArgument и каскад "partially unknown".
+Doc = dict[str, Any]
+Database = AsyncDatabase[Doc]
 
-def create_client(settings: Settings) -> AsyncMongoClient:
+
+def create_client(settings: Settings) -> AsyncMongoClient[Doc]:
     return AsyncMongoClient(settings.mongo_uri, tz_aware=True)
 
 
-async def ensure_indexes(db: AsyncDatabase) -> None:
+async def ensure_indexes(db: Database) -> None:
     await db.events.create_index("slug")
     await db.events.create_index("tag_ids")
 

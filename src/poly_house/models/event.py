@@ -35,7 +35,7 @@ class Event(BaseModel):
     liquidity: float | None = None
     open_interest: float | None = None
     tags: list[Tag] = []
-    series: list[dict] = []
+    series: list[dict[str, Any]] = []
 
     @field_validator("tags", "series", mode="before")
     @classmethod

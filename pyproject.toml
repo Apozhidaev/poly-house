@@ -30,6 +30,8 @@ venvPath = "."
 venv = ".venv"
 pythonVersion = "3.12"
 include = ["src"]
+# дефолтный "recommended" слишком строгий (reportAny, reportUnusedCallResult и т.п.)
+typeCheckingMode = "standard"
 
 [dependency-groups]
 dev = [

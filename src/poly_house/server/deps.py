@@ -3,10 +3,11 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, Query, Request
-from pymongo.asynchronous.database import AsyncDatabase
+
+from poly_house.db import Database
 
 
-def get_db(request: Request) -> AsyncDatabase:
+def get_db(request: Request) -> Database:
     return request.app.state.db
 
 class Pagination:
@@ -19,5 +20,5 @@ class Pagination:
         self.offset = offset
 
 
-Db = Annotated[AsyncDatabase, Depends(get_db)]
+Db = Annotated[Database, Depends(get_db)]
 Page = Annotated[Pagination, Depends()]

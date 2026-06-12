@@ -5,10 +5,10 @@ from datetime import UTC, datetime
 
 import structlog
 from pymongo import ReplaceOne, UpdateOne
-from pymongo.asynchronous.database import AsyncDatabase
 
 from poly_house.api.gamma import GammaClient
 from poly_house.config import Settings
+from poly_house.db import Database, Doc
 from poly_house.models import Market
 from poly_house.sync.sync_state import get_markets_watermark, parse_iso, set_markets_watermark
 
@@ -74,11 +74,11 @@ async def _fetch_pages(
     return pages, max_updated_at
 
 
-async def _write_page(db: AsyncDatabase, markets: list[Market], synced_at: datetime) -> None:
+async def _write_page(db: Database, markets: list[Market], synced_at: datetime) -> None:
     """Пишем страницу: tags → events → markets."""
-    tag_ops: dict[str, ReplaceOne] = {}
+    tag_ops: dict[str, ReplaceOne[Doc]] = {}
     event_ops: list[UpdateOne] = []
-    market_ops: list[ReplaceOne] = []
+    market_ops: list[ReplaceOne[Doc]] = []
 
     for market in markets:
         for tag in market.tags:
@@ -107,7 +107,7 @@ async def _write_page(db: AsyncDatabase, markets: list[Market], synced_at: datet
 
 
 async def sync_markets(
-    db: AsyncDatabase,
+    db: Database,
     gamma: GammaClient,
     settings: Settings,
     *,

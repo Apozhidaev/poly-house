@@ -8,14 +8,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 import structlog
-from pymongo.asynchronous.database import AsyncDatabase
 
 from poly_house.api.data import DataClient
 from poly_house.api.gamma import GammaClient
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.api.rate_limiter import RateLimiter
 from poly_house.config import Settings
-from poly_house.db import create_client, ensure_indexes
+from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.markets import sync_markets
 from poly_house.sync.trades import sync_trades
 
@@ -33,7 +32,7 @@ class MarketSyncOptions:
 
 async def _run(
     settings: Settings,
-    run_once: Callable[[AsyncDatabase, RateLimitedClient], RunOnce],
+    run_once: Callable[[Database, RateLimitedClient], RunOnce],
     *,
     watch: bool,
 ) -> None:
@@ -79,7 +78,7 @@ async def _watch_loop(once: RunOnce, settings: Settings) -> None:
 async def run_sync_markets(
     settings: Settings, options: MarketSyncOptions, *, watch: bool = False
 ) -> None:
-    def make_once(db: AsyncDatabase, http: RateLimitedClient) -> RunOnce:
+    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
         gamma = GammaClient(http, settings.gamma_base_url)
 
         async def once(stop: asyncio.Event | None) -> None:
@@ -105,7 +104,7 @@ async def run_sync_markets(
 
 
 async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
-    def make_once(db: AsyncDatabase, http: RateLimitedClient) -> RunOnce:
+    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
         data = DataClient(http, settings.data_base_url)
 
         async def once(stop: asyncio.Event | None) -> None:

@@ -6,17 +6,17 @@ from typing import Any
 
 import structlog
 from pymongo import UpdateOne
-from pymongo.asynchronous.database import AsyncDatabase
 
 from poly_house.api.data import DataClient
 from poly_house.config import Settings
+from poly_house.db import Database
 from poly_house.models import Trade, User
 from poly_house.sync.sync_state import get_trades_watermark, set_trades_watermark
 
 logger = structlog.get_logger()
 
 
-async def _get_market_watermark(db: AsyncDatabase, condition_id: str) -> int | None:
+async def _get_market_watermark(db: Database, condition_id: str) -> int | None:
     doc = await db.trades.find_one(
         {"condition_id": condition_id},
         sort=[("timestamp", -1)],
@@ -49,7 +49,7 @@ async def _fetch_new_trades(
     return [t for page in reversed(pages) for t in reversed(page)]
 
 
-async def _write_trades(db: AsyncDatabase, raw_trades: list[dict[str, Any]]) -> int:
+async def _write_trades(db: Database, raw_trades: list[dict[str, Any]]) -> int:
     """Пишем users, затем трейды (трейды двигают watermark — последними)."""
     users: dict[str, User] = {}
     trade_docs: list[dict[str, Any]] = []
@@ -69,7 +69,7 @@ async def _write_trades(db: AsyncDatabase, raw_trades: list[dict[str, Any]]) -> 
 
 
 async def _select_markets(
-    db: AsyncDatabase, watermark: datetime | None
+    db: Database, watermark: datetime | None
 ) -> list[dict[str, Any]]:
     """Маркеты с condition_id, синхронизированные позже watermark'а трейдов."""
     query: dict[str, Any] = {"condition_id": {"$ne": None}}
@@ -82,7 +82,7 @@ async def _select_markets(
 
 
 async def sync_trades(
-    db: AsyncDatabase,
+    db: Database,
     data: DataClient,
     settings: Settings,
     *,
