@@ -68,7 +68,6 @@ class Deadline(BaseModel):
 
 
 def deadline_from_group_item_title(raw: dict[str, Any]) -> Deadline | None:
-
     market_id = raw["_id"]
     title = raw.get("group_item_title")
     threshold = raw.get("group_item_threshold")
