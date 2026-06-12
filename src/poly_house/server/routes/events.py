@@ -14,7 +14,7 @@ async def list_events(
     db: Db,
     page: Page,
     closed: bool | None = None,
-    tag_id: str | None = None,
+    tag_id: int | None = None,
     slug: str | None = None,
 ) -> dict[str, Any]:
     query: dict[str, Any] = {}
@@ -29,7 +29,7 @@ async def list_events(
 
 
 @router.get("/{event_id}")
-async def get_event(event_id: str, db: Db) -> dict[str, Any]:
+async def get_event(event_id: int, db: Db) -> dict[str, Any]:
     doc = await db.events.find_one({"_id": event_id})
     if doc is None:
         raise HTTPException(status_code=404, detail="Event not found")

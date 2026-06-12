@@ -19,7 +19,7 @@ async def list_tags(db: Db, page: Page, slug: str | None = None) -> dict[str, An
 
 
 @router.get("/{tag_id}")
-async def get_tag(tag_id: str, db: Db) -> dict[str, Any]:
+async def get_tag(tag_id: int, db: Db) -> dict[str, Any]:
     doc = await db.tags.find_one({"_id": tag_id})
     if doc is None:
         raise HTTPException(status_code=404, detail="Tag not found")

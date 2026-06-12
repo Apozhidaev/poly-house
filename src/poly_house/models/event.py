@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
-from poly_house.models.tag import Tag
+from poly_house.models.tag import Tag, parse_id
 
 
 class Event(BaseModel):
@@ -19,7 +19,12 @@ class Event(BaseModel):
         extra="ignore", alias_generator=to_camel, populate_by_name=True
     )
 
-    id: str
+    id: int
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _parse_id(cls, v: Any) -> int:
+        return parse_id(v)
     slug: str | None = None
     title: str | None = None
     description: str | None = None
@@ -47,6 +52,10 @@ class Event(BaseModel):
         doc = self.model_dump(exclude={"tags", "series", "id"})
         tags = self.tags or fallback_tags
         doc["tag_ids"] = [t.id for t in tags]
-        doc["series_ids"] = [s["id"] for s in self.series if isinstance(s, dict) and s.get("id")]
+        doc["series_ids"] = [
+            parse_id(s["id"])
+            for s in self.series
+            if isinstance(s, dict) and s.get("id") is not None
+        ]
         doc["synced_at"] = synced_at
         return doc

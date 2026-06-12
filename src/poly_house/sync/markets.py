@@ -27,7 +27,7 @@ async def _fetch_pages(
     stop: asyncio.Event | None,
 ) -> tuple[list[list[Market]], str | None]:
     """Качаем страницы по убыванию updatedAt, пока не дойдём до watermark."""
-    excluded = {str(t) for t in exclude_tag_ids}
+    excluded = set(exclude_tag_ids)
     pages: list[list[Market]] = []
     max_updated_at: str | None = None
     watermark_dt = parse_iso(watermark)
@@ -76,7 +76,7 @@ async def _fetch_pages(
 
 async def _write_page(db: Database, markets: list[Market], synced_at: datetime) -> None:
     """Пишем страницу: tags → events → markets."""
-    tag_ops: dict[str, ReplaceOne[Doc]] = {}
+    tag_ops: dict[int, ReplaceOne[Doc]] = {}
     event_ops: list[UpdateOne] = []
     market_ops: list[ReplaceOne[Doc]] = []
 

@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
 from poly_house.models.event import Event
-from poly_house.models.tag import Tag
+from poly_house.models.tag import Tag, parse_id
 
 
 class Market(BaseModel):
@@ -21,7 +21,12 @@ class Market(BaseModel):
         extra="ignore", alias_generator=to_camel, populate_by_name=True
     )
 
-    id: str
+    id: int
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _parse_id(cls, v: Any) -> int:
+        return parse_id(v)
     question: str | None = None
     condition_id: str | None = None
     slug: str | None = None
@@ -80,7 +85,7 @@ class Market(BaseModel):
         return v if v is not None else []
 
     @property
-    def event_id(self) -> str | None:
+    def event_id(self) -> int | None:
         return self.events[0].id if self.events else None
 
     def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:

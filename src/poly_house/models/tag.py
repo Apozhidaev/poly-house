@@ -2,13 +2,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+
+def parse_id(v: Any) -> int:
+    return v if isinstance(v, int) else int(v)
 
 
 class Tag(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    id: str
+    id: int
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _parse_id(cls, v: Any) -> int:
+        return parse_id(v)
     label: str | None = None
     slug: str | None = None
 

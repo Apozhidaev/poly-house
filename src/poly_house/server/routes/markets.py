@@ -14,8 +14,8 @@ async def list_markets(
     db: Db,
     page: Page,
     closed: bool | None = None,
-    event_id: str | None = None,
-    tag_id: str | None = None,
+    event_id: int | None = None,
+    tag_id: int | None = None,
     slug: str | None = None,
     condition_id: str | None = None,
 ) -> dict[str, Any]:
@@ -35,7 +35,7 @@ async def list_markets(
 
 
 @router.get("/{market_id}")
-async def get_market(market_id: str, db: Db) -> dict[str, Any]:
+async def get_market(market_id: int, db: Db) -> dict[str, Any]:
     doc = await db.markets.find_one({"_id": market_id})
     if doc is None:
         raise HTTPException(status_code=404, detail="Market not found")
