@@ -48,6 +48,7 @@ async def list_markets(
     db: Db,
     page: Page,
     closed: bool | None = None,
+    neg_risk: bool | None = None,
     event_id: int | None = None,
     tag_ids: list[int] | None = None,
     slug: str | None = None,
@@ -56,6 +57,8 @@ async def list_markets(
     query: dict[str, Any] = {}
     if closed is not None:
         query["closed"] = closed
+    if neg_risk is not None:
+        query["neg_risk"] = neg_risk
     if event_id:
         query["event_id"] = event_id
     if tag_ids:
