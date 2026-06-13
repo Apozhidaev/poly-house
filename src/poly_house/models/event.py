@@ -30,7 +30,7 @@ class Event(BaseModel):
     description: str | None = None
     closed: bool | None = None
     active: bool | None = None
-    neg_risk: bool | None = None
+    neg_risk: bool = False
     start_date: str | None = None
     end_date: str | None = None
     closed_time: str | None = None
@@ -41,6 +41,11 @@ class Event(BaseModel):
     open_interest: float | None = None
     tags: list[Tag] = []
     series: list[dict[str, Any]] = []
+
+    @field_validator("neg_risk", mode="before")
+    @classmethod
+    def _null_neg_risk_to_false(cls, v: Any) -> bool:
+        return False if v is None else v
 
     @field_validator("tags", "series", mode="before")
     @classmethod

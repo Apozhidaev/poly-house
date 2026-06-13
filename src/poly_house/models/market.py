@@ -39,7 +39,7 @@ class Market(BaseModel):
     closed: bool | None = None
     active: bool | None = None
     accepting_orders: bool | None = None
-    neg_risk: bool | None = None
+    neg_risk: bool = False
     enable_order_book: bool | None = None
     has_reviewed_dates: bool | None = None
     clear_book_on_start: bool | None = None
@@ -62,6 +62,11 @@ class Market(BaseModel):
     order_min_size: float | None = None
     tags: list[Tag] = []
     events: list[Event] = []
+
+    @field_validator("neg_risk", mode="before")
+    @classmethod
+    def _null_neg_risk_to_false(cls, v: Any) -> bool:
+        return False if v is None else v
 
     @field_validator("outcomes", "clob_token_ids", mode="before")
     @classmethod
