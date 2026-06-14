@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     # пропускать маркеты, у которых outcomes != ["Yes", "No"]
     markets_yes_no_only: bool = False
 
+    # оставлять только маркеты с neg_risk == значению (null/absent в API = false)
+    markets_neg_risk: bool | None = None
+
     # размеры страниц API
     markets_page_limit: int = 100
     trades_page_limit: int = 1000  # максимум Data API
