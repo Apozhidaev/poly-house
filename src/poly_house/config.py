@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # исключить маркеты с этими тегами (фильтруем на нашей стороне, в API параметра нет)
     markets_exclude_tag_ids: list[int] = []
 
+    # пропускать маркеты, у которых outcomes != ["Yes", "No"]
+    markets_yes_no_only: bool = False
+
     # размеры страниц API
     markets_page_limit: int = 100
     trades_page_limit: int = 1000  # максимум Data API

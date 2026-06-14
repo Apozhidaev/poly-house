@@ -23,6 +23,7 @@ async def _fetch_pages(
     max_pages: int | None,
     tag_ids: list[int],
     exclude_tag_ids: list[int],
+    yes_no_only: bool,
     closed_only: bool,
     stop: asyncio.Event | None,
 ) -> tuple[list[list[Market]], str | None]:
@@ -56,6 +57,8 @@ async def _fetch_pages(
             ):
                 max_updated_at = m.updated_at
         kept = [m for m in fresh if not excluded & {t.id for t in m.tags}]
+        if yes_no_only:
+            kept = [m for m in kept if m.outcomes == ["Yes", "No"]]
         pages.append(kept)
         logger.info(
             "markets_page_fetched",
@@ -127,6 +130,7 @@ async def sync_markets(
         max_pages=max_pages,
         tag_ids=settings.markets_tag_ids,
         exclude_tag_ids=settings.markets_exclude_tag_ids,
+        yes_no_only=settings.markets_yes_no_only,
         closed_only=closed_only,
         stop=stop,
     )

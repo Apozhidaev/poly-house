@@ -38,7 +38,7 @@ async def _fetch_new_trades(
         if not raw:
             break
         fresh = [
-            t for t in raw if watermark is None or t["timestamp"] > watermark
+            t for t in raw if watermark is None or t["timestamp"] > watermark # тут мы можем потерять новый трейд, если timestamp == watermark (пока что не критично)
         ]
         pages.append(fresh)
         if len(fresh) < len(raw):
