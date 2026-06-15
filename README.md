@@ -59,10 +59,11 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /markets/{id}` | — |
 | `GET /tags` | `slug` |
 | `GET /tags/{id}` | — |
-| `GET /trades` | `condition_id`, `user`, `side`, `from`, `to` |
+| `GET /trades` | `condition_id`, `outcome_index`, `user`, `side`, `from`, `to` |
 | `GET /trades/take-prices` | `condition_id`, `outcome_index`, `side` |
 | `GET /trades/min-max-prices` | `condition_id`, `outcome_index`, `side` |
 | `GET /trades/stop-prices` | `condition_id`, `outcome_index`, `side` |
+| `GET /trades/to-outcome` | `target_outcome_index` (default 0), `condition_id`, `user`, `side`, `from`, `to` |
 
 Все списки пагинируются через `limit` (default 50, max 500) и `offset`.
 
