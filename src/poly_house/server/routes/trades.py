@@ -153,6 +153,7 @@ async def list_trades(
     db: Db,
     page: Page,
     condition_id: str | None = None,
+    outcome_index: int | None = None,
     user: str | None = None,
     side: str | None = None,
     from_ts: Annotated[int | None, Query(alias="from")] = None,
@@ -161,6 +162,8 @@ async def list_trades(
     query: dict[str, Any] = {}
     if condition_id:
         query["condition_id"] = condition_id
+    if outcome_index is not None:
+        query["outcome_index"] = outcome_index
     if user:
         query["proxy_wallet"] = user
     if side:
