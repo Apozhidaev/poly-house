@@ -74,8 +74,10 @@ def _aggregate_stop_prices(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {
                 "price": price,
                 "count": count,
-                "min_price": min_mean,
-                "max_price": max_mean,
+                "min_mean": min_mean,
+                "max_mean": max_mean,
+                "min_price": min(item["min_price"] for item in group),
+                "max_price": max(item["max_price"] for item in group),
             }
         )
     return result
