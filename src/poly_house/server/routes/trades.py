@@ -9,6 +9,23 @@ from poly_house.server.deps import Db, Page
 router = APIRouter(prefix="/trades", tags=["trades"])
 
 
+def _suffix_min_max_prices(
+    rows: list[dict[str, Any]],
+) -> list[tuple[float | None, float | None]]:
+    suffix_min: list[float | None] = [None] * len(rows)
+    suffix_max: list[float | None] = [None] * len(rows)
+    running_min: float | None = None
+    running_max: float | None = None
+    for i in range(len(rows) - 1, -1, -1):
+        suffix_min[i] = running_min
+        suffix_max[i] = running_max
+        price = rows[i].get("price")
+        if price is not None:
+            running_min = price if running_min is None else min(running_min, price)
+            running_max = price if running_max is None else max(running_max, price)
+    return list(zip(suffix_min, suffix_max, strict=True))
+
+
 @router.get("/take-prices")
 async def trade_prices_by_user(
     db: Db,
@@ -36,6 +53,36 @@ async def trade_prices_by_user(
     cursor = await db.trades.aggregate(pipeline)
     rows = await cursor.to_list(length=None)
     items = [price for row in rows for price in row["prices"]]
+    return {"items": items}
+
+
+@router.get("/min-max-prices")
+async def min_max_prices(
+    db: Db,
+    condition_id: str,
+    outcome_index: int,
+    side: str,
+) -> dict[str, Any]:
+    """Цена каждого трейда и min/max цен последующих (те же фильтры, все пользователи)."""
+    cursor = db.trades.find(
+        {
+            "condition_id": condition_id,
+            "outcome_index": outcome_index,
+            "side": side.upper(),
+        },
+        {"timestamp": 1, "price": 1, "_id": 0},
+    ).sort("timestamp", 1)
+    rows = await cursor.to_list(length=None)
+    suffixes = _suffix_min_max_prices(rows)
+    items = [
+        {
+            "timestamp": row["timestamp"],
+            "price": row.get("price"),
+            "min_price": min_price,
+            "max_price": max_price,
+        }
+        for row, (min_price, max_price) in zip(rows, suffixes, strict=True)
+    ]
     return {"items": items}
 
 
