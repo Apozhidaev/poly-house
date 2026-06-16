@@ -26,34 +26,6 @@ def _suffix_min_max_prices(
     return list(zip(suffix_min, suffix_max, strict=True))
 
 
-async def _min_max_price_items(
-    db: Db,
-    *,
-    condition_id: str,
-    outcome_index: int,
-    side: str,
-) -> list[dict[str, Any]]:
-    cursor = db.trades.find(
-        {
-            "condition_id": condition_id,
-            "outcome_index": outcome_index,
-            "side": side.upper(),
-        },
-        {"timestamp": 1, "price": 1, "_id": 0},
-    ).sort("timestamp", 1)
-    rows = await cursor.to_list(length=None)
-    suffixes = _suffix_min_max_prices(rows)
-    return [
-        {
-            "timestamp": row["timestamp"],
-            "price": row.get("price"),
-            "min_price": min_price,
-            "max_price": max_price,
-        }
-        for row, (min_price, max_price) in zip(rows, suffixes, strict=True)
-    ]
-
-
 def _aggregate_stop_prices(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: dict[float, list[dict[str, Any]]] = {}
     for item in items:
@@ -157,6 +129,44 @@ def _mid_prices(
     ]
 
 
+def _mid_suffix_by_timestamp(
+    rows: list[dict[str, Any]], *, outcome_index: int
+) -> dict[int, tuple[float | None, float | None]]:
+    mids = _mid_prices(rows, target_outcome_index=outcome_index)
+    suffixes = _suffix_min_max_prices(mids)
+    return {
+        row["timestamp"]: (min_price, max_price)
+        for row, (min_price, max_price) in zip(mids, suffixes, strict=True)
+    }
+
+
+def _stop_price_items(
+    rows: list[dict[str, Any]], *, outcome_index: int, side: str
+) -> list[dict[str, Any]]:
+    mid_suffix = _mid_suffix_by_timestamp(rows, outcome_index=outcome_index)
+    side_upper = side.upper()
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        if row.get("outcome_index") != outcome_index or row.get("side") != side_upper:
+            continue
+        price = row.get("price")
+        if price is None:
+            continue
+        suffix = mid_suffix.get(row["timestamp"])
+        if suffix is None:
+            continue
+        min_price, max_price = suffix
+        items.append(
+            {
+                "timestamp": row["timestamp"],
+                "price": price,
+                "min_price": min_price,
+                "max_price": max_price,
+            }
+        )
+    return items
+
+
 @router.get("/take-prices")
 async def trade_prices_by_user(
     db: Db,
@@ -194,13 +204,13 @@ async def stop_prices(
     outcome_index: int,
     side: str,
 ) -> dict[str, Any]:
-    """Средние min/max по округлённой цене входа."""
-    items = await _min_max_price_items(
-        db,
-        condition_id=condition_id,
-        outcome_index=outcome_index,
-        side=side,
-    )
+    """Min/max будущих mid-цен; точки входа — по outcome_index + side."""
+    cursor = db.trades.find(
+        {"condition_id": condition_id},
+        {"timestamp": 1, "price": 1, "side": 1, "outcome_index": 1, "_id": 0},
+    ).sort("timestamp", 1)
+    rows = await cursor.to_list(length=None)
+    items = _stop_price_items(rows, outcome_index=outcome_index, side=side)
     return {"items": _aggregate_stop_prices(items)}
 
 
