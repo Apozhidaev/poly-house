@@ -215,14 +215,16 @@ async def stop_prices(
 
 
 @router.get("/mid-prices")
-async def mid_prices(db: Db, condition_id: str) -> dict[str, Any]:
-    """Mid price по нормализованным к outcome 0 трейдам: (current + prev opposite side) / 2."""
+async def mid_prices(
+    db: Db, condition_id: str, outcome_index: int = 0
+) -> dict[str, Any]:
+    """Mid price по трейдам, нормализованным к outcome_index: (current + prev opposite side) / 2."""
     cursor = db.trades.find(
         {"condition_id": condition_id},
         {"timestamp": 1, "price": 1, "side": 1, "outcome_index": 1, "_id": 0},
     ).sort("timestamp", 1)
     rows = await cursor.to_list(length=None)
-    return {"items": _mid_prices(rows)}
+    return {"items": _mid_prices(rows, target_outcome_index=outcome_index)}
 
 
 @router.get("/to-outcome")
