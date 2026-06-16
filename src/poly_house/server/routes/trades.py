@@ -129,6 +129,31 @@ def _normalize_trade_to_outcome(
     return result
 
 
+def _mid_prices(
+    rows: list[dict[str, Any]], *, target_outcome_index: int = 0
+) -> list[dict[str, Any]]:
+    normalized = [_normalize_trade_to_outcome(row, target_outcome_index) for row in rows]
+    items: list[dict[str, Any]] = []
+    last_buy: float | None = None
+    last_sell: float | None = None
+    for trade in normalized:
+        price = trade.get("price")
+        if price is None:
+            continue
+        side = trade.get("side")
+        if side == "BUY":
+            prev_opposite = last_sell
+            last_buy = price
+        elif side == "SELL":
+            prev_opposite = last_buy
+            last_sell = price
+        else:
+            raise HTTPException(status_code=500, detail=f"unexpected trade side: {side!r}")
+        mid = (price + prev_opposite) / 2 if prev_opposite is not None else price
+        items.append({"timestamp": trade["timestamp"], "price": mid})
+    return items
+
+
 @router.get("/take-prices")
 async def trade_prices_by_user(
     db: Db,
@@ -192,6 +217,17 @@ async def stop_prices(
         side=side,
     )
     return {"items": _aggregate_stop_prices(items)}
+
+
+@router.get("/mid-prices")
+async def mid_prices(db: Db, condition_id: str) -> dict[str, Any]:
+    """Mid price по нормализованным к outcome 0 трейдам: (current + prev opposite side) / 2."""
+    cursor = db.trades.find(
+        {"condition_id": condition_id},
+        {"timestamp": 1, "price": 1, "side": 1, "outcome_index": 1, "_id": 0},
+    ).sort("timestamp", 1)
+    rows = await cursor.to_list(length=None)
+    return {"items": _mid_prices(rows)}
 
 
 @router.get("/to-outcome")
