@@ -133,7 +133,7 @@ def _mid_prices(
     rows: list[dict[str, Any]], *, target_outcome_index: int = 0
 ) -> list[dict[str, Any]]:
     normalized = [_normalize_trade_to_outcome(row, target_outcome_index) for row in rows]
-    items: list[dict[str, Any]] = []
+    by_timestamp: dict[int, float] = {}
     last_buy: float | None = None
     last_sell: float | None = None
     for trade in normalized:
@@ -150,8 +150,11 @@ def _mid_prices(
         else:
             raise HTTPException(status_code=500, detail=f"unexpected trade side: {side!r}")
         mid = (price + prev_opposite) / 2 if prev_opposite is not None else price
-        items.append({"timestamp": trade["timestamp"], "price": mid})
-    return items
+        by_timestamp[trade["timestamp"]] = mid
+    return [
+        {"timestamp": timestamp, "price": price}
+        for timestamp, price in sorted(by_timestamp.items())
+    ]
 
 
 @router.get("/take-prices")
