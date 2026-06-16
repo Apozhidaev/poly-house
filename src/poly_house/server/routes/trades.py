@@ -187,24 +187,6 @@ async def trade_prices_by_user(
     return {"items": items}
 
 
-@router.get("/min-max-prices")
-async def min_max_prices(
-    db: Db,
-    condition_id: str,
-    outcome_index: int,
-    side: str,
-) -> dict[str, Any]:
-    """Цена каждого трейда и min/max цен последующих (те же фильтры, все пользователи)."""
-    return {
-        "items": await _min_max_price_items(
-            db,
-            condition_id=condition_id,
-            outcome_index=outcome_index,
-            side=side,
-        )
-    }
-
-
 @router.get("/stop-prices")
 async def stop_prices(
     db: Db,
