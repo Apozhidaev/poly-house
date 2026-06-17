@@ -43,11 +43,8 @@ async def _run(
     db = client[settings.mongo_db]
     await ensure_indexes(db)
 
-    rate_limiter = RateLimiter(
-        interval=settings.rate_limit_interval, count=settings.rate_limit_count
-    )
     try:
-        async with RateLimitedClient(rate_limiter) as http:
+        async with RateLimitedClient() as http:
             once = run_once(db, http)
             if watch:
                 await _watch_loop(once, settings)

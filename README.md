@@ -24,6 +24,7 @@ cp .env.example .env  # при необходимости поправить н�
 ```bash
 # маркеты + события + теги
 uv run poly-house sync-market
+uv run poly-house sync-market --skip-open
 
 # трейды + пользователи (для маркетов, обновлённых после прошлого прогона)
 uv run poly-house sync-trade

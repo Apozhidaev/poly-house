@@ -15,8 +15,7 @@ logger = structlog.get_logger()
 class RateLimitedClient:
     """Async HTTP client with rate limiting (semaphore) and retry with exponential backoff."""
 
-    def __init__(self, rate_limiter: RateLimiter) -> None:
-        self._rate_limiter = rate_limiter
+    def __init__(self) -> None:
         self._max_retries = 3
         self._backoff_base = 2
         self._client = httpx.AsyncClient(timeout=30)
@@ -34,12 +33,15 @@ class RateLimitedClient:
         self,
         url: str,
         params: Mapping[str, Any] | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> Any:
         last_exc: Exception | None = None
 
         for attempt in range(1, self._max_retries + 1):
             try:
-                await self._rate_limiter.acquire()
+
+                if rate_limiter is not None:
+                    await rate_limiter.acquire()
                 resp = await self._client.get(url, params=params)
                 resp.raise_for_status()
                 return resp.json()
@@ -64,10 +66,11 @@ class RateLimitedClient:
         self,
         url: str,
         params: Mapping[str, Any] | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> Any | None:
         """Like get(), but returns None on any failure instead of raising."""
         try:
-            return await self.get(url, params=params)
+            return await self.get(url, params=params, rate_limiter=rate_limiter)
         except RuntimeError:
             return None
 
@@ -75,9 +78,11 @@ class RateLimitedClient:
         self,
         url: str,
         params: Mapping[str, Any] | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> Any | None:
         """Один запрос без retry."""
-        await self._rate_limiter.acquire()
+        if rate_limiter is not None:
+            await rate_limiter.acquire()
         resp = await self._client.get(url, params=params)
         resp.raise_for_status()
         return resp.json()
@@ -86,9 +91,10 @@ class RateLimitedClient:
         self,
         url: str,
         params: Mapping[str, Any] | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> Any | None:
         """Like get_once(), but returns None on any failure instead of raising."""
         try:
-            return await self.get_once(url, params=params)
+            return await self.get_once(url, params=params, rate_limiter=rate_limiter)
         except RuntimeError:
             return None

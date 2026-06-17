@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from poly_house.api.rate_limited_client import RateLimitedClient
+from poly_house.api.rate_limiter import RateLimiter
+
+rate_limiter = RateLimiter(interval=1, count=5)
 
 
 class ClobClient:
@@ -15,5 +18,6 @@ class ClobClient:
         result = await self._http.get_once_or_none(
             f"{self._base_url}/book",
             params={"token_id": token_id},
+            rate_limiter=rate_limiter,
         )
         return result if isinstance(result, dict) else None

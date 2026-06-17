@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from poly_house.api.rate_limited_client import RateLimitedClient
+from poly_house.api.rate_limiter import RateLimiter
+
+rate_limiter = RateLimiter(interval=1, count=5)
 
 
 class GammaClient:
@@ -31,7 +34,9 @@ class GammaClient:
             params["closed"] = "true" if closed else "false"
         if cursor:
             params["after_cursor"] = cursor
-        payload = await self._http.get(f"{self._base_url}/markets/keyset", params=params)
+        payload = await self._http.get(
+            f"{self._base_url}/markets/keyset", params=params, rate_limiter=rate_limiter
+        )
         markets = payload.get("markets") or []
         next_cursor = payload.get("next_cursor") or None
         return markets, next_cursor

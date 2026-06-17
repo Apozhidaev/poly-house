@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from poly_house.api.rate_limited_client import RateLimitedClient
+from poly_house.api.rate_limiter import RateLimiter
+
+rate_limiter = RateLimiter(interval=1, count=5)
 
 
 class DataClient:
@@ -20,7 +23,12 @@ class DataClient:
             "limit": limit,
             "offset": offset,
         }
-        return await self._http.get(f"{self._base_url}/trades", params=params) or []
+        return (
+            await self._http.get(
+                f"{self._base_url}/trades", params=params, rate_limiter=rate_limiter
+            )
+            or []
+        )
 
     async def top_holders(
         self, *, condition_id: str, limit: int = 500
@@ -33,4 +41,5 @@ class DataClient:
                 "limit": limit,
                 "offset": 0,
             },
+            rate_limiter=rate_limiter,
         )
