@@ -19,10 +19,6 @@ class Settings(BaseSettings):
     # первый прогон: глубина загрузки маркетов по updatedAt
     updated_in_days: int = 30
 
-    # rate limiter: count запросов за interval секунд
-    rate_limit_interval: float = 1.0
-    rate_limit_count: int = 5
-
     # необязательный фильтр маркетов по тегам (tag_id=1&tag_id=2)
     markets_tag_ids: list[int] = []
 

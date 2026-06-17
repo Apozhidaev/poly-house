@@ -15,9 +15,10 @@ class ClobClient:
 
     async def order_book(self, token_id: str) -> dict[str, Any] | None:
         """GET /book; None если orderbook недоступен (404)."""
-        result = await self._http.get_once_or_none(
+        result = await self._http.get_or_none(
             f"{self._base_url}/book",
             params={"token_id": token_id},
             rate_limiter=rate_limiter,
+            max_attempts=1,
         )
         return result if isinstance(result, dict) else None

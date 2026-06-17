@@ -13,7 +13,6 @@ from poly_house.api.clob import ClobClient
 from poly_house.api.data import DataClient
 from poly_house.api.gamma import GammaClient
 from poly_house.api.rate_limited_client import RateLimitedClient
-from poly_house.api.rate_limiter import RateLimiter
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.markets import sync_markets
