@@ -5,13 +5,13 @@ from typing import Any
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.api.rate_limiter import RateLimiter
 
+BASE_URL = "https://gamma-api.polymarket.com"
 rate_limiter = RateLimiter(interval=1, count=5)
 
 
 class GammaClient:
-    def __init__(self, http: RateLimitedClient, base_url: str) -> None:
+    def __init__(self, http: RateLimitedClient) -> None:
         self._http = http
-        self._base_url = base_url.rstrip("/")
 
     async def markets_page(
         self,
@@ -35,7 +35,7 @@ class GammaClient:
         if cursor:
             params["after_cursor"] = cursor
         payload = await self._http.get(
-            f"{self._base_url}/markets/keyset", params=params, rate_limiter=rate_limiter
+            f"{BASE_URL}/markets/keyset", params=params, rate_limiter=rate_limiter
         )
         markets = payload.get("markets") or []
         next_cursor = payload.get("next_cursor") or None

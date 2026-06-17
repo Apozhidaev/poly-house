@@ -77,7 +77,7 @@ async def run_sync_markets(
     settings: Settings, options: MarketSyncOptions, *, watch: bool = False
 ) -> None:
     def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        gamma = GammaClient(http, settings.gamma_base_url)
+        gamma = GammaClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
@@ -103,7 +103,7 @@ async def run_sync_markets(
 
 async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
     def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        data = DataClient(http, settings.data_base_url)
+        data = DataClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
@@ -122,8 +122,8 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
 
 async def run_sync_snapshots(settings: Settings, *, watch: bool = False) -> None:
     def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        data = DataClient(http, settings.data_base_url)
-        clob = ClobClient(http, settings.clob_base_url)
+        data = DataClient(http)
+        clob = ClobClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()

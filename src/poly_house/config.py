@@ -9,10 +9,6 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db: str = "poly_house"
 
-    gamma_base_url: str = "https://gamma-api.polymarket.com"
-    data_base_url: str = "https://data-api.polymarket.com"
-    clob_base_url: str = "https://clob.polymarket.com"
-
     # watch-режим
     watch_interval: float = 60.0  # секунды между прогонами
 
