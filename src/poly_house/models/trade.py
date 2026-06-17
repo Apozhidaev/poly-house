@@ -16,12 +16,12 @@ class Trade(BaseModel):
     proxy_wallet: str
     condition_id: str
     timestamp: int
-    side: str | None = None
-    size: float | None = None
-    price: float | None = None
-    outcome: str | None = None
-    outcome_index: int | None = None
-    transaction_hash: str | None = None
+    side: str
+    size: float
+    price: float
+    outcome: str
+    outcome_index: int
+    transaction_hash: str
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()

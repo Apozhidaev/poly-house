@@ -28,15 +28,15 @@ class Market(BaseModel):
     def _parse_id(cls, v: Any) -> int:
         return parse_id(v)
     question: str | None = None
-    condition_id: str | None = None
-    slug: str | None = None
+    condition_id: str
+    slug: str
     description: str | None = None
     group_item_title: str | None = None
     group_item_threshold: int | None = None
     outcomes: list[str] = []
     outcome_prices: list[float] = []
     clob_token_ids: list[str] = []
-    closed: bool | None = None
+    closed: bool
     active: bool | None = None
     accepting_orders: bool | None = None
     neg_risk: bool = False

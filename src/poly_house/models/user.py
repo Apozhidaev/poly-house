@@ -13,10 +13,10 @@ class User(BaseModel):
     )
 
     proxy_wallet: str
-    name: str | None = None
-    pseudonym: str | None = None
-    bio: str | None = None
-    profile_image: str | None = None
+    name: str
+    pseudonym: str
+    bio: str
+    profile_image: str
     last_trade_time: datetime
 
     @classmethod
