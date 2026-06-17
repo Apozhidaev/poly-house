@@ -8,7 +8,12 @@ import typer
 import uvicorn
 
 from poly_house.config import Settings
-from poly_house.sync.runner import MarketSyncOptions, run_sync_markets, run_sync_trades
+from poly_house.sync.runner import (
+    MarketSyncOptions,
+    run_sync_markets,
+    run_sync_snapshots,
+    run_sync_trades,
+)
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
 
@@ -45,6 +50,16 @@ def sync_trade(
     _configure_logging()
     settings = Settings()
     asyncio.run(run_sync_trades(settings, watch=watch))
+
+
+@app.command("snapshot")
+def snapshot(
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+) -> None:
+    """Снимки ордербука и top holders для открытых маркетов."""
+    _configure_logging()
+    settings = Settings()
+    asyncio.run(run_sync_snapshots(settings, watch=watch))
 
 
 @app.command()

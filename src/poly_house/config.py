@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     gamma_base_url: str = "https://gamma-api.polymarket.com"
     data_base_url: str = "https://data-api.polymarket.com"
+    clob_base_url: str = "https://clob.polymarket.com"
 
     # watch-режим
     watch_interval: float = 60.0  # секунды между прогонами
@@ -38,6 +39,7 @@ class Settings(BaseSettings):
     markets_page_limit: int = 100
     trades_page_limit: int = 1000  # максимум Data API
     trades_max_offset: int = 3000  # потолок offset в Data API
+    snapshot_holders_limit: int = 500  # max Data API /holders
 
     # REST API
     server_host: str = "127.0.0.1"

@@ -21,3 +21,16 @@ class DataClient:
             "offset": offset,
         }
         return await self._http.get(f"{self._base_url}/trades", params=params) or []
+
+    async def top_holders(
+        self, *, condition_id: str, limit: int = 500
+    ) -> list[dict[str, Any]] | None:
+        """Топ держателей по маркету (single request, no pagination)."""
+        return await self._http.get_or_none(
+            f"{self._base_url}/holders",
+            params={
+                "market": condition_id,
+                "limit": limit,
+                "offset": 0,
+            },
+        )

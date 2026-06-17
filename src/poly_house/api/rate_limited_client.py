@@ -70,3 +70,25 @@ class RateLimitedClient:
             return await self.get(url, params=params)
         except RuntimeError:
             return None
+
+    async def get_once(
+        self,
+        url: str,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any | None:
+        """Один запрос без retry."""
+        await self._rate_limiter.acquire()
+        resp = await self._client.get(url, params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_once_or_none(
+        self,
+        url: str,
+        params: Mapping[str, Any] | None = None,
+    ) -> Any | None:
+        """Like get_once(), but returns None on any failure instead of raising."""
+        try:
+            return await self.get_once(url, params=params)
+        except RuntimeError:
+            return None

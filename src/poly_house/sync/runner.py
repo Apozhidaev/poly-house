@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 import structlog
 
+from poly_house.api.clob import ClobClient
 from poly_house.api.data import DataClient
 from poly_house.api.gamma import GammaClient
 from poly_house.api.rate_limited_client import RateLimitedClient
@@ -16,6 +17,7 @@ from poly_house.api.rate_limiter import RateLimiter
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.markets import sync_markets
+from poly_house.sync.snapshots import sync_snapshots
 from poly_house.sync.trades import sync_trades
 
 logger = structlog.get_logger()
@@ -114,6 +116,28 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
                 "trade_sync_run_complete",
                 trades=n_trades,
                 users=n_users,
+                seconds=round(time.monotonic() - started, 1),
+            )
+
+        return once
+
+    await _run(settings, make_once, watch=watch)
+
+
+async def run_sync_snapshots(settings: Settings, *, watch: bool = False) -> None:
+    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
+        data = DataClient(http, settings.data_base_url)
+        clob = ClobClient(http, settings.clob_base_url)
+
+        async def once(stop: asyncio.Event | None) -> None:
+            started = time.monotonic()
+            written, skipped = await sync_snapshots(
+                db, data, clob, settings, stop=stop
+            )
+            logger.info(
+                "snapshots_sync_run_complete",
+                written=written,
+                skipped=skipped,
                 seconds=round(time.monotonic() - started, 1),
             )
 
