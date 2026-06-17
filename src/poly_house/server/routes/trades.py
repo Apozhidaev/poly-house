@@ -102,9 +102,9 @@ def _normalize_trade_to_outcome(
 
 
 def _mid_prices(
-    rows: list[dict[str, Any]], *, target_outcome_index: int = 0
+    rows: list[dict[str, Any]], *, outcome_index: int = 0
 ) -> list[dict[str, Any]]:
-    normalized = [_normalize_trade_to_outcome(row, target_outcome_index) for row in rows]
+    normalized = [_normalize_trade_to_outcome(row, outcome_index) for row in rows]
     by_timestamp: dict[int, float] = {}
     last_buy: float | None = None
     last_sell: float | None = None
@@ -132,7 +132,7 @@ def _mid_prices(
 def _mid_suffix_by_timestamp(
     rows: list[dict[str, Any]], *, outcome_index: int
 ) -> dict[int, tuple[float | None, float | None]]:
-    mids = _mid_prices(rows, target_outcome_index=outcome_index)
+    mids = _mid_prices(rows, outcome_index=outcome_index)
     suffixes = _suffix_min_max_prices(mids)
     return {
         row["timestamp"]: (min_price, max_price)
@@ -224,7 +224,7 @@ async def mid_prices(
         {"timestamp": 1, "price": 1, "side": 1, "outcome_index": 1, "_id": 0},
     ).sort("timestamp", 1)
     rows = await cursor.to_list(length=None)
-    return {"items": _mid_prices(rows, target_outcome_index=outcome_index)}
+    return {"items": _mid_prices(rows, outcome_index=outcome_index)}
 
 
 @router.get("/to-outcome")
