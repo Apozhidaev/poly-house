@@ -11,10 +11,11 @@ from poly_house.config import Settings
 from poly_house.sync.runner import (
     MarketSyncOptions,
     ProfileSyncOptions,
+    run_sync_holder_profiles,
     run_sync_markets,
-    run_sync_profiles,
     run_sync_snapshots,
     run_sync_trades,
+    run_sync_user_profiles,
 )
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
@@ -64,17 +65,30 @@ def snapshot(
     asyncio.run(run_sync_snapshots(settings, watch=watch))
 
 
-@app.command("sync-profile")
-def sync_profile(
+@app.command("sync-user-profile")
+def sync_user_profile(
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число пользователей (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать одного пользователя по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация профилей пользователей (PNL, volume, positions) → MongoDB."""
+    """Синхронизация профилей пользователей из users → profiles."""
     _configure_logging()
     settings = Settings()
     options = ProfileSyncOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_sync_profiles(settings, options, watch=watch))
+    asyncio.run(run_sync_user_profiles(settings, options, watch=watch))
+
+
+@app.command("sync-holder-profile")
+def sync_holder_profile(
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число holders (для теста).")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать одного holder по proxy_wallet.")] = None,
+) -> None:
+    """Синхронизация профилей holders из holders → profiles."""
+    _configure_logging()
+    settings = Settings()
+    options = ProfileSyncOptions(wallet=wallet, limit=limit)
+    asyncio.run(run_sync_holder_profiles(settings, options, watch=watch))
 
 
 @app.command()

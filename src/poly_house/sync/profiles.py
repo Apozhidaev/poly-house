@@ -130,7 +130,7 @@ async def upsert_profiles_for_wallets(
     return processed
 
 
-async def sync_holder_profiles(
+async def upsert_profiles_for_holders(
     db: Database,
     data: DataClient,
     pnl: PnlClient,
@@ -145,7 +145,7 @@ async def sync_holder_profiles(
     )
 
 
-async def sync_profiles(
+async def sync_user_profiles(
     db: Database,
     data: DataClient,
     pnl: PnlClient,
@@ -166,7 +166,7 @@ async def sync_profiles(
     users = await cursor.to_list(length=None)
 
     logger.info(
-        "profiles_sync_start",
+        "user_profiles_sync_start",
         users=len(users),
         wallet=wallet,
         limit=limit,
@@ -179,7 +179,49 @@ async def sync_profiles(
     )
 
     logger.info(
-        "profiles_sync_done",
+        "user_profiles_sync_done",
+        processed=processed,
+        interrupted=stop is not None and stop.is_set(),
+        seconds=round(time.monotonic() - started, 1),
+    )
+    return processed
+
+
+async def sync_holder_profiles(
+    db: Database,
+    data: DataClient,
+    pnl: PnlClient,
+    _settings: Settings,
+    *,
+    wallet: str | None = None,
+    limit: int | None = None,
+    stop: asyncio.Event | None = None,
+) -> int:
+    """Upsert profiles for holders from MongoDB; returns number of profiles written."""
+    query: dict[str, Any] = {}
+    if wallet is not None:
+        query["_id"] = wallet
+
+    cursor = db.holders.find(query, projection={"_id": 1, "name": 1})
+    if limit is not None:
+        cursor = cursor.limit(limit)
+    holder_docs = await cursor.to_list(length=None)
+
+    logger.info(
+        "holder_profiles_sync_start",
+        holders=len(holder_docs),
+        wallet=wallet,
+        limit=limit,
+    )
+
+    started = time.monotonic()
+    wallets = {doc["_id"]: doc.get("name") or "" for doc in holder_docs}
+    processed = await upsert_profiles_for_wallets(
+        db, data, pnl, wallets, stop=stop
+    )
+
+    logger.info(
+        "holder_profiles_sync_done",
         processed=processed,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
