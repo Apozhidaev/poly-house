@@ -21,6 +21,7 @@ class SnapshotHolder(BaseModel):
     positions_value: float | None = None
     cash_balance: float | None = None
     total_balance: float | None = None
+    tag_win_rate: float | None = None
 
 
 class Snapshot(BaseModel):

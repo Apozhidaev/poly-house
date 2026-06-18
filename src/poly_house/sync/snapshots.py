@@ -29,7 +29,7 @@ OPEN_MARKETS_QUERY = {
     "clob_token_ids.1": {"$exists": True},
     "condition_id": {"$ne": None},
 }
-OPEN_MARKETS_PROJECTION = {"_id": 1, "condition_id": 1, "clob_token_ids": 1}
+OPEN_MARKETS_PROJECTION = {"_id": 1, "condition_id": 1, "clob_token_ids": 1, "tag_ids": 1}
 
 PROFILE_METRIC_FIELDS = (
     "pnl",
@@ -55,14 +55,80 @@ def _book_top_price(levels: list[dict[str, Any]] | None) -> float | None:
     return _book_float(levels[-1].get("price"))
 
 
+def compute_tag_win_rate(
+    wallet: str,
+    tag_ids: list[int],
+    tag_weights: dict[int, float],
+    win_rates: dict[tuple[str, int], float],
+) -> float | None:
+    weighted_sum = 0.0
+    weight_sum = 0.0
+    for tag_id in tag_ids:
+        win_rate = win_rates.get((wallet, tag_id))
+        if win_rate is None:
+            continue
+        weight = tag_weights.get(tag_id, 0.0)
+        if weight == 0.0:
+            continue
+        weighted_sum += win_rate * weight
+        weight_sum += weight
+    if weight_sum == 0.0:
+        return None
+    return weighted_sum / weight_sum
+
+
+async def load_tag_weights(db: Database, tag_ids: list[int]) -> dict[int, float]:
+    if not tag_ids:
+        return {}
+    cursor = db.tags.find(
+        {"_id": {"$in": tag_ids}},
+        projection={"_id": 1, "markets_count": 1},
+    )
+    docs = await cursor.to_list(length=None)
+    weights: dict[int, float] = {}
+    for doc in docs:
+        markets_count = doc.get("markets_count", 0)
+        weights[doc["_id"]] = 1 / markets_count if markets_count > 0 else 0.0
+    return weights
+
+
+async def load_tag_profile_win_rates(
+    db: Database,
+    wallets: list[str],
+    tag_ids: list[int],
+) -> dict[tuple[str, int], float]:
+    if not wallets or not tag_ids:
+        return {}
+    cursor = db.tag_profiles.find(
+        {
+            "proxy_wallet": {"$in": wallets},
+            "tag_id": {"$in": tag_ids},
+        },
+        projection={"proxy_wallet": 1, "tag_id": 1, "win_rate": 1},
+    )
+    docs = await cursor.to_list(length=None)
+    return {
+        (doc["proxy_wallet"], doc["tag_id"]): doc["win_rate"]
+        for doc in docs
+        if doc.get("win_rate") is not None
+    }
+
+
 def parse_top_holders(
     raw: list[dict[str, Any]],
     clob_token_ids: list[str],
     profiles: dict[str, dict[str, float | None]] | None = None,
+    *,
+    market_tag_ids: list[int] | None = None,
+    tag_weights: dict[int, float] | None = None,
+    tag_win_rates: dict[tuple[str, int], float] | None = None,
 ) -> list[list[SnapshotHolder]]:
     token_to_outcome = {token: i for i, token in enumerate(clob_token_ids)}
     result: list[list[SnapshotHolder]] = [[], []]
     profile_map = profiles or {}
+    tag_ids = market_tag_ids or []
+    weights = tag_weights or {}
+    win_rates = tag_win_rates or {}
     for entry in raw:
         outcome_index = token_to_outcome.get(entry["token"])
         if outcome_index is None:
@@ -83,6 +149,9 @@ def parse_top_holders(
                     positions_value=metrics.get("positions_value"),
                     cash_balance=metrics.get("cash_balance"),
                     total_balance=metrics.get("total_balance"),
+                    tag_win_rate=compute_tag_win_rate(
+                        wallet, tag_ids, weights, win_rates
+                    ),
                 )
             )
     return result
@@ -137,6 +206,9 @@ def snapshot_from_book_and_holders(
     *,
     captured_at: datetime,
     profiles: dict[str, dict[str, float | None]] | None = None,
+    market_tag_ids: list[int] | None = None,
+    tag_weights: dict[int, float] | None = None,
+    tag_win_rates: dict[tuple[str, int], float] | None = None,
 ) -> Snapshot:
     last_trade = book.get("last_trade_price")
     return Snapshot(
@@ -149,7 +221,12 @@ def snapshot_from_book_and_holders(
         best_ask=_book_top_price(book.get("asks")),
         last_trade_price=_book_float(last_trade),
         top_holders=parse_top_holders(
-            holders_raw, market["clob_token_ids"], profiles=profiles
+            holders_raw,
+            market["clob_token_ids"],
+            profiles=profiles,
+            market_tag_ids=market_tag_ids,
+            tag_weights=tag_weights,
+            tag_win_rates=tag_win_rates,
         ),
     )
 
@@ -214,8 +291,24 @@ async def sync_snapshots(
                     stop=stop,
                 )
         profiles = await load_profile_metrics(db, list(holders.keys()))
+        market_tag_ids = market.get("tag_ids") or []
+        if market_tag_ids and holders:
+            tag_weights = await load_tag_weights(db, market_tag_ids)
+            tag_win_rates = await load_tag_profile_win_rates(
+                db, list(holders.keys()), market_tag_ids
+            )
+        else:
+            tag_weights = {}
+            tag_win_rates = {}
         snapshot = snapshot_from_book_and_holders(
-            market, book, holders_raw, captured_at=captured_at, profiles=profiles
+            market,
+            book,
+            holders_raw,
+            captured_at=captured_at,
+            profiles=profiles,
+            market_tag_ids=market_tag_ids,
+            tag_weights=tag_weights,
+            tag_win_rates=tag_win_rates,
         )
         await db.snapshots.insert_one(snapshot.to_doc())
         written += 1
