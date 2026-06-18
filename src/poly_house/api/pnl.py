@@ -5,8 +5,7 @@ from typing import Any
 
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.api.rate_limiter import RateLimiter
-from poly_house.models.pnl import PnlTimeSeries
-from poly_house.models.ts import TimeSeriesPoint
+from poly_house.models import PnlTimeSeries, TimeSeriesPoint
 
 BASE_URL = "https://user-pnl-api.polymarket.com"
 rate_limiter = RateLimiter(interval=1, count=5)
@@ -27,7 +26,9 @@ class PnlClient:
             "interval": "all",
             "fidelity": "1d",
         }
-        data = await self._http.get_or_none(url, params=params, rate_limiter=rate_limiter)
+        data = await self._http.get_or_none(
+            url, params=params, rate_limiter=rate_limiter
+        )
 
         if not data or not isinstance(data, list):
             return None
