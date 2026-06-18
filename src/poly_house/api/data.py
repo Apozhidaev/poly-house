@@ -1,13 +1,47 @@
 from __future__ import annotations
 
+import csv
+import io
+import zipfile
+from datetime import datetime
 from typing import Any
 
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.api.rate_limiter import RateLimiter
-from poly_house.models import LeaderboardStats
+from poly_house.models import EquitySnapshot, LeaderboardStats
 
 BASE_URL = "https://data-api.polymarket.com"
 rate_limiter = RateLimiter(interval=1, count=5)
+
+
+def _parse_valuation_time(raw: str) -> datetime:
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+    return datetime.fromisoformat(raw)
+
+
+def parse_equity_csv(text: str) -> list[EquitySnapshot]:
+    reader = csv.DictReader(io.StringIO(text))
+    rows: list[EquitySnapshot] = []
+    for row in reader:
+        rows.append(
+            EquitySnapshot(
+                cash_balance=float(row["cashBalance"]),
+                positions_value=float(row["positionsValue"]),
+                equity=float(row["equity"]),
+                valuation_time=_parse_valuation_time(row["valuationTime"]),
+            )
+        )
+    return rows
+
+
+def parse_equity_zip(data: bytes) -> list[EquitySnapshot] | None:
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        try:
+            text = archive.read("equity.csv").decode()
+        except KeyError:
+            return None
+    return parse_equity_csv(text)
 
 
 class DataClient:
@@ -74,3 +108,18 @@ class DataClient:
             if val is not None:
                 return float(val)
         return None
+
+    async def accounting_equity(
+        self,
+        *,
+        user: str,
+    ) -> list[EquitySnapshot] | None:
+        """GET /v1/accounting/snapshot → rows from equity.csv or None."""
+        data = await self._http.get_bytes_or_none(
+            f"{BASE_URL}/v1/accounting/snapshot",
+            params={"user": user},
+            rate_limiter=rate_limiter,
+        )
+        if data is None:
+            return None
+        return parse_equity_zip(data)

@@ -62,6 +62,40 @@ class RateLimitedClient:
             f"HTTP request failed after {max_attempts} attempts: {url}"
         ) from last_exc
 
+    async def get_bytes(
+        self,
+        url: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        rate_limiter: RateLimiter | None = None,
+        max_attempts: int = 3,
+    ) -> bytes:
+        last_exc: Exception | None = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                if rate_limiter is not None:
+                    await rate_limiter.acquire()
+                resp = await self._client.get(url, params=params)
+                resp.raise_for_status()
+                return resp.content
+            except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+                last_exc = exc
+                wait = self._backoff_base**attempt
+                logger.warning(
+                    "http_request_failed",
+                    url=url,
+                    attempt=attempt,
+                    wait=wait,
+                    error=str(exc),
+                )
+                if attempt < max_attempts:
+                    await asyncio.sleep(wait)
+
+        raise RuntimeError(
+            f"HTTP request failed after {max_attempts} attempts: {url}"
+        ) from last_exc
+
     async def get_or_none(
         self,
         url: str,
@@ -73,6 +107,22 @@ class RateLimitedClient:
         """Like get(), but returns None on any failure instead of raising."""
         try:
             return await self.get(
+                url, params=params, rate_limiter=rate_limiter, max_attempts=max_attempts
+            )
+        except RuntimeError:
+            return None
+
+    async def get_bytes_or_none(
+        self,
+        url: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        rate_limiter: RateLimiter | None = None,
+        max_attempts: int = 3,
+    ) -> bytes | None:
+        """Like get_bytes(), but returns None on any failure instead of raising."""
+        try:
+            return await self.get_bytes(
                 url, params=params, rate_limiter=rate_limiter, max_attempts=max_attempts
             )
         except RuntimeError:
