@@ -14,6 +14,7 @@ class TagProfile(BaseModel):
     volume: float | None = None
     pnl_growth: float | None = None
     pnl_stability: float | None = None
+    win_rate: float | None = None
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()

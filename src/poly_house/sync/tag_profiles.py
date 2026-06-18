@@ -48,6 +48,9 @@ def build_tag_profile(
     pnl = sum(p["realized_pnl"] for p in positions)
     volume = sum(p["total_bought"] for p in positions)
     markets_count = len({p["condition_id"] for p in positions})
+    positions_count = len(positions)
+    win_positions = sum(1 for p in positions if p["realized_pnl"] > 0)
+    win_rate = win_positions / positions_count
 
     points = [
         TimeSeriesPoint(
@@ -68,11 +71,12 @@ def build_tag_profile(
         proxy_wallet=wallet,
         tag_id=tag_id,
         markets_count=markets_count,
-        positions_count=len(positions),
+        positions_count=positions_count,
         pnl=pnl,
         volume=volume,
         pnl_growth=pnl_growth,
         pnl_stability=pnl_stability,
+        win_rate=win_rate,
     )
 
 
