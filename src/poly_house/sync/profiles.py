@@ -153,13 +153,13 @@ async def sync_holder_profiles(
     db: Database,
     data: DataClient,
     pnl: PnlClient,
-    _settings: Settings,
+    settings: Settings,
     *,
     wallet: str | None = None,
     limit: int | None = None,
     stop: asyncio.Event | None = None,
-) -> int:
-    """Upsert profiles for holders from MongoDB; returns number of profiles written."""
+) -> tuple[int, int]:
+    """Upsert profiles and closed positions for holders; returns (profiles, positions)."""
     query: dict[str, Any] = {}
     if wallet is not None:
         query["_id"] = wallet
@@ -181,14 +181,18 @@ async def sync_holder_profiles(
     processed = await upsert_profiles_for_wallets(
         db, data, pnl, wallets, stop=stop
     )
+    positions = await sync_positions_for_wallets(
+        db, data, settings, list(wallets.keys()), stop=stop
+    )
 
     logger.info(
         "holder_profiles_sync_done",
-        processed=processed,
+        profiles=processed,
+        positions=positions,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
     )
-    return processed
+    return processed, positions
 
 
 def win_rate_from_positions(positions: list[dict[str, Any]]) -> float | None:
@@ -299,9 +303,8 @@ async def sync_positions_for_wallets(
     wallets: list[str],
     *,
     stop: asyncio.Event | None = None,
-) -> tuple[int, int]:
-    """Догружает closed positions для списка wallets; returns (holders, positions)."""
-    total_holders = 0
+) -> int:
+    """Догружает closed positions для списка wallets; returns number of positions written."""
     total_positions = 0
     wallets_with_new: list[str] = []
     for proxy_wallet in wallets:
@@ -312,7 +315,6 @@ async def sync_positions_for_wallets(
         if positions:
             total_positions += await _write_positions(db, positions)
             wallets_with_new.append(proxy_wallet)
-        total_holders += 1
         logger.info(
             "holder_positions_synced",
             wallet=proxy_wallet,
@@ -326,46 +328,4 @@ async def sync_positions_for_wallets(
             wallets=len(wallets_with_new),
             profiles=metrics_written,
         )
-    return total_holders, total_positions
-
-
-async def sync_holder_positions(
-    db: Database,
-    data: DataClient,
-    settings: Settings,
-    *,
-    wallet: str | None = None,
-    limit: int | None = None,
-    stop: asyncio.Event | None = None,
-) -> tuple[int, int]:
-    """Догружает closed positions для holders; returns (holders, positions)."""
-    query: dict[str, Any] = {}
-    if wallet is not None:
-        query["_id"] = wallet
-
-    cursor = db.holders.find(query, projection={"_id": 1})
-    if limit is not None:
-        cursor = cursor.limit(limit)
-    holders = await cursor.to_list(length=None)
-
-    logger.info(
-        "holder_positions_sync_start",
-        holders=len(holders),
-        wallet=wallet,
-        limit=limit,
-    )
-
-    started = time.monotonic()
-    wallets = [holder["_id"] for holder in holders]
-    total_holders, total_positions = await sync_positions_for_wallets(
-        db, data, settings, wallets, stop=stop
-    )
-
-    logger.info(
-        "holder_positions_sync_done",
-        holders=total_holders,
-        positions=total_positions,
-        interrupted=stop is not None and stop.is_set(),
-        seconds=round(time.monotonic() - started, 1),
-    )
-    return total_holders, total_positions
+    return total_positions
