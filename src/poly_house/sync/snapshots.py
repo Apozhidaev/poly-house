@@ -98,6 +98,31 @@ def compute_tag_stable_growth(
     )
 
 
+def compute_tag_roi(
+    wallet: str,
+    tag_ids: list[int],
+    tag_weights: dict[int, float],
+    pnls: dict[tuple[str, int], float],
+    volumes: dict[tuple[str, int], float],
+) -> float | None:
+    weighted_pnl = 0.0
+    weighted_volume = 0.0
+    for tag_id in tag_ids:
+        key = (wallet, tag_id)
+        pnl = pnls.get(key)
+        volume = volumes.get(key)
+        if pnl is None or volume is None:
+            continue
+        weight = tag_weights.get(tag_id, 0.0)
+        if weight == 0.0:
+            continue
+        weighted_pnl += pnl * weight
+        weighted_volume += volume * weight
+    if weighted_volume == 0.0:
+        return None
+    return weighted_pnl / weighted_volume
+
+
 async def load_tag_weights(db: Database, tag_ids: list[int]) -> dict[int, float]:
     if not tag_ids:
         return {}
@@ -117,9 +142,14 @@ async def load_tag_profile_tag_metrics(
     db: Database,
     wallets: list[str],
     tag_ids: list[int],
-) -> tuple[dict[tuple[str, int], float], dict[tuple[str, int], float]]:
+) -> tuple[
+    dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
+]:
     if not wallets or not tag_ids:
-        return {}, {}
+        return {}, {}, {}, {}
     cursor = db.tag_profiles.find(
         {
             "proxy_wallet": {"$in": wallets},
@@ -129,6 +159,8 @@ async def load_tag_profile_tag_metrics(
             "proxy_wallet": 1,
             "tag_id": 1,
             "win_rate": 1,
+            "pnl": 1,
+            "volume": 1,
             "pnl_growth": 1,
             "pnl_stability": 1,
         },
@@ -136,18 +168,26 @@ async def load_tag_profile_tag_metrics(
     docs = await cursor.to_list(length=None)
     win_rates: dict[tuple[str, int], float] = {}
     stable_growths: dict[tuple[str, int], float] = {}
+    pnls: dict[tuple[str, int], float] = {}
+    volumes: dict[tuple[str, int], float] = {}
     for doc in docs:
         key = (doc["proxy_wallet"], doc["tag_id"])
         win_rate = doc.get("win_rate")
         if win_rate is not None:
             win_rates[key] = win_rate
+        pnl = doc.get("pnl")
+        if pnl is not None:
+            pnls[key] = pnl
+        volume = doc.get("volume")
+        if volume is not None:
+            volumes[key] = volume
         stable_growth = TagProfile.stable_growth_value(
             doc.get("pnl_growth"),
             doc.get("pnl_stability"),
         )
         if stable_growth is not None:
             stable_growths[key] = stable_growth
-    return win_rates, stable_growths
+    return win_rates, stable_growths, pnls, volumes
 
 
 def parse_top_holders(
@@ -159,6 +199,8 @@ def parse_top_holders(
     tag_weights: dict[int, float] | None = None,
     tag_win_rates: dict[tuple[str, int], float] | None = None,
     tag_stable_growths: dict[tuple[str, int], float] | None = None,
+    tag_pnls: dict[tuple[str, int], float] | None = None,
+    tag_volumes: dict[tuple[str, int], float] | None = None,
 ) -> list[list[SnapshotHolder]]:
     token_to_outcome = {token: i for i, token in enumerate(clob_token_ids)}
     result: list[list[SnapshotHolder]] = [[], []]
@@ -167,6 +209,8 @@ def parse_top_holders(
     weights = tag_weights or {}
     win_rates = tag_win_rates or {}
     stable_growths = tag_stable_growths or {}
+    pnls = tag_pnls or {}
+    tag_volume_map = tag_volumes or {}
     for entry in raw:
         outcome_index = token_to_outcome.get(entry["token"])
         if outcome_index is None:
@@ -192,6 +236,9 @@ def parse_top_holders(
                     ),
                     tag_stable_growth=compute_tag_stable_growth(
                         wallet, tag_ids, weights, stable_growths
+                    ),
+                    tag_roi=compute_tag_roi(
+                        wallet, tag_ids, weights, pnls, tag_volume_map
                     ),
                 )
             )
@@ -251,6 +298,8 @@ def snapshot_from_book_and_holders(
     tag_weights: dict[int, float] | None = None,
     tag_win_rates: dict[tuple[str, int], float] | None = None,
     tag_stable_growths: dict[tuple[str, int], float] | None = None,
+    tag_pnls: dict[tuple[str, int], float] | None = None,
+    tag_volumes: dict[tuple[str, int], float] | None = None,
 ) -> Snapshot:
     last_trade = book.get("last_trade_price")
     return Snapshot(
@@ -270,6 +319,8 @@ def snapshot_from_book_and_holders(
             tag_weights=tag_weights,
             tag_win_rates=tag_win_rates,
             tag_stable_growths=tag_stable_growths,
+            tag_pnls=tag_pnls,
+            tag_volumes=tag_volumes,
         ),
     )
 
@@ -337,13 +388,17 @@ async def sync_snapshots(
         market_tag_ids = market.get("tag_ids") or []
         if market_tag_ids and holders:
             tag_weights = await load_tag_weights(db, market_tag_ids)
-            tag_win_rates, tag_stable_growths = await load_tag_profile_tag_metrics(
-                db, list(holders.keys()), market_tag_ids
+            tag_win_rates, tag_stable_growths, tag_pnls, tag_volumes = (
+                await load_tag_profile_tag_metrics(
+                    db, list(holders.keys()), market_tag_ids
+                )
             )
         else:
             tag_weights = {}
             tag_win_rates = {}
             tag_stable_growths = {}
+            tag_pnls = {}
+            tag_volumes = {}
         snapshot = snapshot_from_book_and_holders(
             market,
             book,
@@ -354,6 +409,8 @@ async def sync_snapshots(
             tag_weights=tag_weights,
             tag_win_rates=tag_win_rates,
             tag_stable_growths=tag_stable_growths,
+            tag_pnls=tag_pnls,
+            tag_volumes=tag_volumes,
         )
         await db.snapshots.insert_one(snapshot.to_doc())
         written += 1

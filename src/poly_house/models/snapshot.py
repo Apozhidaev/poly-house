@@ -23,6 +23,7 @@ class SnapshotHolder(BaseModel):
     total_balance: float | None = None
     tag_win_rate: float | None = None
     tag_stable_growth: float | None = None
+    tag_roi: float | None = None
 
 
 class Snapshot(BaseModel):
