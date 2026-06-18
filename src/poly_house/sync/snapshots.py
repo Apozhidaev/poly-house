@@ -231,8 +231,10 @@ def parse_top_holders(
                     proxy_wallet=wallet,
                     amount=holder["amount"],
                     roi=compute_roi(metrics.get("pnl"), metrics.get("volume")),
-                    pnl_growth=metrics.get("pnl_growth"),
-                    pnl_stability=metrics.get("pnl_stability"),
+                    stable_growth=TagProfile.stable_growth_value(
+                        metrics.get("pnl_growth"),
+                        metrics.get("pnl_stability"),
+                    ),
                     positions_value=metrics.get("positions_value"),
                     cash_balance=metrics.get("cash_balance"),
                     total_balance=metrics.get("total_balance"),
