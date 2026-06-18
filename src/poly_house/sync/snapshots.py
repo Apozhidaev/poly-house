@@ -62,6 +62,15 @@ def compute_roi(pnl: float | None, volume: float | None) -> float | None:
     return pnl / volume
 
 
+def compute_stable_growth(
+        pnl_growth: float | None,
+        pnl_stability: float | None,
+    ) -> float | None:
+        if pnl_growth is None or pnl_stability is None:
+            return None
+        return pnl_stability if pnl_growth > 0 else 0.0
+
+
 def compute_tag_weighted_average(
     wallet: str,
     tag_ids: list[int],
@@ -187,7 +196,7 @@ async def load_tag_profile_tag_metrics(
         volume = doc.get("volume")
         if volume is not None:
             volumes[key] = volume
-        stable_growth = TagProfile.stable_growth_value(
+        stable_growth = compute_stable_growth(
             doc.get("pnl_growth"),
             doc.get("pnl_stability"),
         )
@@ -231,7 +240,7 @@ def parse_top_holders(
                     proxy_wallet=wallet,
                     amount=holder["amount"],
                     roi=compute_roi(metrics.get("pnl"), metrics.get("volume")),
-                    stable_growth=TagProfile.stable_growth_value(
+                    stable_growth=compute_stable_growth(
                         metrics.get("pnl_growth"),
                         metrics.get("pnl_stability"),
                     ),
