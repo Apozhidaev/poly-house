@@ -5,12 +5,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
+from pymongo import UpdateOne
 
 from poly_house.api.clob import ClobClient
 from poly_house.api.data import DataClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.models import Snapshot, SnapshotHolder
+from poly_house.models import Holder, Snapshot, SnapshotHolder
 
 logger = structlog.get_logger()
 
@@ -55,6 +56,32 @@ def parse_top_holders(
                 )
             )
     return result
+
+
+def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, Holder]:
+    holders: dict[str, Holder] = {}
+    for entry in holders_raw:
+        for raw in entry.get("holders") or []:
+            if not raw.get("displayUsernamePublic"):
+                continue
+            holder = Holder.from_payload(raw)
+            holders[holder.proxy_wallet] = holder
+    return holders
+
+
+async def upsert_holders(db: Database, holders: dict[str, Holder]) -> None:
+    if not holders:
+        return
+    await db.holders.bulk_write(
+        [
+            UpdateOne(
+                {"_id": h.proxy_wallet},
+                {"$set": h.to_doc()},
+                upsert=True,
+            )
+            for h in holders.values()
+        ]
+    )
 
 
 def snapshot_from_book_and_holders(
@@ -108,6 +135,8 @@ async def sync_snapshots(
         if holders_raw is None:
             skipped += 1
             continue
+        holders = collect_holders(holders_raw)
+        await upsert_holders(db, holders)
         snapshot = snapshot_from_book_and_holders(
             market, book, holders_raw, captured_at=captured_at
         )
