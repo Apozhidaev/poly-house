@@ -27,6 +27,17 @@ OPEN_MARKETS_QUERY = {
 }
 OPEN_MARKETS_PROJECTION = {"_id": 1, "condition_id": 1, "clob_token_ids": 1}
 
+PROFILE_METRIC_FIELDS = (
+    "pnl",
+    "volume",
+    "pnl_slope",
+    "pnl_r_squared",
+    "positions_value",
+    "cash_balance",
+    "total_balance",
+)
+PROFILE_METRICS_PROJECTION = {"_id": 1, **{f: 1 for f in PROFILE_METRIC_FIELDS}}
+
 
 def _book_float(value: Any) -> float | None:
     if value is None or value == "":
@@ -41,10 +52,13 @@ def _book_top_price(levels: list[dict[str, Any]] | None) -> float | None:
 
 
 def parse_top_holders(
-    raw: list[dict[str, Any]], clob_token_ids: list[str]
+    raw: list[dict[str, Any]],
+    clob_token_ids: list[str],
+    profiles: dict[str, dict[str, float | None]] | None = None,
 ) -> list[list[SnapshotHolder]]:
     token_to_outcome = {token: i for i, token in enumerate(clob_token_ids)}
     result: list[list[SnapshotHolder]] = [[], []]
+    profile_map = profiles or {}
     for entry in raw:
         outcome_index = token_to_outcome.get(entry["token"])
         if outcome_index is None:
@@ -52,13 +66,38 @@ def parse_top_holders(
         for holder in entry["holders"]:
             if not holder.get("displayUsernamePublic"):
                 continue
+            wallet = holder["proxyWallet"]
+            metrics = profile_map.get(wallet, {})
             result[outcome_index].append(
                 SnapshotHolder(
-                    proxy_wallet=holder["proxyWallet"],
+                    proxy_wallet=wallet,
                     amount=holder["amount"],
+                    pnl=metrics.get("pnl"),
+                    volume=metrics.get("volume"),
+                    pnl_slope=metrics.get("pnl_slope"),
+                    pnl_r_squared=metrics.get("pnl_r_squared"),
+                    positions_value=metrics.get("positions_value"),
+                    cash_balance=metrics.get("cash_balance"),
+                    total_balance=metrics.get("total_balance"),
                 )
             )
     return result
+
+
+async def load_profile_metrics(
+    db: Database, wallets: list[str]
+) -> dict[str, dict[str, float | None]]:
+    if not wallets:
+        return {}
+    cursor = db.profiles.find(
+        {"_id": {"$in": wallets}},
+        projection=PROFILE_METRICS_PROJECTION,
+    )
+    docs = await cursor.to_list(length=None)
+    return {
+        doc["_id"]: {field: doc.get(field) for field in PROFILE_METRIC_FIELDS}
+        for doc in docs
+    }
 
 
 def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, Holder]:
@@ -93,6 +132,7 @@ def snapshot_from_book_and_holders(
     holders_raw: list[dict[str, Any]],
     *,
     captured_at: datetime,
+    profiles: dict[str, dict[str, float | None]] | None = None,
 ) -> Snapshot:
     last_trade = book.get("last_trade_price")
     return Snapshot(
@@ -104,7 +144,9 @@ def snapshot_from_book_and_holders(
         best_bid=_book_top_price(book.get("bids")),
         best_ask=_book_top_price(book.get("asks")),
         last_trade_price=_book_float(last_trade),
-        top_holders=parse_top_holders(holders_raw, market["clob_token_ids"]),
+        top_holders=parse_top_holders(
+            holders_raw, market["clob_token_ids"], profiles=profiles
+        ),
     )
 
 
@@ -159,8 +201,9 @@ async def sync_snapshots(
             await sync_positions_for_wallets(
                 db, data, settings, list(new_holders.keys()), stop=stop
             )
+        profiles = await load_profile_metrics(db, list(holders.keys()))
         snapshot = snapshot_from_book_and_holders(
-            market, book, holders_raw, captured_at=captured_at
+            market, book, holders_raw, captured_at=captured_at, profiles=profiles
         )
         await db.snapshots.insert_one(snapshot.to_doc())
         written += 1

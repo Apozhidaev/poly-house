@@ -14,6 +14,13 @@ class SnapshotHolder(BaseModel):
 
     proxy_wallet: str
     amount: float
+    pnl: float | None = None
+    volume: float | None = None
+    pnl_slope: float | None = None
+    pnl_r_squared: float | None = None
+    positions_value: float | None = None
+    cash_balance: float | None = None
+    total_balance: float | None = None
 
 
 class Snapshot(BaseModel):
