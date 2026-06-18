@@ -164,11 +164,12 @@ async def run_sync_snapshots(settings: Settings, *, watch: bool = False) -> None
     def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
         data = DataClient(http)
         clob = ClobClient(http)
+        pnl = PnlClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             written, skipped = await sync_snapshots(
-                db, data, clob, settings, stop=stop
+                db, data, clob, pnl, settings, stop=stop
             )
             logger.info(
                 "snapshots_sync_run_complete",

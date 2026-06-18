@@ -11,7 +11,13 @@ from poly_house.api.data import DataClient
 from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.models import EquitySnapshot, LeaderboardStats, Profile, PnlTimeSeries
+from poly_house.models import (
+    EquitySnapshot,
+    Holder,
+    LeaderboardStats,
+    Profile,
+    PnlTimeSeries,
+)
 from poly_house.utils.math import fit_trend_by_days
 
 logger = structlog.get_logger()
@@ -81,6 +87,64 @@ async def _flush_writes(db: Database, ops: list[UpdateOne]) -> None:
         await db.profiles.bulk_write(ops)
 
 
+async def upsert_profiles_for_wallets(
+    db: Database,
+    data: DataClient,
+    pnl: PnlClient,
+    wallets: dict[str, str],
+    *,
+    stop: asyncio.Event | None = None,
+) -> int:
+    """Upsert profiles for wallet->name mapping; returns number of profiles written."""
+    ops: list[UpdateOne] = []
+    processed = 0
+
+    for wallet, name in wallets.items():
+        if stop is not None and stop.is_set():
+            break
+
+        stats, equity, ts = await _fetch_user_metrics(data, pnl, wallet)
+        profile = build_profile(
+            wallet=wallet,
+            name=name,
+            stats=stats,
+            equity=equity,
+            ts=ts,
+        )
+        ops.append(
+            UpdateOne(
+                {"_id": wallet},
+                {"$set": profile.to_doc()},
+                upsert=True,
+            )
+        )
+        processed += 1
+
+        if len(ops) >= BULK_SIZE:
+            await _flush_writes(db, ops)
+            ops.clear()
+
+        logger.info("profile_synced", wallet=wallet)
+
+    await _flush_writes(db, ops)
+    return processed
+
+
+async def sync_holder_profiles(
+    db: Database,
+    data: DataClient,
+    pnl: PnlClient,
+    holders: dict[str, Holder],
+    *,
+    stop: asyncio.Event | None = None,
+) -> int:
+    """Upsert profiles for holders using name from Holder."""
+    wallets = {h.proxy_wallet: h.name for h in holders.values()}
+    return await upsert_profiles_for_wallets(
+        db, data, pnl, wallets, stop=stop
+    )
+
+
 async def sync_profiles(
     db: Database,
     data: DataClient,
@@ -109,40 +173,10 @@ async def sync_profiles(
     )
 
     started = time.monotonic()
-    ops: list[UpdateOne] = []
-    processed = 0
-
-    for user in users:
-        if stop is not None and stop.is_set():
-            break
-
-        user_wallet = user["_id"]
-        name = user.get("name") or ""
-
-        stats, equity, ts = await _fetch_user_metrics(data, pnl, user_wallet)
-        profile = build_profile(
-            wallet=user_wallet,
-            name=name,
-            stats=stats,
-            equity=equity,
-            ts=ts,
-        )
-        ops.append(
-            UpdateOne(
-                {"_id": user_wallet},
-                {"$set": profile.to_doc()},
-                upsert=True,
-            )
-        )
-        processed += 1
-
-        if len(ops) >= BULK_SIZE:
-            await _flush_writes(db, ops)
-            ops.clear()
-
-        logger.info("profile_synced", wallet=user_wallet)
-
-    await _flush_writes(db, ops)
+    wallets = {user["_id"]: user.get("name") or "" for user in users}
+    processed = await upsert_profiles_for_wallets(
+        db, data, pnl, wallets, stop=stop
+    )
 
     logger.info(
         "profiles_sync_done",

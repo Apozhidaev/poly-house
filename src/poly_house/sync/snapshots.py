@@ -9,9 +9,11 @@ from pymongo import UpdateOne
 
 from poly_house.api.clob import ClobClient
 from poly_house.api.data import DataClient
+from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Holder, Snapshot, SnapshotHolder
+from poly_house.sync.profiles import sync_holder_profiles
 
 logger = structlog.get_logger()
 
@@ -109,6 +111,7 @@ async def sync_snapshots(
     db: Database,
     data: DataClient,
     clob: ClobClient,
+    pnl: PnlClient,
     settings: Settings,
     *,
     stop: asyncio.Event | None = None,
@@ -136,7 +139,22 @@ async def sync_snapshots(
             skipped += 1
             continue
         holders = collect_holders(holders_raw)
+        if holders:
+            existing = await db.holders.find(
+                {"_id": {"$in": list(holders.keys())}},
+                projection={"_id": 1},
+            ).to_list(length=None)
+            existing_ids = {doc["_id"] for doc in existing}
+            new_holders = {
+                wallet: holder
+                for wallet, holder in holders.items()
+                if wallet not in existing_ids
+            }
+        else:
+            new_holders = {}
         await upsert_holders(db, holders)
+        if new_holders:
+            await sync_holder_profiles(db, data, pnl, new_holders, stop=stop)
         snapshot = snapshot_from_book_and_holders(
             market, book, holders_raw, captured_at=captured_at
         )
