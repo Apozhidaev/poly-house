@@ -69,10 +69,10 @@ def snapshot(
 @app.command("sync-profile")
 def sync_profile(
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
-    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число holders (для теста).")] = None,
-    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать одного holder по proxy_wallet.")] = None,
+    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число profiles (для теста).")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один profile по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация profiles и closed positions holders → profiles, positions."""
+    """Синхронизация устаревших profiles и closed positions → profiles, positions."""
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)

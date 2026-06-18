@@ -45,6 +45,28 @@ async def _wallets_needing_profile_sync(
     return [wallet for wallet in wallets if wallet not in recent]
 
 
+async def _load_profiles_needing_sync(
+    db: Database,
+    *,
+    wallet: str | None = None,
+    limit: int | None = None,
+) -> dict[str, str]:
+    cutoff = datetime.now(UTC) - PROFILE_SYNC_MIN_INTERVAL
+    query: dict[str, Any] = {
+        "$or": [
+            {"synced_at": {"$lt": cutoff}},
+            {"synced_at": {"$exists": False}},
+        ]
+    }
+    if wallet is not None:
+        query = {"_id": wallet, **query}
+    cursor = db.profiles.find(query, projection={"_id": 1, "name": 1})
+    if limit is not None:
+        cursor = cursor.limit(limit)
+    docs = await cursor.to_list(length=None)
+    return {doc["_id"]: doc.get("name") or "" for doc in docs}
+
+
 def build_profile(
     *,
     wallet: str,
@@ -173,7 +195,7 @@ async def upsert_profiles_for_holders(
     )
 
 
-async def sync_holder_profiles(
+async def sync_profiles(
     db: Database,
     data: DataClient,
     pnl: PnlClient,
@@ -183,41 +205,30 @@ async def sync_holder_profiles(
     limit: int | None = None,
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
-    """Upsert profiles and closed positions for holders; returns (profiles, positions)."""
-    query: dict[str, Any] = {}
-    if wallet is not None:
-        query["_id"] = wallet
-
-    cursor = db.holders.find(query, projection={"_id": 1, "name": 1})
-    if limit is not None:
-        cursor = cursor.limit(limit)
-    holder_docs = await cursor.to_list(length=None)
+    """Sync stale profiles (synced_at older than 24h); returns (profiles, positions)."""
+    wallets_to_sync = await _load_profiles_needing_sync(
+        db, wallet=wallet, limit=limit
+    )
 
     logger.info(
-        "holder_profiles_sync_start",
-        holders=len(holder_docs),
+        "profile_sync_start",
+        profiles=len(wallets_to_sync),
         wallet=wallet,
         limit=limit,
     )
 
     started = time.monotonic()
-    wallets = {doc["_id"]: doc.get("name") or "" for doc in holder_docs}
-    to_sync = await _wallets_needing_profile_sync(db, list(wallets.keys()))
-    skipped = len(wallets) - len(to_sync)
-    if skipped:
-        logger.info("holder_profiles_sync_skipped", skipped=skipped)
-    if not to_sync:
+    if not wallets_to_sync:
         logger.info(
-            "holder_profiles_sync_done",
+            "profile_sync_done",
             profiles=0,
             positions=0,
-            skipped=skipped,
             interrupted=stop is not None and stop.is_set(),
             seconds=round(time.monotonic() - started, 1),
         )
         return 0, 0
 
-    wallets_to_sync = {wallet: wallets[wallet] for wallet in to_sync}
+    to_sync = list(wallets_to_sync.keys())
     positions = await sync_positions_for_wallets(
         db, data, settings, to_sync, stop=stop
     )
@@ -226,10 +237,9 @@ async def sync_holder_profiles(
     )
 
     logger.info(
-        "holder_profiles_sync_done",
+        "profile_sync_done",
         profiles=processed,
         positions=positions,
-        skipped=skipped,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
     )

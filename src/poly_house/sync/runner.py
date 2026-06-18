@@ -17,7 +17,7 @@ from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.markets import sync_markets
-from poly_house.sync.profiles import sync_holder_profiles
+from poly_house.sync.profiles import sync_profiles
 from poly_house.sync.snapshots import sync_snapshots
 from poly_house.sync.tag_profiles import update_tag_profiles
 from poly_house.sync.trades import sync_trades
@@ -162,7 +162,7 @@ async def run_sync_profile(
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            profiles, positions = await sync_holder_profiles(
+            profiles, positions = await sync_profiles(
                 db,
                 data,
                 pnl,
