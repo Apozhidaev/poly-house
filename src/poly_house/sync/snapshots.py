@@ -56,6 +56,12 @@ def _book_top_price(levels: list[dict[str, Any]] | None) -> float | None:
     return _book_float(levels[-1].get("price"))
 
 
+def compute_roi(pnl: float | None, volume: float | None) -> float | None:
+    if pnl is None or volume is None or volume == 0.0:
+        return None
+    return pnl / volume
+
+
 def compute_tag_weighted_average(
     wallet: str,
     tag_ids: list[int],
@@ -224,8 +230,7 @@ def parse_top_holders(
                 SnapshotHolder(
                     proxy_wallet=wallet,
                     amount=holder["amount"],
-                    pnl=metrics.get("pnl"),
-                    volume=metrics.get("volume"),
+                    roi=compute_roi(metrics.get("pnl"), metrics.get("volume")),
                     pnl_growth=metrics.get("pnl_growth"),
                     pnl_stability=metrics.get("pnl_stability"),
                     positions_value=metrics.get("positions_value"),
