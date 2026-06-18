@@ -59,7 +59,7 @@ class DataClient:
             return LeaderboardStats(pnl=entry.get("pnl", 0), vol=entry.get("vol", 0))
         return None
 
-    async def fetch_positions_value(
+    async def positions_value(
         self,
         *,
         user: str,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from math import sqrt
 
+from poly_house.models import PnlTimeSeries
 from poly_house.models.ts import TimeSeriesPoint
 
 
