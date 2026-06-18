@@ -370,7 +370,7 @@ async def sync_snapshots(
                     db, data, settings, to_sync, stop=stop
                 )
                 await upsert_profiles_for_wallets(
-                    db, data, pnl, holders, stop=stop
+                    db, data, pnl, holders_to_sync, stop=stop
                 )
             if condition_tags:
                 await update_tag_profiles_for_wallets(

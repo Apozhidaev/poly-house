@@ -147,7 +147,7 @@ async def update_tag_profiles(
     limit: int | None = None,
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
-    """Upsert tag profiles for holders; returns (holders, tag_profiles written)."""
+    """Upsert tag profiles for profiles; returns (wallets, tag_profiles written)."""
     condition_tags = await load_condition_tag_ids(db)
     if not condition_tags:
         logger.info("tag_profiles_sync_skip", reason="no_markets_with_tags")
@@ -157,14 +157,14 @@ async def update_tag_profiles(
     if wallet is not None:
         query["_id"] = wallet
 
-    cursor = db.holders.find(query, projection={"_id": 1})
+    cursor = db.profiles.find(query, projection={"_id": 1})
     if limit is not None:
         cursor = cursor.limit(limit)
     holders = await cursor.to_list(length=None)
 
     logger.info(
         "tag_profiles_sync_start",
-        holders=len(holders),
+        profiles=len(holders),
         wallet=wallet,
         limit=limit,
     )
