@@ -32,16 +32,11 @@ def build_profile(
 
     if ts and ts.data:
         _, slope, r2 = fit_trend_by_days(ts.data, use_cumulative=False)
-        values = [p.value for p in ts.data]
         pnl_slope = slope
         pnl_r_squared = r2
-        pnl_min_value = min(values)
-        pnl_max_value = max(values)
     else:
         pnl_slope = None
         pnl_r_squared = None
-        pnl_min_value = None
-        pnl_max_value = None
 
     return Profile(
         proxy_wallet=wallet,
@@ -50,8 +45,6 @@ def build_profile(
         volume=volume,
         pnl_slope=pnl_slope,
         pnl_r_squared=pnl_r_squared,
-        pnl_min_value=pnl_min_value,
-        pnl_max_value=pnl_max_value,
         positions_value=positions_value,
     )
 
