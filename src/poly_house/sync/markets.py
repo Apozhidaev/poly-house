@@ -18,21 +18,22 @@ logger = structlog.get_logger()
 async def _refresh_tag_markets_counts(db: Database) -> None:
     """Set `markets_count` on each tag doc from cached `markets` (distinct markets per tag)."""
     pipeline = [
-        {"$match": {"tags": {"$exists": True, "$ne": []}}},
-        {"$unwind": "$tags"},
-        {"$group": {"_id": "$tags", "markets_count": {"$sum": 1}}},
+        {"$match": {"tag_ids.0": {"$exists": True}}},
+        {"$unwind": "$tag_ids"},
+        {"$group": {"_id": "$tag_ids", "markets_count": {"$sum": 1}}},
     ]
-    cursor = db.markets.aggregate(pipeline)
-    counts: dict[int, int] = {doc["_id"]: doc["markets_count"] async for doc in cursor}
+    cursor = await db.markets.aggregate(pipeline)
+    docs = await cursor.to_list(length=None)
+    counts: dict[int, int] = {doc["_id"]: doc["markets_count"] for doc in docs}
 
-    tag_docs = await db.tags.find({}, projection={"id": 1}).to_list(length=None)
+    tag_docs = await db.tags.find({}, projection={"_id": 1}).to_list(length=None)
     if not tag_docs:
         return
 
     ops = [
         UpdateOne(
-            {"id": doc["id"]},
-            {"$set": {"markets_count": counts.get(doc["id"], 0)}},
+            {"_id": doc["_id"]},
+            {"$set": {"markets_count": counts.get(doc["_id"], 0)}},
         )
         for doc in tag_docs
     ]
