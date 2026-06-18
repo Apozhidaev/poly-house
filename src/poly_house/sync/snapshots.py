@@ -13,6 +13,7 @@ from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Holder, Snapshot, SnapshotHolder
+from poly_house.sync.positions import sync_positions_for_wallets
 from poly_house.sync.profiles import upsert_profiles_for_holders
 
 logger = structlog.get_logger()
@@ -155,6 +156,9 @@ async def sync_snapshots(
         await upsert_holders(db, holders)
         if new_holders:
             await upsert_profiles_for_holders(db, data, pnl, new_holders, stop=stop)
+            await sync_positions_for_wallets(
+                db, data, settings, list(new_holders.keys()), stop=stop
+            )
         snapshot = snapshot_from_book_and_holders(
             market, book, holders_raw, captured_at=captured_at
         )

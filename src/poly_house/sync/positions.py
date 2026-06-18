@@ -60,6 +60,34 @@ async def _write_positions(db: Database, raw_positions: list[dict[str, Any]]) ->
     return len(docs)
 
 
+async def sync_positions_for_wallets(
+    db: Database,
+    data: DataClient,
+    settings: Settings,
+    wallets: list[str],
+    *,
+    stop: asyncio.Event | None = None,
+) -> tuple[int, int]:
+    """Догружает closed positions для списка wallets; returns (holders, positions)."""
+    total_holders = 0
+    total_positions = 0
+    for proxy_wallet in wallets:
+        if stop is not None and stop.is_set():
+            break
+        watermark = await _get_holder_watermark(db, proxy_wallet)
+        positions = await _fetch_new_positions(data, settings, proxy_wallet, watermark)
+        if positions:
+            total_positions += await _write_positions(db, positions)
+        total_holders += 1
+        logger.info(
+            "holder_positions_synced",
+            wallet=proxy_wallet,
+            positions=len(positions),
+            watermark=watermark,
+        )
+    return total_holders, total_positions
+
+
 async def sync_holder_positions(
     db: Database,
     data: DataClient,
@@ -87,26 +115,10 @@ async def sync_holder_positions(
     )
 
     started = time.monotonic()
-    total_holders = 0
-    total_positions = 0
-
-    for holder in holders:
-        if stop is not None and stop.is_set():
-            break
-
-        proxy_wallet = holder["_id"]
-        watermark = await _get_holder_watermark(db, proxy_wallet)
-        positions = await _fetch_new_positions(data, settings, proxy_wallet, watermark)
-        if positions:
-            n = await _write_positions(db, positions)
-            total_positions += n
-        total_holders += 1
-        logger.info(
-            "holder_positions_synced",
-            wallet=proxy_wallet,
-            positions=len(positions),
-            watermark=watermark,
-        )
+    wallets = [holder["_id"] for holder in holders]
+    total_holders, total_positions = await sync_positions_for_wallets(
+        db, data, settings, wallets, stop=stop
+    )
 
     logger.info(
         "holder_positions_sync_done",
