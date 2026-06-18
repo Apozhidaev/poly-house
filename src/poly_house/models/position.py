@@ -27,13 +27,13 @@ class Position(BaseModel):
 
     @computed_field
     @property
-    def price_delta(self) -> float:
-        return self.realized_pnl / self.total_bought # price_delta = close_price - open_price
+    def realized_delta(self) -> float:
+        return self.realized_pnl / self.total_bought # realized_delta = close_price - open_price
 
     @computed_field
     @property
     def exit_price(self) -> float:
-        return self.avg_price + self.price_delta
+        return self.avg_price + self.realized_delta
 
     
 
