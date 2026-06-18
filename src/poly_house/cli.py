@@ -18,7 +18,6 @@ from poly_house.sync.runner import (
     run_sync_markets,
     run_sync_snapshots,
     run_sync_trades,
-    run_sync_user_profiles,
     run_update_tag_profiles,
 )
 
@@ -67,19 +66,6 @@ def snapshot(
     _configure_logging()
     settings = Settings()
     asyncio.run(run_sync_snapshots(settings, watch=watch))
-
-
-@app.command("sync-user-profile")
-def sync_user_profile(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
-    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число пользователей (для теста).")] = None,
-    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать одного пользователя по proxy_wallet.")] = None,
-) -> None:
-    """Синхронизация профилей пользователей из users → profiles."""
-    _configure_logging()
-    settings = Settings()
-    options = ProfileSyncOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_sync_user_profiles(settings, options, watch=watch))
 
 
 @app.command("sync-holder-profile")

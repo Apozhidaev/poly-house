@@ -145,48 +145,6 @@ async def upsert_profiles_for_holders(
     )
 
 
-async def sync_user_profiles(
-    db: Database,
-    data: DataClient,
-    pnl: PnlClient,
-    _settings: Settings,
-    *,
-    wallet: str | None = None,
-    limit: int | None = None,
-    stop: asyncio.Event | None = None,
-) -> int:
-    """Upsert profiles for users from MongoDB; returns number of profiles written."""
-    query: dict[str, Any] = {}
-    if wallet is not None:
-        query["_id"] = wallet
-
-    cursor = db.users.find(query, projection={"_id": 1, "name": 1})
-    if limit is not None:
-        cursor = cursor.limit(limit)
-    users = await cursor.to_list(length=None)
-
-    logger.info(
-        "user_profiles_sync_start",
-        users=len(users),
-        wallet=wallet,
-        limit=limit,
-    )
-
-    started = time.monotonic()
-    wallets = {user["_id"]: user.get("name") or "" for user in users}
-    processed = await upsert_profiles_for_wallets(
-        db, data, pnl, wallets, stop=stop
-    )
-
-    logger.info(
-        "user_profiles_sync_done",
-        processed=processed,
-        interrupted=stop is not None and stop.is_set(),
-        seconds=round(time.monotonic() - started, 1),
-    )
-    return processed
-
-
 async def sync_holder_profiles(
     db: Database,
     data: DataClient,
