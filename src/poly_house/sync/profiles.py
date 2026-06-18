@@ -34,6 +34,7 @@ def build_profile(
     stats: LeaderboardStats | None,
     equity: EquitySnapshot | None,
     ts: PnlTimeSeries | None,
+    win_rate: float | None = None,
 ) -> Profile:
     pnl = stats.pnl if stats else None
     volume = stats.vol if stats else None
@@ -65,6 +66,7 @@ def build_profile(
         positions_value=positions_value,
         cash_balance=cash_balance,
         total_balance=total_balance,
+        win_rate=win_rate,
     )
 
 
@@ -100,6 +102,7 @@ async def upsert_profiles_for_wallets(
     """Upsert profiles for wallet->name mapping; returns number of profiles written."""
     ops: list[UpdateOne] = []
     processed = 0
+    win_rates = await load_win_rates(db, list(wallets.keys()))
 
     for wallet, name in wallets.items():
         if stop is not None and stop.is_set():
@@ -112,13 +115,12 @@ async def upsert_profiles_for_wallets(
             stats=stats,
             equity=equity,
             ts=ts,
+            win_rate=win_rates.get(wallet),
         )
-        doc = profile.to_doc()
-        doc.pop("win_rate", None)
         ops.append(
             UpdateOne(
                 {"_id": wallet},
-                {"$set": doc},
+                {"$set": profile.to_doc()},
                 upsert=True,
             )
         )
