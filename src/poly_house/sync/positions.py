@@ -11,7 +11,7 @@ from pymongo import UpdateOne
 from poly_house.api.data import DataClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.models import Position, PositionMetrics
+from poly_house.models import Position
 
 logger = structlog.get_logger()
 
@@ -50,24 +50,20 @@ async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
     }
 
 
-async def upsert_position_metrics(db: Database, wallets: list[str]) -> int:
+async def upsert_profile_win_rates(db: Database, wallets: list[str]) -> int:
     win_rates = await load_win_rates(db, wallets)
     if not win_rates:
         return 0
     ops = [
         UpdateOne(
             {"_id": wallet},
-            {
-                "$set": PositionMetrics(
-                    proxy_wallet=wallet, win_rate=rate
-                ).to_doc()
-            },
+            {"$set": {"win_rate": rate}},
             upsert=True,
         )
         for wallet, rate in win_rates.items()
     ]
     for i in range(0, len(ops), BULK_SIZE):
-        await db.position_metrics.bulk_write(ops[i : i + BULK_SIZE])
+        await db.profiles.bulk_write(ops[i : i + BULK_SIZE])
     return len(ops)
 
 
@@ -151,11 +147,11 @@ async def sync_positions_for_wallets(
             watermark=watermark,
         )
     if wallets_with_new:
-        metrics_written = await upsert_position_metrics(db, wallets_with_new)
+        metrics_written = await upsert_profile_win_rates(db, wallets_with_new)
         logger.info(
-            "position_metrics_updated",
+            "profile_win_rates_updated",
             wallets=len(wallets_with_new),
-            metrics=metrics_written,
+            profiles=metrics_written,
         )
     return total_holders, total_positions
 

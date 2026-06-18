@@ -111,10 +111,12 @@ async def upsert_profiles_for_wallets(
             equity=equity,
             ts=ts,
         )
+        doc = profile.to_doc()
+        doc.pop("win_rate", None)
         ops.append(
             UpdateOne(
                 {"_id": wallet},
-                {"$set": profile.to_doc()},
+                {"$set": doc},
                 upsert=True,
             )
         )

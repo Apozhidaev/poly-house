@@ -17,6 +17,7 @@ class Profile(BaseModel):
     positions_value: float | None = None
     cash_balance: float | None = None
     total_balance: float | None = None
+    win_rate: float | None = None
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump(exclude={"proxy_wallet"})
