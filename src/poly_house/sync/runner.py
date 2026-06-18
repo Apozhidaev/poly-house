@@ -146,14 +146,14 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
 
 
 @dataclass
-class ProfileSyncOptions:
+class SyncProfileOptions:
     wallet: str | None = None
     limit: int | None = None
 
 
-async def run_sync_holder_profiles(
+async def run_sync_profile(
     settings: Settings,
-    options: ProfileSyncOptions,
+    options: SyncProfileOptions,
     *,
     watch: bool = False,
 ) -> None:
@@ -163,7 +163,7 @@ async def run_sync_holder_profiles(
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            processed = await sync_holder_profiles(
+            profiles = await sync_holder_profiles(
                 db,
                 data,
                 pnl,
@@ -172,34 +172,6 @@ async def run_sync_holder_profiles(
                 limit=options.limit,
                 stop=stop,
             )
-            logger.info(
-                "holder_profile_sync_run_complete",
-                processed=processed,
-                seconds=round(time.monotonic() - started, 1),
-            )
-
-        return once
-
-    await _run(settings, make_once, watch=watch)
-
-
-@dataclass
-class HolderPositionSyncOptions:
-    wallet: str | None = None
-    limit: int | None = None
-
-
-async def run_sync_holder_positions(
-    settings: Settings,
-    options: HolderPositionSyncOptions,
-    *,
-    watch: bool = False,
-) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        data = DataClient(http)
-
-        async def once(stop: asyncio.Event | None) -> None:
-            started = time.monotonic()
             holders, positions = await sync_holder_positions(
                 db,
                 data,
@@ -209,7 +181,8 @@ async def run_sync_holder_positions(
                 stop=stop,
             )
             logger.info(
-                "holder_position_sync_run_complete",
+                "profile_sync_run_complete",
+                profiles=profiles,
                 holders=holders,
                 positions=positions,
                 seconds=round(time.monotonic() - started, 1),
