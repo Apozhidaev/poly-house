@@ -17,8 +17,6 @@ class SnapshotHolder(BaseModel):
     win_rate: float | None = None
     roi: float | None = None
     stable_growth: float | None = None
-    positions_value: float | None = None
-    cash_balance: float | None = None
     total_balance: float | None = None
     tag_win_rate: float | None = None
     tag_stable_growth: float | None = None

@@ -36,8 +36,6 @@ PROFILE_METRIC_FIELDS = (
     "volume",
     "pnl_growth",
     "pnl_stability",
-    "positions_value",
-    "cash_balance",
     "total_balance",
 )
 PROFILE_METRICS_PROJECTION = {"_id": 1, **{f: 1 for f in PROFILE_METRIC_FIELDS}}
@@ -246,8 +244,6 @@ def parse_top_holders(
                         metrics.get("pnl_growth"),
                         metrics.get("pnl_stability"),
                     ),
-                    positions_value=metrics.get("positions_value"),
-                    cash_balance=metrics.get("cash_balance"),
                     total_balance=metrics.get("total_balance"),
                     tag_win_rate=compute_tag_win_rate(
                         wallet, tag_ids, weights, win_rates
