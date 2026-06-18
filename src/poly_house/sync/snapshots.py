@@ -5,18 +5,17 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from pymongo import UpdateOne
 
 from poly_house.api.clob import ClobClient
 from poly_house.api.data import DataClient
 from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.models import Holder, Snapshot, SnapshotHolder
+from poly_house.models import Snapshot, SnapshotHolder
 from poly_house.sync.profiles import (
     _wallets_needing_profile_sync,
     sync_positions_for_wallets,
-    upsert_profiles_for_holders,
+    upsert_profiles_for_wallets,
 )
 from poly_house.sync.tag_profiles import (
     load_condition_tag_ids,
@@ -277,30 +276,14 @@ async def load_profile_metrics(
     }
 
 
-def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, Holder]:
-    holders: dict[str, Holder] = {}
+def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, str]:
+    holders: dict[str, str] = {}
     for entry in holders_raw:
         for raw in entry.get("holders") or []:
             if not raw.get("displayUsernamePublic"):
                 continue
-            holder = Holder.from_payload(raw)
-            holders[holder.proxy_wallet] = holder
+            holders[raw["proxyWallet"]] = raw["name"]
     return holders
-
-
-async def upsert_holders(db: Database, holders: dict[str, Holder]) -> None:
-    if not holders:
-        return
-    await db.holders.bulk_write(
-        [
-            UpdateOne(
-                {"_id": h.proxy_wallet},
-                {"$set": h.to_doc()},
-                upsert=True,
-            )
-            for h in holders.values()
-        ]
-    )
 
 
 def snapshot_from_book_and_holders(
@@ -374,38 +357,25 @@ async def sync_snapshots(
             skipped += 1
             continue
         holders = collect_holders(holders_raw)
+       
         if holders:
-            existing = await db.holders.find(
-                {"_id": {"$in": list(holders.keys())}},
-                projection={"_id": 1},
-            ).to_list(length=None)
-            existing_ids = {doc["_id"] for doc in existing}
-            new_holders = {
-                wallet: holder
-                for wallet, holder in holders.items()
-                if wallet not in existing_ids
-            }
-        else:
-            new_holders = {}
-        await upsert_holders(db, holders)
-        if new_holders:
             to_sync = await _wallets_needing_profile_sync(
-                db, list(new_holders.keys())
+                db, list(holders.keys())
             )
             if to_sync:
                 holders_to_sync = {
-                    wallet: new_holders[wallet] for wallet in to_sync
+                    wallet: holders[wallet] for wallet in to_sync
                 }
                 await sync_positions_for_wallets(
                     db, data, settings, to_sync, stop=stop
                 )
-                await upsert_profiles_for_holders(
-                    db, data, pnl, holders_to_sync, stop=stop
+                await upsert_profiles_for_wallets(
+                    db, data, pnl, holders, stop=stop
                 )
             if condition_tags:
                 await update_tag_profiles_for_wallets(
                     db,
-                    list(new_holders.keys()),
+                    list(holders.keys()),
                     condition_tags,
                     stop=stop,
                 )

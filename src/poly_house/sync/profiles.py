@@ -14,7 +14,6 @@ from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import (
     EquitySnapshot,
-    Holder,
     LeaderboardStats,
     Position,
     Profile,
@@ -178,21 +177,6 @@ async def upsert_profiles_for_wallets(
 
     await _flush_writes(db, ops)
     return processed
-
-
-async def upsert_profiles_for_holders(
-    db: Database,
-    data: DataClient,
-    pnl: PnlClient,
-    holders: dict[str, Holder],
-    *,
-    stop: asyncio.Event | None = None,
-) -> int:
-    """Upsert profiles for holders using name from Holder."""
-    wallets = {h.proxy_wallet: h.name for h in holders.values()}
-    return await upsert_profiles_for_wallets(
-        db, data, pnl, wallets, stop=stop
-    )
 
 
 async def sync_profiles(
