@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     # первый прогон: глубина загрузки маркетов по updatedAt
     updated_in_days: int = 30
 
+    # первый прогон: closed positions за последние N дней
+    positions_closed_in_days: int = 30
+
     # необязательный фильтр маркетов по тегам (tag_id=1&tag_id=2)
     markets_tag_ids: list[int] = []
 

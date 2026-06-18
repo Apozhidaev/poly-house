@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -23,6 +24,11 @@ async def _get_holder_watermark(db: Database, proxy_wallet: str) -> int | None:
     return doc["timestamp"] if doc else None
 
 
+def _first_run_cutoff_timestamp(settings: Settings) -> int:
+    dt = datetime.now(UTC) - timedelta(days=settings.positions_closed_in_days)
+    return int(dt.timestamp())
+
+
 async def _fetch_new_positions(
     data: DataClient,
     settings: Settings,
@@ -30,6 +36,9 @@ async def _fetch_new_positions(
     watermark: int | None,
 ) -> list[dict[str, Any]]:
     """Пагинация /closed-positions (новые первыми) до watermark или max_offset."""
+    min_timestamp = (
+        watermark if watermark is not None else _first_run_cutoff_timestamp(settings) - 1
+    )
     pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.closed_positions_max_offset:
@@ -40,9 +49,7 @@ async def _fetch_new_positions(
         )
         if not raw:
             break
-        fresh = [
-            p for p in raw if watermark is None or p["timestamp"] > watermark
-        ]
+        fresh = [p for p in raw if p["timestamp"] > min_timestamp]
         pages.append(fresh)
         if len(fresh) < len(raw):
             break
