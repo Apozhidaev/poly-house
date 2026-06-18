@@ -39,6 +39,9 @@ uv run poly-house sync-holder-profile
 # closed positions holders → коллекция positions
 uv run poly-house sync-holder-position
 
+# tag profiles holders (positions × market tags) → коллекция tag_profiles
+uv run poly-house update-tag-profile
+
 # бесконечный цикл с интервалом WATCH_INTERVAL из конфига (остановка — Ctrl+C)
 uv run poly-house sync-market --watch
 uv run poly-house sync-trade --watch
@@ -46,6 +49,7 @@ uv run poly-house snapshot --watch
 uv run poly-house sync-user-profile --watch
 uv run poly-house sync-holder-profile --watch
 uv run poly-house sync-holder-position --watch
+uv run poly-house update-tag-profile --watch
 
 # тестовый прогон: 2 страницы маркетов
 uv run poly-house sync-market --max-pages 2
@@ -57,6 +61,8 @@ uv run poly-house sync-holder-profile --limit 10
 uv run poly-house sync-holder-profile --wallet 0x...
 uv run poly-house sync-holder-position --limit 10
 uv run poly-house sync-holder-position --wallet 0x...
+uv run poly-house update-tag-profile --limit 10
+uv run poly-house update-tag-profile --wallet 0x...
 ```
 
 Как это работает:
@@ -68,6 +74,7 @@ uv run poly-house sync-holder-position --wallet 0x...
 - **sync-user-profile**: для каждого пользователя из `users` (или подмножества через `--limit` / `--wallet`) — upsert в `profiles` (`_id` = `proxy_wallet`). Метрики из Polymarket API: leaderboard (`pnl`, `volume`), accounting snapshot `equity.csv` (`positions_value`, `cash_balance`, `total_balance` = `equity`), user-pnl time series (`pnl_growth`, `pnl_stability` через линейную регрессию). Если API не вернул данные — поле пишется как `null`. Нужен предварительный `sync-trade` (коллекция `users`).
 - **sync-holder-profile**: то же для каждого документа из `holders` (имя из `holders.name`). Нужна коллекция `holders` (из `snapshot`).
 - **sync-holder-position**: для каждого holder из `holders` — closed positions из Data API `/closed-positions` (sort `TIMESTAMP DESC`) в коллекцию `positions` (`_id` — MongoDB auto). Первый прогон — только за последние `POSITIONS_CLOSED_IN_DAYS` дней; повторный — только записи с `timestamp` больше max в базе для этого wallet. Нужна коллекция `holders` (из `snapshot`).
+- **update-tag-profile**: для каждого holder из `holders` — позиции из `positions`, у которых `condition_id` есть в `markets`; по `tag_ids` маркета группирует метрики и upsert в `tag_profiles` (уникальность `(proxy_wallet, tag_id)`, `_id` — MongoDB ObjectId). Поля: `markets_count`, `positions_count`, `pnl` (sum `realized_pnl`), `volume` (sum `total_bought`), `pnl_growth` / `pnl_stability` (линейная регрессия по `realized_pnl` с `use_cumulative=True`; `null` при одной позиции). Маркет с несколькими тегами учитывается в каждом теге. Нужны `sync-market`, `holders` и `positions`.
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
 ### REST API

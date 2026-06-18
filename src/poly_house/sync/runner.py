@@ -20,11 +20,13 @@ from poly_house.sync.markets import sync_markets
 from poly_house.sync.positions import sync_holder_positions
 from poly_house.sync.profiles import sync_holder_profiles, sync_user_profiles
 from poly_house.sync.snapshots import sync_snapshots
+from poly_house.sync.tag_profiles import update_tag_profiles
 from poly_house.sync.trades import sync_trades
 
 logger = structlog.get_logger()
 
 RunOnce = Callable[[asyncio.Event | None], Awaitable[None]]
+DbRunOnce = Callable[[Database, asyncio.Event | None], Awaitable[None]]
 
 
 @dataclass
@@ -52,6 +54,26 @@ async def _run(
                 await _watch_loop(once, settings)
             else:
                 await once(None)
+    finally:
+        await client.close()
+
+
+async def _run_db_only(
+    settings: Settings,
+    run_once: DbRunOnce,
+    *,
+    watch: bool,
+) -> None:
+    """Обвязка для команд без внешних API."""
+    client = create_client(settings)
+    db = client[settings.mongo_db]
+    await ensure_indexes(db)
+
+    try:
+        if watch:
+            await _watch_loop(lambda stop: run_once(db, stop), settings)
+        else:
+            await run_once(db, None)
     finally:
         await client.close()
 
@@ -251,3 +273,33 @@ async def run_sync_snapshots(settings: Settings, *, watch: bool = False) -> None
         return once
 
     await _run(settings, make_once, watch=watch)
+
+
+@dataclass
+class TagProfileSyncOptions:
+    wallet: str | None = None
+    limit: int | None = None
+
+
+async def run_update_tag_profiles(
+    settings: Settings,
+    options: TagProfileSyncOptions,
+    *,
+    watch: bool = False,
+) -> None:
+    async def once(db: Database, stop: asyncio.Event | None) -> None:
+        started = time.monotonic()
+        holders, tag_profiles = await update_tag_profiles(
+            db,
+            wallet=options.wallet,
+            limit=options.limit,
+            stop=stop,
+        )
+        logger.info(
+            "tag_profile_update_run_complete",
+            holders=holders,
+            tag_profiles=tag_profiles,
+            seconds=round(time.monotonic() - started, 1),
+        )
+
+    await _run_db_only(settings, once, watch=watch)

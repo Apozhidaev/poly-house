@@ -18,8 +18,8 @@ class Tag(BaseModel):
     @classmethod
     def _parse_id(cls, v: Any) -> int:
         return parse_id(v)
-    label: str | None = None
-    slug: str | None = None
+    label: str
+    slug: str
 
     def to_doc(self) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})

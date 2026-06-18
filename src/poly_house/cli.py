@@ -12,12 +12,14 @@ from poly_house.sync.runner import (
     HolderPositionSyncOptions,
     MarketSyncOptions,
     ProfileSyncOptions,
+    TagProfileSyncOptions,
     run_sync_holder_positions,
     run_sync_holder_profiles,
     run_sync_markets,
     run_sync_snapshots,
     run_sync_trades,
     run_sync_user_profiles,
+    run_update_tag_profiles,
 )
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
@@ -104,6 +106,19 @@ def sync_holder_position(
     settings = Settings()
     options = HolderPositionSyncOptions(wallet=wallet, limit=limit)
     asyncio.run(run_sync_holder_positions(settings, options, watch=watch))
+
+
+@app.command("update-tag-profile")
+def update_tag_profile(
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число holders (для теста).")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Обновить tag profiles одного holder по proxy_wallet.")] = None,
+) -> None:
+    """Агрегация tag profiles holders из positions + markets → tag_profiles."""
+    _configure_logging()
+    settings = Settings()
+    options = TagProfileSyncOptions(wallet=wallet, limit=limit)
+    asyncio.run(run_update_tag_profiles(settings, options, watch=watch))
 
 
 @app.command()

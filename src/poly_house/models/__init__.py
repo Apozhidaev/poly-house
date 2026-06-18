@@ -11,6 +11,7 @@ from poly_house.models.holder import Holder
 from poly_house.models.leaderboard import LeaderboardStats
 from poly_house.models.position import Position
 from poly_house.models.profile import Profile
+from poly_house.models.tag_profile import TagProfile
 
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "LeaderboardStats",
     "Position",
     "Profile",
+    "TagProfile",
 ]

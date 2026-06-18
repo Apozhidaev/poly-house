@@ -39,3 +39,8 @@ async def ensure_indexes(db: Database) -> None:
 
     await db.positions.create_index([("proxy_wallet", 1), ("timestamp", -1)])
     await db.positions.create_index("condition_id")
+
+    await db.tag_profiles.create_index(
+        [("proxy_wallet", 1), ("tag_id", 1)], unique=True
+    )
+    await db.tag_profiles.create_index("tag_id")
