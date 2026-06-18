@@ -15,14 +15,15 @@ class PnlClient:
     def __init__(self, http: RateLimitedClient) -> None:
         self._http = http
 
-    async def fetch_pnl_time_series(
+    async def pnl_time_series(
         self,
-        address: str,
+        *,
+        user: str,
     ) -> PnlTimeSeries | None:
         """GET /user-pnl?user_address={addr}&interval=all&fidelity=1d → PnlTimeSeries."""
         url = f"{BASE_URL}/user-pnl"
         params = {
-            "user_address": address,
+            "user_address": user,
             "interval": "all",
             "fidelity": "1d",
         }
@@ -50,4 +51,4 @@ class PnlClient:
         if not points:
             return None
 
-        return PnlTimeSeries(wallet_address=address, data=points)
+        return PnlTimeSeries(wallet_address=user, data=points)
