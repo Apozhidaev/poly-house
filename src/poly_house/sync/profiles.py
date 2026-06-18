@@ -47,19 +47,19 @@ def build_profile(
 
     if ts and ts.data:
         _, slope, r2 = fit_trend_by_days(ts.data, use_cumulative=False)
-        pnl_slope = slope
-        pnl_r_squared = r2
+        pnl_growth = slope
+        pnl_stability = r2
     else:
-        pnl_slope = None
-        pnl_r_squared = None
+        pnl_growth = None
+        pnl_stability = None
 
     return Profile(
         proxy_wallet=wallet,
         name=name,
         pnl=pnl,
         volume=volume,
-        pnl_slope=pnl_slope,
-        pnl_r_squared=pnl_r_squared,
+        pnl_growth=pnl_growth,
+        pnl_stability=pnl_stability,
         positions_value=positions_value,
         cash_balance=cash_balance,
         total_balance=total_balance,
