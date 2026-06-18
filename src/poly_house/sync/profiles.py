@@ -25,6 +25,24 @@ from poly_house.utils.math import fit_trend_by_days
 logger = structlog.get_logger()
 
 BULK_SIZE = 100
+PROFILE_SYNC_MIN_INTERVAL = timedelta(days=1)
+
+
+async def _wallets_needing_profile_sync(
+    db: Database, wallets: list[str]
+) -> list[str]:
+    if not wallets:
+        return []
+    cutoff = datetime.now(UTC) - PROFILE_SYNC_MIN_INTERVAL
+    cursor = db.profiles.find(
+        {"_id": {"$in": wallets}, "synced_at": {"$gte": cutoff}},
+        projection={"_id": 1},
+    )
+    recent = {
+        doc["_id"]
+        for doc in await cursor.to_list(length=None)
+    }
+    return [wallet for wallet in wallets if wallet not in recent]
 
 
 def build_profile(
@@ -35,6 +53,7 @@ def build_profile(
     equity: EquitySnapshot | None,
     ts: PnlTimeSeries | None,
     win_rate: float | None = None,
+    synced_at: datetime,
 ) -> Profile:
     pnl = stats.pnl if stats else None
     volume = stats.vol if stats else None
@@ -67,6 +86,7 @@ def build_profile(
         cash_balance=cash_balance,
         total_balance=total_balance,
         win_rate=win_rate,
+        synced_at=synced_at,
     )
 
 
@@ -103,6 +123,7 @@ async def upsert_profiles_for_wallets(
     ops: list[UpdateOne] = []
     processed = 0
     win_rates = await load_win_rates(db, list(wallets.keys()))
+    synced_at = datetime.now(UTC)
 
     for wallet, name in wallets.items():
         if stop is not None and stop.is_set():
@@ -116,6 +137,7 @@ async def upsert_profiles_for_wallets(
             equity=equity,
             ts=ts,
             win_rate=win_rates.get(wallet),
+            synced_at=synced_at,
         )
         ops.append(
             UpdateOne(
@@ -180,17 +202,34 @@ async def sync_holder_profiles(
 
     started = time.monotonic()
     wallets = {doc["_id"]: doc.get("name") or "" for doc in holder_docs}
+    to_sync = await _wallets_needing_profile_sync(db, list(wallets.keys()))
+    skipped = len(wallets) - len(to_sync)
+    if skipped:
+        logger.info("holder_profiles_sync_skipped", skipped=skipped)
+    if not to_sync:
+        logger.info(
+            "holder_profiles_sync_done",
+            profiles=0,
+            positions=0,
+            skipped=skipped,
+            interrupted=stop is not None and stop.is_set(),
+            seconds=round(time.monotonic() - started, 1),
+        )
+        return 0, 0
+
+    wallets_to_sync = {wallet: wallets[wallet] for wallet in to_sync}
     positions = await sync_positions_for_wallets(
-        db, data, settings, list(wallets.keys()), stop=stop
+        db, data, settings, to_sync, stop=stop
     )
     processed = await upsert_profiles_for_wallets(
-        db, data, pnl, wallets, stop=stop
+        db, data, pnl, wallets_to_sync, stop=stop
     )
 
     logger.info(
         "holder_profiles_sync_done",
         profiles=processed,
         positions=positions,
+        skipped=skipped,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
     )

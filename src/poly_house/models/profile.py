@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -18,6 +19,7 @@ class Profile(BaseModel):
     cash_balance: float | None = None
     total_balance: float | None = None
     win_rate: float | None = None
+    synced_at: datetime
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump(exclude={"proxy_wallet"})
