@@ -10,6 +10,7 @@ from poly_house.models.equity import EquitySnapshot
 from poly_house.models.holder import Holder
 from poly_house.models.leaderboard import LeaderboardStats
 from poly_house.models.position import Position
+from poly_house.models.position_metrics import PositionMetrics
 from poly_house.models.profile import Profile
 from poly_house.models.tag_profile import TagProfile
 
@@ -28,6 +29,7 @@ __all__ = [
     "Holder",
     "LeaderboardStats",
     "Position",
+    "PositionMetrics",
     "Profile",
     "TagProfile",
 ]

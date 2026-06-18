@@ -10,6 +10,7 @@ from pymongo import UpdateOne
 
 from poly_house.db import Database
 from poly_house.models import TagProfile, TimeSeriesPoint
+from poly_house.sync.positions import win_rate_from_positions
 from poly_house.utils.math import fit_trend_by_days
 
 logger = structlog.get_logger()
@@ -49,8 +50,7 @@ def build_tag_profile(
     volume = sum(p["total_bought"] for p in positions)
     markets_count = len({p["condition_id"] for p in positions})
     positions_count = len(positions)
-    win_positions = sum(1 for p in positions if p["realized_pnl"] > 0)
-    win_rate = win_positions / positions_count
+    win_rate = win_rate_from_positions(positions)
 
     points = [
         TimeSeriesPoint(

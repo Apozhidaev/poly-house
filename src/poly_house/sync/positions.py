@@ -6,13 +6,69 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
+from pymongo import UpdateOne
 
 from poly_house.api.data import DataClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.models import Position
+from poly_house.models import Position, PositionMetrics
 
 logger = structlog.get_logger()
+
+BULK_SIZE = 100
+
+
+def win_rate_from_positions(positions: list[dict[str, Any]]) -> float | None:
+    if not positions:
+        return None
+    win_count = sum(1 for p in positions if p["realized_pnl"] > 0)
+    return win_count / len(positions)
+
+
+async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
+    if not wallets:
+        return {}
+    cursor = await db.positions.aggregate(
+        [
+            {"$match": {"proxy_wallet": {"$in": wallets}}},
+            {
+                "$group": {
+                    "_id": "$proxy_wallet",
+                    "positions_count": {"$sum": 1},
+                    "win_positions_count": {
+                        "$sum": {"$cond": [{"$gt": ["$realized_pnl", 0]}, 1, 0]}
+                    },
+                }
+            },
+        ]
+    )
+    docs = await cursor.to_list(length=None)
+    return {
+        doc["_id"]: doc["win_positions_count"] / doc["positions_count"]
+        for doc in docs
+        if doc["positions_count"] > 0
+    }
+
+
+async def upsert_position_metrics(db: Database, wallets: list[str]) -> int:
+    win_rates = await load_win_rates(db, wallets)
+    if not win_rates:
+        return 0
+    ops = [
+        UpdateOne(
+            {"_id": wallet},
+            {
+                "$set": PositionMetrics(
+                    proxy_wallet=wallet, win_rate=rate
+                ).to_doc()
+            },
+            upsert=True,
+        )
+        for wallet, rate in win_rates.items()
+    ]
+    for i in range(0, len(ops), BULK_SIZE):
+        await db.position_metrics.bulk_write(ops[i : i + BULK_SIZE])
+    return len(ops)
 
 
 async def _get_holder_watermark(db: Database, proxy_wallet: str) -> int | None:
@@ -78,6 +134,7 @@ async def sync_positions_for_wallets(
     """Догружает closed positions для списка wallets; returns (holders, positions)."""
     total_holders = 0
     total_positions = 0
+    wallets_with_new: list[str] = []
     for proxy_wallet in wallets:
         if stop is not None and stop.is_set():
             break
@@ -85,12 +142,20 @@ async def sync_positions_for_wallets(
         positions = await _fetch_new_positions(data, settings, proxy_wallet, watermark)
         if positions:
             total_positions += await _write_positions(db, positions)
+            wallets_with_new.append(proxy_wallet)
         total_holders += 1
         logger.info(
             "holder_positions_synced",
             wallet=proxy_wallet,
             positions=len(positions),
             watermark=watermark,
+        )
+    if wallets_with_new:
+        metrics_written = await upsert_position_metrics(db, wallets_with_new)
+        logger.info(
+            "position_metrics_updated",
+            wallets=len(wallets_with_new),
+            metrics=metrics_written,
         )
     return total_holders, total_positions
 
