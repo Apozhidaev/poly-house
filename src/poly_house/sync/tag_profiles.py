@@ -10,7 +10,7 @@ from pymongo import UpdateOne
 
 from poly_house.db import Database
 from poly_house.models import TagProfile, TimeSeriesPoint
-from poly_house.sync.positions import win_rate_from_positions
+from poly_house.sync.profiles import win_rate_from_positions
 from poly_house.utils.math import fit_trend_by_days
 
 logger = structlog.get_logger()

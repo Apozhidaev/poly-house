@@ -13,8 +13,10 @@ from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Holder, Snapshot, SnapshotHolder
-from poly_house.sync.positions import sync_positions_for_wallets
-from poly_house.sync.profiles import upsert_profiles_for_holders
+from poly_house.sync.profiles import (
+    sync_positions_for_wallets,
+    upsert_profiles_for_holders,
+)
 from poly_house.sync.tag_profiles import (
     load_condition_tag_ids,
     update_tag_profiles_for_wallets,
