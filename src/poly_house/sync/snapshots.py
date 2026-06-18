@@ -15,6 +15,10 @@ from poly_house.db import Database
 from poly_house.models import Holder, Snapshot, SnapshotHolder
 from poly_house.sync.positions import sync_positions_for_wallets
 from poly_house.sync.profiles import upsert_profiles_for_holders
+from poly_house.sync.tag_profiles import (
+    load_condition_tag_ids,
+    update_tag_profiles_for_wallets,
+)
 
 logger = structlog.get_logger()
 
@@ -163,6 +167,7 @@ async def sync_snapshots(
     logger.info("snapshots_sync_start")
     cursor = db.markets.find(OPEN_MARKETS_QUERY, OPEN_MARKETS_PROJECTION)
     markets = await cursor.to_list(length=None)
+    condition_tags = await load_condition_tag_ids(db)
 
     written = 0
     skipped = 0
@@ -201,6 +206,13 @@ async def sync_snapshots(
             await sync_positions_for_wallets(
                 db, data, settings, list(new_holders.keys()), stop=stop
             )
+            if condition_tags:
+                await update_tag_profiles_for_wallets(
+                    db,
+                    list(new_holders.keys()),
+                    condition_tags,
+                    stop=stop,
+                )
         profiles = await load_profile_metrics(db, list(holders.keys()))
         snapshot = snapshot_from_book_and_holders(
             market, book, holders_raw, captured_at=captured_at, profiles=profiles

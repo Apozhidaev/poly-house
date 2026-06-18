@@ -81,46 +81,26 @@ async def _flush_writes(db: Database, ops: list[UpdateOne]) -> None:
         await db.tag_profiles.bulk_write(ops)
 
 
-async def update_tag_profiles(
+async def update_tag_profiles_for_wallets(
     db: Database,
+    wallets: list[str],
+    condition_tags: dict[str, list[int]],
     *,
-    wallet: str | None = None,
-    limit: int | None = None,
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
-    """Upsert tag profiles for holders; returns (holders, tag_profiles written)."""
-    condition_tags = await load_condition_tag_ids(db)
-    if not condition_tags:
-        logger.info("tag_profiles_sync_skip", reason="no_markets_with_tags")
+    """Upsert tag profiles for given wallets; returns (holders processed, tag_profiles written)."""
+    if not wallets or not condition_tags:
         return 0, 0
 
-    query: dict[str, Any] = {}
-    if wallet is not None:
-        query["_id"] = wallet
-
-    cursor = db.holders.find(query, projection={"_id": 1})
-    if limit is not None:
-        cursor = cursor.limit(limit)
-    holders = await cursor.to_list(length=None)
-
-    logger.info(
-        "tag_profiles_sync_start",
-        holders=len(holders),
-        wallet=wallet,
-        limit=limit,
-    )
-
-    started = time.monotonic()
     total_holders = 0
     total_profiles = 0
     ops: list[UpdateOne] = []
     condition_ids = list(condition_tags)
 
-    for holder in holders:
+    for proxy_wallet in wallets:
         if stop is not None and stop.is_set():
             break
 
-        proxy_wallet = holder["_id"]
         positions = await db.positions.find(
             {
                 "proxy_wallet": proxy_wallet,
@@ -153,6 +133,43 @@ async def update_tag_profiles(
         )
 
     await _flush_writes(db, ops)
+    return total_holders, total_profiles
+
+
+async def update_tag_profiles(
+    db: Database,
+    *,
+    wallet: str | None = None,
+    limit: int | None = None,
+    stop: asyncio.Event | None = None,
+) -> tuple[int, int]:
+    """Upsert tag profiles for holders; returns (holders, tag_profiles written)."""
+    condition_tags = await load_condition_tag_ids(db)
+    if not condition_tags:
+        logger.info("tag_profiles_sync_skip", reason="no_markets_with_tags")
+        return 0, 0
+
+    query: dict[str, Any] = {}
+    if wallet is not None:
+        query["_id"] = wallet
+
+    cursor = db.holders.find(query, projection={"_id": 1})
+    if limit is not None:
+        cursor = cursor.limit(limit)
+    holders = await cursor.to_list(length=None)
+
+    logger.info(
+        "tag_profiles_sync_start",
+        holders=len(holders),
+        wallet=wallet,
+        limit=limit,
+    )
+
+    started = time.monotonic()
+    wallets = [holder["_id"] for holder in holders]
+    total_holders, total_profiles = await update_tag_profiles_for_wallets(
+        db, wallets, condition_tags, stop=stop
+    )
 
     logger.info(
         "tag_profiles_sync_done",
