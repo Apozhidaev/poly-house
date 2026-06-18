@@ -15,6 +15,31 @@ from poly_house.sync.sync_state import get_markets_watermark, parse_iso, set_mar
 logger = structlog.get_logger()
 
 
+async def _refresh_tag_markets_counts(db: Database) -> None:
+    """Set `markets_count` on each tag doc from cached `markets` (distinct markets per tag)."""
+    pipeline = [
+        {"$match": {"tags": {"$exists": True, "$ne": []}}},
+        {"$unwind": "$tags"},
+        {"$group": {"_id": "$tags", "markets_count": {"$sum": 1}}},
+    ]
+    cursor = db.markets.aggregate(pipeline)
+    counts: dict[int, int] = {doc["_id"]: doc["markets_count"] async for doc in cursor}
+
+    tag_docs = await db.tags.find({}, projection={"id": 1}).to_list(length=None)
+    if not tag_docs:
+        return
+
+    ops = [
+        UpdateOne(
+            {"id": doc["id"]},
+            {"$set": {"markets_count": counts.get(doc["id"], 0)}},
+        )
+        for doc in tag_docs
+    ]
+    await db.tags.bulk_write(ops)
+
+
+
 async def _fetch_pages(
     gamma: GammaClient,
     watermark: str,
@@ -110,6 +135,7 @@ async def _write_page(db: Database, markets: list[Market], synced_at: datetime) 
         await db.events.bulk_write(event_ops)
     if market_ops:
         await db.markets.bulk_write(market_ops)
+        await _refresh_tag_markets_counts(db)
 
 
 async def sync_markets(

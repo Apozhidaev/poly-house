@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def parse_id(v: Any) -> int:
@@ -20,6 +20,7 @@ class Tag(BaseModel):
         return parse_id(v)
     label: str
     slug: str
+    markets_count: int = Field(default=0)
 
     def to_doc(self) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})
