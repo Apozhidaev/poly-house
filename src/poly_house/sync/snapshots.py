@@ -388,10 +388,10 @@ async def sync_snapshots(
             new_holders = {}
         await upsert_holders(db, holders)
         if new_holders:
-            await upsert_profiles_for_holders(db, data, pnl, new_holders, stop=stop)
             await sync_positions_for_wallets(
                 db, data, settings, list(new_holders.keys()), stop=stop
             )
+            await upsert_profiles_for_holders(db, data, pnl, new_holders, stop=stop)
             if condition_tags:
                 await update_tag_profiles_for_wallets(
                     db,

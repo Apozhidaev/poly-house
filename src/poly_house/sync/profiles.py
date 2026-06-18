@@ -178,11 +178,11 @@ async def sync_holder_profiles(
 
     started = time.monotonic()
     wallets = {doc["_id"]: doc.get("name") or "" for doc in holder_docs}
-    processed = await upsert_profiles_for_wallets(
-        db, data, pnl, wallets, stop=stop
-    )
     positions = await sync_positions_for_wallets(
         db, data, settings, list(wallets.keys()), stop=stop
+    )
+    processed = await upsert_profiles_for_wallets(
+        db, data, pnl, wallets, stop=stop
     )
 
     logger.info(
@@ -225,23 +225,6 @@ async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
         for doc in docs
         if doc["positions_count"] > 0
     }
-
-
-async def upsert_profile_win_rates(db: Database, wallets: list[str]) -> int:
-    win_rates = await load_win_rates(db, wallets)
-    if not win_rates:
-        return 0
-    ops = [
-        UpdateOne(
-            {"_id": wallet},
-            {"$set": {"win_rate": rate}},
-            upsert=True,
-        )
-        for wallet, rate in win_rates.items()
-    ]
-    for i in range(0, len(ops), BULK_SIZE):
-        await db.profiles.bulk_write(ops[i : i + BULK_SIZE])
-    return len(ops)
 
 
 async def _get_holder_watermark(db: Database, proxy_wallet: str) -> int | None:
@@ -306,7 +289,6 @@ async def sync_positions_for_wallets(
 ) -> int:
     """Догружает closed positions для списка wallets; returns number of positions written."""
     total_positions = 0
-    wallets_with_new: list[str] = []
     for proxy_wallet in wallets:
         if stop is not None and stop.is_set():
             break
@@ -314,18 +296,10 @@ async def sync_positions_for_wallets(
         positions = await _fetch_new_positions(data, settings, proxy_wallet, watermark)
         if positions:
             total_positions += await _write_positions(db, positions)
-            wallets_with_new.append(proxy_wallet)
         logger.info(
             "holder_positions_synced",
             wallet=proxy_wallet,
             positions=len(positions),
             watermark=watermark,
-        )
-    if wallets_with_new:
-        metrics_written = await upsert_profile_win_rates(db, wallets_with_new)
-        logger.info(
-            "profile_win_rates_updated",
-            wallets=len(wallets_with_new),
-            profiles=metrics_written,
         )
     return total_positions
