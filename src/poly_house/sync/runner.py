@@ -17,6 +17,7 @@ from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.markets import sync_markets
+from poly_house.sync.positions import sync_holder_positions
 from poly_house.sync.profiles import sync_holder_profiles, sync_user_profiles
 from poly_house.sync.snapshots import sync_snapshots
 from poly_house.sync.trades import sync_trades
@@ -184,6 +185,43 @@ async def run_sync_holder_profiles(
             logger.info(
                 "holder_profile_sync_run_complete",
                 processed=processed,
+                seconds=round(time.monotonic() - started, 1),
+            )
+
+        return once
+
+    await _run(settings, make_once, watch=watch)
+
+
+@dataclass
+class HolderPositionSyncOptions:
+    wallet: str | None = None
+    limit: int | None = None
+
+
+async def run_sync_holder_positions(
+    settings: Settings,
+    options: HolderPositionSyncOptions,
+    *,
+    watch: bool = False,
+) -> None:
+    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
+        data = DataClient(http)
+
+        async def once(stop: asyncio.Event | None) -> None:
+            started = time.monotonic()
+            holders, positions = await sync_holder_positions(
+                db,
+                data,
+                settings,
+                wallet=options.wallet,
+                limit=options.limit,
+                stop=stop,
+            )
+            logger.info(
+                "holder_position_sync_run_complete",
+                holders=holders,
+                positions=positions,
                 seconds=round(time.monotonic() - started, 1),
             )
 

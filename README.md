@@ -36,12 +36,16 @@ uv run poly-house snapshot
 uv run poly-house sync-user-profile
 uv run poly-house sync-holder-profile
 
+# closed positions holders → коллекция positions
+uv run poly-house sync-holder-position
+
 # бесконечный цикл с интервалом WATCH_INTERVAL из конфига (остановка — Ctrl+C)
 uv run poly-house sync-market --watch
 uv run poly-house sync-trade --watch
 uv run poly-house snapshot --watch
 uv run poly-house sync-user-profile --watch
 uv run poly-house sync-holder-profile --watch
+uv run poly-house sync-holder-position --watch
 
 # тестовый прогон: 2 страницы маркетов
 uv run poly-house sync-market --max-pages 2
@@ -51,6 +55,8 @@ uv run poly-house sync-user-profile --limit 10
 uv run poly-house sync-user-profile --wallet 0x...
 uv run poly-house sync-holder-profile --limit 10
 uv run poly-house sync-holder-profile --wallet 0x...
+uv run poly-house sync-holder-position --limit 10
+uv run poly-house sync-holder-position --wallet 0x...
 ```
 
 Как это работает:
@@ -61,6 +67,7 @@ uv run poly-house sync-holder-profile --wallet 0x...
 - **snapshot**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — CLOB orderbook по `clob_token_ids[0]`; при успехе Data API `/holders` — upsert публичных профилей (`displayUsernamePublic=true`) в коллекцию `holders` (`name`, `bio`, `profile_image`); для holders, впервые попавших в `holders`, автоматически создаётся `profiles` (те же метрики, что `sync-user-profile` / `sync-holder-profile`); затем insert в `snapshots` с `captured_at`. `top_holders` = `[outcome_0, outcome_1]` по `entry.token` ↔ `clob_token_ids`. Нужен предварительный `sync-market`.
 - **sync-user-profile**: для каждого пользователя из `users` (или подмножества через `--limit` / `--wallet`) — upsert в `profiles` (`_id` = `proxy_wallet`). Метрики из Polymarket API: leaderboard (`pnl`, `volume`), accounting snapshot `equity.csv` (`positions_value`, `cash_balance`, `total_balance` = `equity`), user-pnl time series (`pnl_slope`, `pnl_r_squared` через линейную регрессию). Если API не вернул данные — поле пишется как `null`. Нужен предварительный `sync-trade` (коллекция `users`).
 - **sync-holder-profile**: то же для каждого документа из `holders` (имя из `holders.name`). Нужна коллекция `holders` (из `snapshot`).
+- **sync-holder-position**: для каждого holder из `holders` — closed positions из Data API `/closed-positions` (sort `TIMESTAMP DESC`) в коллекцию `positions` (`_id` — MongoDB auto). Первый прогон загружает всю историю (до `CLOSED_POSITIONS_MAX_OFFSET`); повторный — только записи с `timestamp` больше max в базе для этого wallet. Нужна коллекция `holders` (из `snapshot`).
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
 ### REST API

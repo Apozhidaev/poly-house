@@ -9,8 +9,10 @@ import uvicorn
 
 from poly_house.config import Settings
 from poly_house.sync.runner import (
+    HolderPositionSyncOptions,
     MarketSyncOptions,
     ProfileSyncOptions,
+    run_sync_holder_positions,
     run_sync_holder_profiles,
     run_sync_markets,
     run_sync_snapshots,
@@ -89,6 +91,19 @@ def sync_holder_profile(
     settings = Settings()
     options = ProfileSyncOptions(wallet=wallet, limit=limit)
     asyncio.run(run_sync_holder_profiles(settings, options, watch=watch))
+
+
+@app.command("sync-holder-position")
+def sync_holder_position(
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число holders (для теста).")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать одного holder по proxy_wallet.")] = None,
+) -> None:
+    """Синхронизация closed positions holders из holders → positions."""
+    _configure_logging()
+    settings = Settings()
+    options = HolderPositionSyncOptions(wallet=wallet, limit=limit)
+    asyncio.run(run_sync_holder_positions(settings, options, watch=watch))
 
 
 @app.command()

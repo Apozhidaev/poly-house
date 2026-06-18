@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     trades_page_limit: int = 1000  # максимум Data API
     trades_max_offset: int = 3000  # потолок offset в Data API
     snapshot_holders_limit: int = 500  # max Data API /holders
+    closed_positions_page_limit: int = 50
+    closed_positions_max_offset: int = 100000
 
     # REST API
     server_host: str = "127.0.0.1"
