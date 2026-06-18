@@ -22,6 +22,10 @@ class Tag(BaseModel):
     slug: str
     markets_count: int = Field(default=0)
 
+    @property
+    def weight(self) -> float:
+        return 1 / self.markets_count if self.markets_count > 0 else 0.0
+
     def to_doc(self) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
