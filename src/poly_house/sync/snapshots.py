@@ -13,7 +13,6 @@ from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Holder, Snapshot, SnapshotHolder
-from poly_house.models.tag_profile import TagProfile
 from poly_house.sync.positions import sync_positions_for_wallets
 from poly_house.sync.profiles import upsert_profiles_for_holders
 from poly_house.sync.tag_profiles import (
@@ -216,6 +215,7 @@ def parse_top_holders(
     tag_stable_growths: dict[tuple[str, int], float] | None = None,
     tag_pnls: dict[tuple[str, int], float] | None = None,
     tag_volumes: dict[tuple[str, int], float] | None = None,
+    position_win_rates: dict[str, float | None] | None = None,
 ) -> list[list[SnapshotHolder]]:
     token_to_outcome = {token: i for i, token in enumerate(clob_token_ids)}
     result: list[list[SnapshotHolder]] = [[], []]
@@ -226,6 +226,7 @@ def parse_top_holders(
     stable_growths = tag_stable_growths or {}
     pnls = tag_pnls or {}
     tag_volume_map = tag_volumes or {}
+    position_win_rate_map = position_win_rates or {}
     for entry in raw:
         outcome_index = token_to_outcome.get(entry["token"])
         if outcome_index is None:
@@ -239,6 +240,7 @@ def parse_top_holders(
                 SnapshotHolder(
                     proxy_wallet=wallet,
                     amount=holder["amount"],
+                    win_rate=position_win_rate_map.get(wallet),
                     roi=compute_roi(metrics.get("pnl"), metrics.get("volume")),
                     stable_growth=compute_stable_growth(
                         metrics.get("pnl_growth"),
@@ -275,6 +277,19 @@ async def load_profile_metrics(
         doc["_id"]: {field: doc.get(field) for field in PROFILE_METRIC_FIELDS}
         for doc in docs
     }
+
+
+async def load_position_win_rates(
+    db: Database, wallets: list[str]
+) -> dict[str, float | None]:
+    if not wallets:
+        return {}
+    cursor = db.position_metrics.find(
+        {"_id": {"$in": wallets}},
+        projection={"_id": 1, "win_rate": 1},
+    )
+    docs = await cursor.to_list(length=None)
+    return {doc["_id"]: doc.get("win_rate") for doc in docs}
 
 
 def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, Holder]:
@@ -316,6 +331,7 @@ def snapshot_from_book_and_holders(
     tag_stable_growths: dict[tuple[str, int], float] | None = None,
     tag_pnls: dict[tuple[str, int], float] | None = None,
     tag_volumes: dict[tuple[str, int], float] | None = None,
+    position_win_rates: dict[str, float | None] | None = None,
 ) -> Snapshot:
     last_trade = book.get("last_trade_price")
     return Snapshot(
@@ -337,6 +353,7 @@ def snapshot_from_book_and_holders(
             tag_stable_growths=tag_stable_growths,
             tag_pnls=tag_pnls,
             tag_volumes=tag_volumes,
+            position_win_rates=position_win_rates,
         ),
     )
 
@@ -401,6 +418,9 @@ async def sync_snapshots(
                     stop=stop,
                 )
         profiles = await load_profile_metrics(db, list(holders.keys()))
+        position_win_rates = await load_position_win_rates(
+            db, list(holders.keys())
+        )
         market_tag_ids = market.get("tag_ids") or []
         if market_tag_ids and holders:
             tag_weights = await load_tag_weights(db, market_tag_ids)
@@ -427,6 +447,7 @@ async def sync_snapshots(
             tag_stable_growths=tag_stable_growths,
             tag_pnls=tag_pnls,
             tag_volumes=tag_volumes,
+            position_win_rates=position_win_rates,
         )
         await db.snapshots.insert_one(snapshot.to_doc())
         written += 1
