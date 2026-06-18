@@ -10,7 +10,9 @@ import uvicorn
 from poly_house.config import Settings
 from poly_house.sync.runner import (
     MarketSyncOptions,
+    ProfileSyncOptions,
     run_sync_markets,
+    run_sync_profiles,
     run_sync_snapshots,
     run_sync_trades,
 )
@@ -60,6 +62,19 @@ def snapshot(
     _configure_logging()
     settings = Settings()
     asyncio.run(run_sync_snapshots(settings, watch=watch))
+
+
+@app.command("sync-profile")
+def sync_profile(
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число пользователей (для теста).")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать одного пользователя по proxy_wallet.")] = None,
+) -> None:
+    """Синхронизация профилей пользователей (PNL, volume, positions) → MongoDB."""
+    _configure_logging()
+    settings = Settings()
+    options = ProfileSyncOptions(wallet=wallet, limit=limit)
+    asyncio.run(run_sync_profiles(settings, options, watch=watch))
 
 
 @app.command()

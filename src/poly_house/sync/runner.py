@@ -12,10 +12,12 @@ import structlog
 from poly_house.api.clob import ClobClient
 from poly_house.api.data import DataClient
 from poly_house.api.gamma import GammaClient
+from poly_house.api.pnl import PnlClient
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.markets import sync_markets
+from poly_house.sync.profiles import sync_profiles
 from poly_house.sync.snapshots import sync_snapshots
 from poly_house.sync.trades import sync_trades
 
@@ -112,6 +114,44 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
                 "trade_sync_run_complete",
                 trades=n_trades,
                 users=n_users,
+                seconds=round(time.monotonic() - started, 1),
+            )
+
+        return once
+
+    await _run(settings, make_once, watch=watch)
+
+
+@dataclass
+class ProfileSyncOptions:
+    wallet: str | None = None
+    limit: int | None = None
+
+
+async def run_sync_profiles(
+    settings: Settings,
+    options: ProfileSyncOptions,
+    *,
+    watch: bool = False,
+) -> None:
+    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
+        data = DataClient(http)
+        pnl = PnlClient(http)
+
+        async def once(stop: asyncio.Event | None) -> None:
+            started = time.monotonic()
+            processed = await sync_profiles(
+                db,
+                data,
+                pnl,
+                settings,
+                wallet=options.wallet,
+                limit=options.limit,
+                stop=stop,
+            )
+            logger.info(
+                "profile_sync_run_complete",
+                processed=processed,
                 seconds=round(time.monotonic() - started, 1),
             )
 

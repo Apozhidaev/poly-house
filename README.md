@@ -1,6 +1,6 @@
 # poly-house
 
-Warehouse для [Polymarket](https://polymarket.com): инкрементальная синхронизация маркетов, событий, тегов, трейдов и пользователей в локальную MongoDB + собственный REST API поверх неё.
+Warehouse для [Polymarket](https://polymarket.com): инкрементальная синхронизация маркетов, событий, тегов, трейдов, пользователей и профилей в локальную MongoDB + собственный REST API поверх неё.
 
 ## Требования
 
@@ -32,13 +32,21 @@ uv run poly-house sync-trade
 # снимки ордербука + top holders для открытых маркетов
 uv run poly-house snapshot
 
+# профили пользователей (PNL, volume, positions, PnL-тренд) → коллекция profiles
+uv run poly-house sync-profile
+
 # бесконечный цикл с интервалом WATCH_INTERVAL из конфига (остановка — Ctrl+C)
 uv run poly-house sync-market --watch
 uv run poly-house sync-trade --watch
 uv run poly-house snapshot --watch
+uv run poly-house sync-profile --watch
 
 # тестовый прогон: 2 страницы маркетов
 uv run poly-house sync-market --max-pages 2
+
+# тестовый прогон: 10 пользователей или один wallet
+uv run poly-house sync-profile --limit 10
+uv run poly-house sync-profile --wallet 0x...
 ```
 
 Как это работает:
@@ -47,6 +55,7 @@ uv run poly-house sync-market --max-pages 2
 - Первый прогон загружает всё, что обновлялось за последние `UPDATED_IN_DAYS` дней (по умолчанию 30). `--skip-open` ограничивает прогон закрытыми маркетами (`closed=true`).
 - **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды из Data API (`/trades?takerOnly=true`) по watermark `timestamp` для каждого маркета (потолок API: `limit=1000`, `offset<=3000`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов.
 - **snapshot**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — CLOB orderbook по `clob_token_ids[0]`; при успехе Data API `/holders`, insert в `snapshots` с `captured_at`. `top_holders` = `[outcome_0, outcome_1]` по `entry.token` ↔ `clob_token_ids`; без `displayUsernamePublic=false`. Нужен предварительный `sync-market`.
+- **sync-profile**: для каждого пользователя из `users` (или подмножества через `--limit` / `--wallet`) — upsert в `profiles` (`_id` = `proxy_wallet`). Метрики из Polymarket API: leaderboard (`pnl`, `volume`), `/value` (`positions_value`), user-pnl time series (`pnl_slope`, `pnl_r_squared`, `pnl_min_value`, `pnl_max_value` через линейную регрессию и min/max по точкам). Если API не вернул данные — поле пишется как `null`. Нужен предварительный `sync-trade` (коллекция `users`).
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
 ### REST API
