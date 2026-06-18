@@ -11,7 +11,7 @@ from poly_house.api.data import DataClient
 from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.models import LeaderboardStats, Profile, PnlTimeSeries
+from poly_house.models import EquitySnapshot, LeaderboardStats, Profile, PnlTimeSeries
 from poly_house.utils.math import fit_trend_by_days
 
 logger = structlog.get_logger()
@@ -24,11 +24,20 @@ def build_profile(
     wallet: str,
     name: str,
     stats: LeaderboardStats | None,
-    positions_value: float | None,
+    equity: EquitySnapshot | None,
     ts: PnlTimeSeries | None,
 ) -> Profile:
     pnl = stats.pnl if stats else None
     volume = stats.vol if stats else None
+
+    if equity:
+        positions_value = equity.positions_value
+        cash_balance = equity.cash_balance
+        total_balance = equity.equity
+    else:
+        positions_value = None
+        cash_balance = None
+        total_balance = None
 
     if ts and ts.data:
         _, slope, r2 = fit_trend_by_days(ts.data, use_cumulative=False)
@@ -46,6 +55,8 @@ def build_profile(
         pnl_slope=pnl_slope,
         pnl_r_squared=pnl_r_squared,
         positions_value=positions_value,
+        cash_balance=cash_balance,
+        total_balance=total_balance,
     )
 
 
@@ -53,13 +64,16 @@ async def _fetch_user_metrics(
     data: DataClient,
     pnl: PnlClient,
     wallet: str,
-) -> tuple[LeaderboardStats | None, float | None, PnlTimeSeries | None]:
-    stats, positions_value, ts = await asyncio.gather(
+) -> tuple[LeaderboardStats | None, EquitySnapshot | None, PnlTimeSeries | None]:
+    stats, equity_rows, ts = await asyncio.gather(
         data.leaderboard_stats(user=wallet),
-        data.positions_value(user=wallet),
+        data.accounting_equity(user=wallet),
         pnl.pnl_time_series(user=wallet),
     )
-    return stats, positions_value, ts
+    equity = (
+        max(equity_rows, key=lambda row: row.valuation_time) if equity_rows else None
+    )
+    return stats, equity, ts
 
 
 async def _flush_writes(db: Database, ops: list[UpdateOne]) -> None:
@@ -105,12 +119,12 @@ async def sync_profiles(
         user_wallet = user["_id"]
         name = user.get("name") or ""
 
-        stats, positions_value, ts = await _fetch_user_metrics(data, pnl, user_wallet)
+        stats, equity, ts = await _fetch_user_metrics(data, pnl, user_wallet)
         profile = build_profile(
             wallet=user_wallet,
             name=name,
             stats=stats,
-            positions_value=positions_value,
+            equity=equity,
             ts=ts,
         )
         ops.append(
