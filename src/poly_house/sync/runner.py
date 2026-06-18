@@ -220,7 +220,7 @@ async def run_update_tag_profiles(
 ) -> None:
     async def once(db: Database, stop: asyncio.Event | None) -> None:
         started = time.monotonic()
-        holders, tag_profiles = await update_tag_profiles(
+        profiles, tag_profiles = await update_tag_profiles(
             db,
             wallet=options.wallet,
             limit=options.limit,
@@ -228,7 +228,7 @@ async def run_update_tag_profiles(
         )
         logger.info(
             "tag_profile_update_run_complete",
-            holders=holders,
+            profiles=profiles,
             tag_profiles=tag_profiles,
             seconds=round(time.monotonic() - started, 1),
         )

@@ -96,8 +96,8 @@ async def update_tag_profiles_for_wallets(
     if not wallets or not condition_tags:
         return 0, 0
 
-    total_holders = 0
     total_profiles = 0
+    total_tag_profiles = 0
     ops: list[UpdateOne] = []
     condition_ids = list(condition_tags)
 
@@ -122,13 +122,13 @@ async def update_tag_profiles_for_wallets(
                     upsert=True,
                 )
             )
-            total_profiles += 1
+            total_tag_profiles += 1
 
             if len(ops) >= BULK_SIZE:
                 await _flush_writes(db, ops)
                 ops.clear()
 
-        total_holders += 1
+        total_profiles += 1
         logger.info(
             "holder_tag_profiles_synced",
             wallet=proxy_wallet,
@@ -137,7 +137,7 @@ async def update_tag_profiles_for_wallets(
         )
 
     await _flush_writes(db, ops)
-    return total_holders, total_profiles
+    return total_profiles, total_tag_profiles
 
 
 async def update_tag_profiles(
@@ -160,26 +160,26 @@ async def update_tag_profiles(
     cursor = db.profiles.find(query, projection={"_id": 1})
     if limit is not None:
         cursor = cursor.limit(limit)
-    holders = await cursor.to_list(length=None)
+    profiles = await cursor.to_list(length=None)
 
     logger.info(
         "tag_profiles_sync_start",
-        profiles=len(holders),
+        profiles=len(profiles),
         wallet=wallet,
         limit=limit,
     )
 
     started = time.monotonic()
-    wallets = [holder["_id"] for holder in holders]
-    total_holders, total_profiles = await update_tag_profiles_for_wallets(
+    wallets = [profile["_id"] for profile in profiles]
+    total_profiles, total_tag_profiles = await update_tag_profiles_for_wallets(
         db, wallets, condition_tags, stop=stop
     )
 
     logger.info(
         "tag_profiles_sync_done",
-        holders=total_holders,
-        tag_profiles=total_profiles,
+        profiles=total_profiles,
+        tag_profiles=total_tag_profiles,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
     )
-    return total_holders, total_profiles
+    return total_profiles, total_tag_profiles
