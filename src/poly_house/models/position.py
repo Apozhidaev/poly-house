@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 from pydantic.alias_generators import to_camel
 
 
@@ -19,6 +19,23 @@ class Position(BaseModel):
     realized_pnl: float
     outcome_index: int
     end_date: str
+
+    @computed_field
+    @property
+    def total_cost(self) -> float:
+        return self.total_bought * self.avg_price
+
+    @computed_field
+    @property
+    def price_delta(self) -> float:
+        return self.realized_pnl / self.total_bought # price_delta = close_price - open_price
+
+    @computed_field
+    @property
+    def exit_price(self) -> float:
+        return self.avg_price + self.price_delta
+
+    
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
