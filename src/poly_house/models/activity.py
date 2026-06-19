@@ -30,6 +30,7 @@ class MarketActivity(BaseModel):
     proxy_wallet: str
     pnl: float
     volume: float
+    timestamp: int
 
 
 def build_market_activity(activities: list[Activity]) -> MarketActivity:
@@ -55,4 +56,5 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity:
         proxy_wallet=last_activity.proxy_wallet,
         pnl=pnl,
         volume=volume,
+        timestamp=last_activity.timestamp,
     )
