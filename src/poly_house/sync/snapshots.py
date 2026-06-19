@@ -13,7 +13,7 @@ from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Snapshot, SnapshotHolder
 from poly_house.sync.profiles import (
-    _wallets_needing_profile_sync,
+    wallets_needing_profile_sync,
     sync_positions_for_wallets,
     upsert_profiles_for_wallets,
 )
@@ -359,7 +359,7 @@ async def sync_snapshots(
         holders = collect_holders(holders_raw)
        
         if holders:
-            to_sync = await _wallets_needing_profile_sync(
+            to_sync = await wallets_needing_profile_sync(
                 db, list(holders.keys())
             )
             if to_sync:

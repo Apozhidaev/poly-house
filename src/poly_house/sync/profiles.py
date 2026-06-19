@@ -27,9 +27,11 @@ BULK_SIZE = 100
 PROFILE_SYNC_MIN_INTERVAL = timedelta(days=1)
 
 
-async def _wallets_needing_profile_sync(
-    db: Database, wallets: list[str]
-) -> list[str]:
+def _is_valid_closed_position(position: dict[str, Any]) -> bool:
+    return position.get("realizedPnl", 0) != 0
+
+
+async def wallets_needing_profile_sync(db: Database, wallets: list[str]) -> list[str]:
     if not wallets:
         return []
     cutoff = datetime.now(UTC) - PROFILE_SYNC_MIN_INTERVAL
@@ -37,10 +39,7 @@ async def _wallets_needing_profile_sync(
         {"_id": {"$in": wallets}, "synced_at": {"$gte": cutoff}},
         projection={"_id": 1},
     )
-    recent = {
-        doc["_id"]
-        for doc in await cursor.to_list(length=None)
-    }
+    recent = {doc["_id"] for doc in await cursor.to_list(length=None)}
     return [wallet for wallet in wallets if wallet not in recent]
 
 
@@ -190,9 +189,7 @@ async def sync_profiles(
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
     """Sync stale profiles (synced_at older than 24h); returns (profiles, positions)."""
-    wallets_to_sync = await _load_profiles_needing_sync(
-        db, wallet=wallet, limit=limit
-    )
+    wallets_to_sync = await _load_profiles_needing_sync(db, wallet=wallet, limit=limit)
 
     logger.info(
         "profile_sync_start",
@@ -213,9 +210,7 @@ async def sync_profiles(
         return 0, 0
 
     to_sync = list(wallets_to_sync.keys())
-    positions = await sync_positions_for_wallets(
-        db, data, settings, to_sync, stop=stop
-    )
+    positions = await sync_positions_for_wallets(db, data, settings, to_sync, stop=stop)
     processed = await upsert_profiles_for_wallets(
         db, data, pnl, wallets_to_sync, stop=stop
     )
@@ -284,7 +279,9 @@ async def _fetch_new_positions(
 ) -> list[dict[str, Any]]:
     """Пагинация /closed-positions (новые первыми) до watermark или max_offset."""
     min_timestamp = (
-        watermark if watermark is not None else _first_run_cutoff_timestamp(settings) - 1
+        watermark
+        if watermark is not None
+        else _first_run_cutoff_timestamp(settings) - 1
     )
     pages: list[list[dict[str, Any]]] = []
     offset = 0
@@ -296,9 +293,13 @@ async def _fetch_new_positions(
         )
         if not raw:
             break
-        fresh = [p for p in raw if p["timestamp"] > min_timestamp]
+        fresh = [
+            p
+            for p in raw
+            if p["timestamp"] > min_timestamp and _is_valid_closed_position(p)
+        ]
         pages.append(fresh)
-        if len(fresh) < len(raw):
+        if any(p["timestamp"] <= min_timestamp for p in raw):
             break
         if len(raw) < settings.closed_positions_page_limit:
             break
