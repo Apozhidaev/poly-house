@@ -143,3 +143,24 @@ class DataClient:
             )
             or []
         )
+
+    async def activity_page(
+        self, *, user: str, limit: int, offset: int
+    ) -> list[dict[str, Any]]:
+        """Страница /activity по пользователю, новые первыми."""
+        params: dict[str, Any] = {
+            "user": user,
+            "limit": limit,
+            "offset": offset,
+            "sortBy": "TIMESTAMP",
+            "sortDirection": "DESC",
+            "type": ["TRADE", "SPLIT", "MERGE", "REDEEM", "CONVERSION"],
+        }
+        return (
+            await self._http.get(
+                f"{BASE_URL}/activity",
+                params=params,
+                rate_limiter=rate_limiter,
+            )
+            or []
+        )
