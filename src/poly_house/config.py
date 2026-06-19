@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     trades_max_offset: int = 3000  # потолок offset в Data API
     snapshot_holders_limit: int = 500  # max Data API /holders
     activity_page_limit: int = 500
-    activity_max_offset: int = 10000
+    activity_max_offset: int = 3000  # потолок offset в Data API
 
     # REST API
     server_host: str = "127.0.0.1"

@@ -134,7 +134,7 @@ class DataClient:
             "offset": offset,
             "sortBy": "TIMESTAMP",
             "sortDirection": "DESC",
-            "type": ["TRADE", "SPLIT", "MERGE", "REDEEM", "CONVERSION"],
+            "type": "TRADE,SPLIT,MERGE,REDEEM,CONVERSION",
         }
         return (
             await self._http.get(
