@@ -178,6 +178,34 @@ async def upsert_profiles_for_wallets(
     return processed
 
 
+async def sync_profiles_for_wallets(
+    db: Database,
+    data: DataClient,
+    pnl: PnlClient,
+    settings: Settings,
+    wallets: dict[str, str],
+    *,
+    stop: asyncio.Event | None = None,
+) -> None:
+    """Sync profiles for given wallets."""
+    started = time.monotonic()
+    if not wallets:
+        logger.info("profiles_sync_skip", reason="no_wallets")
+        return
+
+    activities = await sync_activities_for_wallets(
+        db, data, settings, list(wallets.keys()), stop=stop
+    )
+    profiles = await upsert_profiles_for_wallets(db, data, pnl, wallets, stop=stop)
+    logger.info(
+        "profiles_sync_complete",
+        profiles=profiles,
+        activities=activities,
+        interrupted=stop is not None and stop.is_set(),
+        seconds=round(time.monotonic() - started, 1),
+    )
+
+
 async def sync_profiles(
     db: Database,
     data: DataClient,
@@ -187,52 +215,26 @@ async def sync_profiles(
     wallet: str | None = None,
     limit: int | None = None,
     stop: asyncio.Event | None = None,
-) -> tuple[int, int]:
-    """Sync stale profiles (synced_at older than 24h); returns (profiles, activities)."""
+) -> None:
+    """Sync stale profiles (synced_at older than 24h)."""
     wallets_to_sync = await _load_profiles_needing_sync(db, wallet=wallet, limit=limit)
 
     logger.info(
-        "profile_sync_start",
+        "profiles_sync_start",
         profiles=len(wallets_to_sync),
         wallet=wallet,
         limit=limit,
     )
 
-    started = time.monotonic()
-    if not wallets_to_sync:
-        logger.info(
-            "profile_sync_done",
-            profiles=0,
-            activities=0,
-            interrupted=stop is not None and stop.is_set(),
-            seconds=round(time.monotonic() - started, 1),
-        )
-        return 0, 0
-
-    to_sync = list(wallets_to_sync.keys())
-    activities = await sync_activities_for_wallets(
-        db, data, settings, to_sync, stop=stop
-    )
-    processed = await upsert_profiles_for_wallets(
-        db, data, pnl, wallets_to_sync, stop=stop
-    )
-
-    logger.info(
-        "profile_sync_done",
-        profiles=processed,
-        activities=activities,
-        interrupted=stop is not None and stop.is_set(),
-        seconds=round(time.monotonic() - started, 1),
-    )
-    return processed, activities
+    await sync_profiles_for_wallets(db, data, pnl, settings, wallets_to_sync, stop=stop)
 
 
 async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
     if not wallets:
         return {}
-    docs = await db.activities.find(
-        {"proxy_wallet": {"$in": wallets}}
-    ).to_list(length=None)
+    docs = await db.activities.find({"proxy_wallet": {"$in": wallets}}).to_list(
+        length=None
+    )
     by_wallet: dict[str, list[Activity]] = {}
     for doc in docs:
         activity = Activity.model_validate(doc)
