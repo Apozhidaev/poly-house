@@ -32,12 +32,15 @@ class MarketActivity(BaseModel):
     volume: float
 
 
-def build_market_activity(
-    condition_id: str, proxy_wallet: str, activities: list[Activity]
-) -> MarketActivity:
+def build_market_activity(activities: list[Activity]) -> MarketActivity:
+    if not activities:
+        raise ValueError("activities must not be empty")
+
+    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
+
     pnl = 0.0
     volume = 0.0
-    for activity in activities:
+    for activity in sorted_activities:
         volume += activity.usdc_size
         if activity.type == "TRADE":
             if activity.side == "SELL":
@@ -45,9 +48,11 @@ def build_market_activity(
             elif activity.side == "BUY":
                 pnl -= activity.usdc_size
 
+    last_activity = sorted_activities[-1]
+
     return MarketActivity(
-        condition_id=condition_id,
-        proxy_wallet=proxy_wallet,
+        condition_id=last_activity.condition_id,
+        proxy_wallet=last_activity.proxy_wallet,
         pnl=pnl,
         volume=volume,
     )
