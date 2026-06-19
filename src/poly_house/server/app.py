@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from poly_house.config import Settings
 from poly_house.db import create_client
-from poly_house.server.routes import events, markets, tags, trades
+from poly_house.server.routes import activity, events, markets, tags, trades
 
 
 @asynccontextmanager
@@ -23,3 +23,5 @@ app.include_router(events.router)
 app.include_router(markets.router)
 app.include_router(tags.router)
 app.include_router(trades.router)
+app.include_router(activity.router)
+app.include_router(activity.market_activity_router)
