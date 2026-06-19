@@ -33,8 +33,13 @@ class MarketActivity(BaseModel):
     timestamp: int
 
 
+_EXCLUDED_ACTIVITY_TYPES = frozenset({"SPLIT", "MERGE", "CONVERSION"})
+
+
 def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
     if not activities:
+        return None
+    if any(a.type in _EXCLUDED_ACTIVITY_TYPES for a in activities):
         return None
 
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
@@ -48,6 +53,8 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
                 pnl += activity.usdc_size
             elif activity.side == "BUY":
                 pnl -= activity.usdc_size
+        if activity.type == "REDEEM":
+            pnl += activity.usdc_size
 
     last_activity = sorted_activities[-1]
 
