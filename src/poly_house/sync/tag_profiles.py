@@ -10,7 +10,11 @@ from pymongo import UpdateOne
 
 from poly_house.db import Database
 from poly_house.models import TagProfile, TimeSeriesPoint
-from poly_house.sync.profiles import win_rate_from_positions
+from poly_house.models.activity import (
+    Activity,
+    MarketActivity,
+    build_market_activities,
+)
 from poly_house.utils.math import fit_trend_by_days
 
 logger = structlog.get_logger()
@@ -27,36 +31,45 @@ async def load_condition_tag_ids(db: Database) -> dict[str, list[int]]:
     return {doc["condition_id"]: doc["tag_ids"] for doc in docs}
 
 
-def group_positions_by_tag(
-    positions: list[dict[str, Any]],
+def group_market_activities_by_tag(
+    market_activities: list[MarketActivity],
     condition_tags: dict[str, list[int]],
-) -> dict[int, list[dict[str, Any]]]:
-    by_tag: dict[int, list[dict[str, Any]]] = {}
-    for position in positions:
-        tag_ids = condition_tags.get(position["condition_id"])
+) -> dict[int, list[MarketActivity]]:
+    by_tag: dict[int, list[MarketActivity]] = {}
+    for market_activity in market_activities:
+        tag_ids = condition_tags.get(market_activity.condition_id)
         if not tag_ids:
             continue
         for tag_id in tag_ids:
-            by_tag.setdefault(tag_id, []).append(position)
+            by_tag.setdefault(tag_id, []).append(market_activity)
     return by_tag
+
+
+def win_rate_from_market_activities(
+    market_activities: list[MarketActivity],
+) -> float | None:
+    if not market_activities:
+        return None
+    win_count = sum(1 for ma in market_activities if ma.pnl > 0)
+    return win_count / len(market_activities)
 
 
 def build_tag_profile(
     wallet: str,
     tag_id: int,
-    positions: list[dict[str, Any]],
+    market_activities: list[MarketActivity],
 ) -> TagProfile:
-    pnl = sum(p["realized_pnl"] for p in positions)
-    volume = sum(p["total_bought"] for p in positions)
-    markets_count = len({p["condition_id"] for p in positions})
-    win_rate = win_rate_from_positions(positions)
+    pnl = sum(ma.pnl for ma in market_activities)
+    volume = sum(ma.volume for ma in market_activities)
+    markets_count = len(market_activities)
+    win_rate = win_rate_from_market_activities(market_activities)
 
     points = [
         TimeSeriesPoint(
-            timestamp=datetime.fromtimestamp(p["timestamp"], UTC),
-            value=p["realized_pnl"],
+            timestamp=datetime.fromtimestamp(ma.timestamp, UTC),
+            value=ma.pnl,
         )
-        for p in positions
+        for ma in market_activities
     ]
     if len(points) >= 2:
         _, slope, r2 = fit_trend_by_days(points, use_cumulative=True)
@@ -103,16 +116,18 @@ async def update_tag_profiles_for_wallets(
         if stop is not None and stop.is_set():
             break
 
-        positions = await db.positions.find(
+        activity_docs = await db.activities.find(
             {
                 "proxy_wallet": proxy_wallet,
                 "condition_id": {"$in": condition_ids},
             }
         ).to_list(length=None)
+        activities = [Activity.model_validate(doc) for doc in activity_docs]
+        market_activities = build_market_activities(activities)
 
-        by_tag = group_positions_by_tag(positions, condition_tags)
-        for tag_id, tag_positions in by_tag.items():
-            profile = build_tag_profile(proxy_wallet, tag_id, tag_positions)
+        by_tag = group_market_activities_by_tag(market_activities, condition_tags)
+        for tag_id, tag_market_activities in by_tag.items():
+            profile = build_tag_profile(proxy_wallet, tag_id, tag_market_activities)
             ops.append(
                 UpdateOne(
                     {"proxy_wallet": proxy_wallet, "tag_id": tag_id},
@@ -131,7 +146,7 @@ async def update_tag_profiles_for_wallets(
             "holder_tag_profiles_synced",
             wallet=proxy_wallet,
             tag_profiles=len(by_tag),
-            positions=len(positions),
+            market_activities=len(market_activities),
         )
 
     await _flush_writes(db, ops)

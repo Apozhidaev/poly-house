@@ -85,7 +85,7 @@ def update_tag_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число holders (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Обновить tag profiles одного holder по proxy_wallet.")] = None,
 ) -> None:
-    """Агрегация tag profiles holders из positions + markets → tag_profiles."""
+    """Агрегация tag profiles holders из activities + markets → tag_profiles."""
     _configure_logging()
     settings = Settings()
     options = TagProfileSyncOptions(wallet=wallet, limit=limit)
