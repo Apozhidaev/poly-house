@@ -33,9 +33,9 @@ class MarketActivity(BaseModel):
     timestamp: int
 
 
-def build_market_activity(activities: list[Activity]) -> MarketActivity:
+def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
     if not activities:
-        raise ValueError("activities must not be empty")
+        return None
 
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
 
@@ -64,4 +64,8 @@ def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
     by_condition: dict[str, list[Activity]] = {}
     for activity in activities:
         by_condition.setdefault(activity.condition_id, []).append(activity)
-    return [build_market_activity(group) for group in by_condition.values()]
+    return [
+        ma
+        for group in by_condition.values()
+        if (ma := build_market_activity(group)) is not None
+    ]
