@@ -28,14 +28,14 @@ class Position(BaseModel):
     @computed_field
     @property
     def realized_delta(self) -> float:
-        return self.realized_pnl / self.total_bought # realized_delta = close_price - open_price
+        return (
+            self.realized_pnl / self.total_bought
+        )  # realized_delta = close_price - open_price
 
     @computed_field
     @property
     def exit_price(self) -> float:
-        return self.avg_price + self.realized_delta
-
-    
+        return min(1, max(0, self.avg_price + self.realized_delta))
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
