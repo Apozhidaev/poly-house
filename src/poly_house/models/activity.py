@@ -58,3 +58,10 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity:
         volume=volume,
         timestamp=last_activity.timestamp,
     )
+
+
+def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
+    by_condition: dict[str, list[Activity]] = {}
+    for activity in activities:
+        by_condition.setdefault(activity.condition_id, []).append(activity)
+    return [build_market_activity(group) for group in by_condition.values()]
