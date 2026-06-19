@@ -265,11 +265,7 @@ async def _fetch_new_activities(
     watermark: int | None,
 ) -> list[dict[str, Any]]:
     """Пагинация /activity (новые первыми) до watermark или max_offset."""
-    min_timestamp = (
-        watermark
-        if watermark is not None
-        else _first_run_cutoff_timestamp(settings) - 1
-    )
+    min_timestamp = watermark if watermark is not None else -1
     pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.activity_max_offset:
@@ -324,8 +320,3 @@ async def sync_activities_for_wallets(
             watermark=watermark,
         )
     return total_activities
-
-
-def _first_run_cutoff_timestamp(settings: Settings) -> int:
-    dt = datetime.now(UTC) - timedelta(days=settings.activities_in_days)
-    return int(dt.timestamp())
