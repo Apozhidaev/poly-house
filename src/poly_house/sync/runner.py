@@ -30,9 +30,9 @@ DbRunOnce = Callable[[Database, asyncio.Event | None], Awaitable[None]]
 
 @dataclass
 class MarketSyncOptions:
+    closed: bool
     page_limit: int | None = None
     max_pages: int | None = None
-    skip_open: bool = False
 
 
 async def _run(
@@ -111,12 +111,13 @@ async def run_sync_markets(
                 settings,
                 page_limit=options.page_limit,
                 max_pages=options.max_pages,
-                closed_only=options.skip_open,
+                closed=options.closed,
                 stop=stop,
             )
             logger.info(
                 "market_sync_run_complete",
                 markets=len(markets),
+                closed=options.closed,
                 seconds=round(time.monotonic() - started, 1),
             )
 

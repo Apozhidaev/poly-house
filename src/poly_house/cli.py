@@ -32,17 +32,29 @@ def _configure_logging() -> None:
     )
 
 
-@app.command("sync-market")
-def sync_market(
+@app.command("sync-open-market")
+def sync_open_market(
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /markets/keyset.")] = None,
     max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц маркетов (для теста).")] = None,
-    skip_open: Annotated[bool, typer.Option("--skip-open", help="Синхронизировать только закрытые маркеты (closed=true).")] = False,
 ) -> None:
-    """Синхронизация маркетов (+ события, теги) Polymarket → MongoDB."""
+    """Синхронизация открытых маркетов (closed=false) + события + теги → MongoDB."""
     _configure_logging()
     settings = Settings()
-    options = MarketSyncOptions(page_limit=limit, max_pages=max_pages, skip_open=skip_open)
+    options = MarketSyncOptions(closed=False, page_limit=limit, max_pages=max_pages)
+    asyncio.run(run_sync_markets(settings, options, watch=watch))
+
+
+@app.command("sync-close-market")
+def sync_close_market(
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /markets/keyset.")] = None,
+    max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц маркетов (для теста).")] = None,
+) -> None:
+    """Синхронизация закрытых маркетов (closed=true) + события + теги → MongoDB."""
+    _configure_logging()
+    settings = Settings()
+    options = MarketSyncOptions(closed=True, page_limit=limit, max_pages=max_pages)
     asyncio.run(run_sync_markets(settings, options, watch=watch))
 
 

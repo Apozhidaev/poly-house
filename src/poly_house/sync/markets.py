@@ -51,7 +51,7 @@ async def _fetch_pages(
     exclude_tag_ids: list[int],
     yes_no_only: bool,
     neg_risk: bool | None,
-    closed_only: bool,
+    closed: bool,
     stop: asyncio.Event | None,
 ) -> tuple[list[list[Market]], str | None]:
     """Качаем страницы по убыванию updatedAt, пока не дойдём до watermark."""
@@ -67,7 +67,7 @@ async def _fetch_pages(
             limit=page_limit,
             cursor=cursor,
             tag_ids=tag_ids,
-            closed=True if closed_only else None,
+            closed=closed,
         )
         if not raw:
             break
@@ -91,6 +91,7 @@ async def _fetch_pages(
         pages.append(kept)
         logger.info(
             "markets_page_fetched",
+            closed=closed,
             page=len(pages),
             markets=len(page),
             fresh=len(fresh),
@@ -146,12 +147,12 @@ async def sync_markets(
     *,
     page_limit: int | None = None,
     max_pages: int | None = None,
-    closed_only: bool = False,
+    closed: bool,
     stop: asyncio.Event | None = None,
 ) -> list[Market]:
     """Инкрементальный sync маркетов; возвращает записанные маркеты (по возрастанию updated_at)."""
-    watermark = await get_markets_watermark(db, settings)
-    logger.info("markets_sync_start", watermark=watermark)
+    watermark = await get_markets_watermark(db, settings, closed=closed)
+    logger.info("markets_sync_start", watermark=watermark, closed=closed)
 
     pages, max_updated_at = await _fetch_pages(
         gamma,
@@ -162,7 +163,7 @@ async def sync_markets(
         exclude_tag_ids=settings.markets_exclude_tag_ids,
         yes_no_only=settings.markets_yes_no_only,
         neg_risk=settings.markets_neg_risk,
-        closed_only=closed_only,
+        closed=closed,
         stop=stop,
     )
 
@@ -177,8 +178,8 @@ async def sync_markets(
 
     interrupted = stop is not None and stop.is_set()
     if not interrupted and max_updated_at is not None:
-        await set_markets_watermark(db, max_updated_at)
-        logger.info("markets_watermark_saved", watermark=max_updated_at)
+        await set_markets_watermark(db, max_updated_at, closed=closed)
+        logger.info("markets_watermark_saved", watermark=max_updated_at, closed=closed)
 
-    logger.info("markets_sync_done", markets=len(written), interrupted=interrupted)
+    logger.info("markets_sync_done", markets=len(written), interrupted=interrupted, closed=closed)
     return written
