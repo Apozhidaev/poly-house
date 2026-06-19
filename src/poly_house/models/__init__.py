@@ -6,7 +6,7 @@ from poly_house.models.trade import Trade
 from poly_house.models.user import User
 from poly_house.models.ts import TimeSeriesPoint
 from poly_house.models.pnl import PnlTimeSeries
-from poly_house.models.activity import Activity
+from poly_house.models.activity import Activity, MarketActivity
 from poly_house.models.equity import EquitySnapshot
 from poly_house.models.leaderboard import LeaderboardStats
 from poly_house.models.position import Position
@@ -25,6 +25,7 @@ __all__ = [
     "TimeSeriesPoint",
     "PnlTimeSeries",
     "Activity",
+    "MarketActivity",
     "EquitySnapshot",
     "LeaderboardStats",
     "Position",
