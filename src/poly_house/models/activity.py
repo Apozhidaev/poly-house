@@ -76,3 +76,12 @@ def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
         for group in by_condition.values()
         if (ma := build_market_activity(group)) is not None
     ]
+
+
+def win_rate_from_market_activities(
+    market_activities: list[MarketActivity],
+) -> float | None:
+    if not market_activities:
+        return None
+    win_count = sum(1 for ma in market_activities if ma.pnl > 0)
+    return win_count / len(market_activities)

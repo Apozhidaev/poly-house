@@ -14,6 +14,7 @@ from poly_house.models.activity import (
     Activity,
     MarketActivity,
     build_market_activities,
+    win_rate_from_market_activities,
 )
 from poly_house.utils.math import fit_trend_by_days
 
@@ -43,15 +44,6 @@ def group_market_activities_by_tag(
         for tag_id in tag_ids:
             by_tag.setdefault(tag_id, []).append(market_activity)
     return by_tag
-
-
-def win_rate_from_market_activities(
-    market_activities: list[MarketActivity],
-) -> float | None:
-    if not market_activities:
-        return None
-    win_count = sum(1 for ma in market_activities if ma.pnl > 0)
-    return win_count / len(market_activities)
 
 
 def build_tag_profile(

@@ -16,9 +16,12 @@ from poly_house.models import (
     Activity,
     EquitySnapshot,
     LeaderboardStats,
-    Position,
     Profile,
     PnlTimeSeries,
+)
+from poly_house.models.activity import (
+    build_market_activities,
+    win_rate_from_market_activities,
 )
 from poly_house.utils.math import fit_trend_by_days
 
@@ -229,35 +232,25 @@ async def sync_profiles(
     return processed, activities
 
 
-def win_rate_from_positions(positions: list[dict[str, Any]]) -> float | None:
-    if not positions:
-        return None
-    win_count = sum(1 for p in positions if p["realized_pnl"] > 0)
-    return win_count / len(positions)
-
-
 async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
     if not wallets:
         return {}
-    cursor = await db.positions.aggregate(
-        [
-            {"$match": {"proxy_wallet": {"$in": wallets}}},
-            {
-                "$group": {
-                    "_id": "$proxy_wallet",
-                    "positions_count": {"$sum": 1},
-                    "win_positions_count": {
-                        "$sum": {"$cond": [{"$gt": ["$realized_pnl", 0]}, 1, 0]}
-                    },
-                }
-            },
-        ]
-    )
-    docs = await cursor.to_list(length=None)
+    docs = await db.activities.find(
+        {"proxy_wallet": {"$in": wallets}}
+    ).to_list(length=None)
+    by_wallet: dict[str, list[Activity]] = {}
+    for doc in docs:
+        activity = Activity.model_validate(doc)
+        by_wallet.setdefault(activity.proxy_wallet, []).append(activity)
     return {
-        doc["_id"]: doc["win_positions_count"] / doc["positions_count"]
-        for doc in docs
-        if doc["positions_count"] > 0
+        wallet: rate
+        for wallet, wallet_activities in by_wallet.items()
+        if (
+            rate := win_rate_from_market_activities(
+                build_market_activities(wallet_activities)
+            )
+        )
+        is not None
     }
 
 
