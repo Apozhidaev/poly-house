@@ -265,6 +265,13 @@ async def _get_position_watermark(db: Database, proxy_wallet: str) -> int | None
     return doc["timestamp"] if doc else None
 
 
+def _positions_min_timestamp(settings: Settings, watermark: int | None) -> int:
+    if watermark is not None:
+        return watermark
+    cutoff = datetime.now(UTC) - timedelta(days=settings.closed_positions_in_days)
+    return int(cutoff.timestamp())
+
+
 async def _fetch_new_positions(
     data: DataClient,
     settings: Settings,
@@ -272,7 +279,7 @@ async def _fetch_new_positions(
     watermark: int | None,
 ) -> list[dict[str, Any]]:
     """Пагинация /closed-positions (новые первыми) до watermark или max_offset."""
-    min_timestamp = watermark if watermark is not None else -1
+    min_timestamp = _positions_min_timestamp(settings, watermark)
     pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.closed_positions_max_offset:

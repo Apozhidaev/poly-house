@@ -51,6 +51,7 @@ class RateLimitedClient:
                 logger.warning(
                     "http_request_failed",
                     url=url,
+                    params=params,
                     attempt=attempt,
                     wait=wait,
                     error=str(exc),
