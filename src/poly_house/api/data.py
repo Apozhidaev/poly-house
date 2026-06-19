@@ -124,26 +124,6 @@ class DataClient:
             return None
         return parse_equity_zip(data)
 
-    async def closed_positions_page(
-        self, *, user: str, limit: int, offset: int
-    ) -> list[dict[str, Any]]:
-        """Страница /closed-positions по пользователю, новые первыми."""
-        params: dict[str, Any] = {
-            "user": user,
-            "limit": limit,
-            "offset": offset,
-            "sortBy": "TIMESTAMP",
-            "sortDirection": "DESC",
-        }
-        return (
-            await self._http.get(
-                f"{BASE_URL}/closed-positions",
-                params=params,
-                rate_limiter=rate_limiter,
-            )
-            or []
-        )
-
     async def activity_page(
         self, *, user: str, limit: int, offset: int
     ) -> list[dict[str, Any]]:

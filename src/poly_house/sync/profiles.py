@@ -31,10 +31,6 @@ BULK_SIZE = 100
 PROFILE_SYNC_MIN_INTERVAL = timedelta(days=1)
 
 
-def _is_valid_closed_position(position: dict[str, Any]) -> bool:
-    return position.get("realizedPnl", 0) != 0
-
-
 async def wallets_needing_profile_sync(db: Database, wallets: list[str]) -> list[str]:
     if not wallets:
         return []
@@ -192,7 +188,7 @@ async def sync_profiles(
     limit: int | None = None,
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
-    """Sync stale profiles (synced_at older than 24h); returns (profiles, activities, positions)."""
+    """Sync stale profiles (synced_at older than 24h); returns (profiles, activities)."""
     wallets_to_sync = await _load_profiles_needing_sync(db, wallet=wallet, limit=limit)
 
     logger.info(
@@ -208,7 +204,6 @@ async def sync_profiles(
             "profile_sync_done",
             profiles=0,
             activities=0,
-            positions=0,
             interrupted=stop is not None and stop.is_set(),
             seconds=round(time.monotonic() - started, 1),
         )
@@ -332,5 +327,5 @@ async def sync_activities_for_wallets(
 
 
 def _first_run_cutoff_timestamp(settings: Settings) -> int:
-    dt = datetime.now(UTC) - timedelta(days=settings.positions_closed_in_days)
+    dt = datetime.now(UTC) - timedelta(days=settings.activities_in_days)
     return int(dt.timestamp())

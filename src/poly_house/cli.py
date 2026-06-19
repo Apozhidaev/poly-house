@@ -72,7 +72,7 @@ def sync_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число profiles (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один profile по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация устаревших profiles и closed positions → profiles, positions."""
+    """Синхронизация устаревших profiles: activities → profiles."""
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
