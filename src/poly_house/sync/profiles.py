@@ -13,6 +13,7 @@ from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import (
+    Activity,
     EquitySnapshot,
     LeaderboardStats,
     Position,
@@ -187,8 +188,8 @@ async def sync_profiles(
     wallet: str | None = None,
     limit: int | None = None,
     stop: asyncio.Event | None = None,
-) -> tuple[int, int]:
-    """Sync stale profiles (synced_at older than 24h); returns (profiles, positions)."""
+) -> tuple[int, int, int]:
+    """Sync stale profiles (synced_at older than 24h); returns (profiles, activities, positions)."""
     wallets_to_sync = await _load_profiles_needing_sync(db, wallet=wallet, limit=limit)
 
     logger.info(
@@ -203,13 +204,17 @@ async def sync_profiles(
         logger.info(
             "profile_sync_done",
             profiles=0,
+            activities=0,
             positions=0,
             interrupted=stop is not None and stop.is_set(),
             seconds=round(time.monotonic() - started, 1),
         )
-        return 0, 0
+        return 0, 0, 0
 
     to_sync = list(wallets_to_sync.keys())
+    activities = await sync_activities_for_wallets(
+        db, data, settings, to_sync, stop=stop
+    )
     positions = await sync_positions_for_wallets(db, data, settings, to_sync, stop=stop)
     processed = await upsert_profiles_for_wallets(
         db, data, pnl, wallets_to_sync, stop=stop
@@ -218,11 +223,12 @@ async def sync_profiles(
     logger.info(
         "profile_sync_done",
         profiles=processed,
+        activities=activities,
         positions=positions,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
     )
-    return processed, positions
+    return processed, activities, positions
 
 
 def win_rate_from_positions(positions: list[dict[str, Any]]) -> float | None:
@@ -255,6 +261,83 @@ async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
         for doc in docs
         if doc["positions_count"] > 0
     }
+
+
+async def _get_activity_watermark(db: Database, proxy_wallet: str) -> int | None:
+    doc = await db.activities.find_one(
+        {"proxy_wallet": proxy_wallet},
+        sort=[("timestamp", -1)],
+        projection={"timestamp": 1},
+    )
+    return doc["timestamp"] if doc else None
+
+
+async def _fetch_new_activities(
+    data: DataClient,
+    settings: Settings,
+    user: str,
+    watermark: int | None,
+) -> list[dict[str, Any]]:
+    """Пагинация /activity (новые первыми) до watermark или max_offset."""
+    min_timestamp = (
+        watermark
+        if watermark is not None
+        else _first_run_cutoff_timestamp(settings) - 1
+    )
+    pages: list[list[dict[str, Any]]] = []
+    offset = 0
+    while offset <= settings.activity_max_offset:
+        raw = await data.activity_page(
+            user=user,
+            limit=settings.activity_page_limit,
+            offset=offset,
+        )
+        if not raw:
+            break
+        fresh = [p for p in raw if p["timestamp"] > min_timestamp]
+        pages.append(fresh)
+        if any(p["timestamp"] <= min_timestamp for p in raw):
+            break
+        if len(raw) < settings.activity_page_limit:
+            break
+        offset += settings.activity_page_limit
+    return [p for page in reversed(pages) for p in reversed(page)]
+
+
+async def _write_activities(db: Database, raw_activities: list[dict[str, Any]]) -> int:
+    if not raw_activities:
+        return 0
+    docs = [Activity.model_validate(raw).to_doc() for raw in raw_activities]
+    await db.activities.insert_many(docs)
+    return len(docs)
+
+
+async def sync_activities_for_wallets(
+    db: Database,
+    data: DataClient,
+    settings: Settings,
+    wallets: list[str],
+    *,
+    stop: asyncio.Event | None = None,
+) -> int:
+    """Догружает activity для списка wallets; returns number of activities written."""
+    total_activities = 0
+    for proxy_wallet in wallets:
+        if stop is not None and stop.is_set():
+            break
+        watermark = await _get_activity_watermark(db, proxy_wallet)
+        activities = await _fetch_new_activities(
+            data, settings, proxy_wallet, watermark
+        )
+        if activities:
+            total_activities += await _write_activities(db, activities)
+        logger.info(
+            "holder_activities_synced",
+            wallet=proxy_wallet,
+            activities=len(activities),
+            watermark=watermark,
+        )
+    return total_activities
 
 
 async def _get_holder_watermark(db: Database, proxy_wallet: str) -> int | None:
