@@ -162,7 +162,7 @@ async def run_sync_profile(
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            profiles, activities, positions = await sync_profiles(
+            profiles, activities = await sync_profiles(
                 db,
                 data,
                 pnl,
@@ -175,7 +175,6 @@ async def run_sync_profile(
                 "profile_sync_run_complete",
                 profiles=profiles,
                 activities=activities,
-                positions=positions,
                 seconds=round(time.monotonic() - started, 1),
             )
 

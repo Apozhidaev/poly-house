@@ -188,7 +188,7 @@ async def sync_profiles(
     wallet: str | None = None,
     limit: int | None = None,
     stop: asyncio.Event | None = None,
-) -> tuple[int, int, int]:
+) -> tuple[int, int]:
     """Sync stale profiles (synced_at older than 24h); returns (profiles, activities, positions)."""
     wallets_to_sync = await _load_profiles_needing_sync(db, wallet=wallet, limit=limit)
 
@@ -209,13 +209,12 @@ async def sync_profiles(
             interrupted=stop is not None and stop.is_set(),
             seconds=round(time.monotonic() - started, 1),
         )
-        return 0, 0, 0
+        return 0, 0
 
     to_sync = list(wallets_to_sync.keys())
     activities = await sync_activities_for_wallets(
         db, data, settings, to_sync, stop=stop
     )
-    positions = await sync_positions_for_wallets(db, data, settings, to_sync, stop=stop)
     processed = await upsert_profiles_for_wallets(
         db, data, pnl, wallets_to_sync, stop=stop
     )
@@ -224,11 +223,10 @@ async def sync_profiles(
         "profile_sync_done",
         profiles=processed,
         activities=activities,
-        positions=positions,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
     )
-    return processed, activities, positions
+    return processed, activities
 
 
 def win_rate_from_positions(positions: list[dict[str, Any]]) -> float | None:
@@ -340,85 +338,6 @@ async def sync_activities_for_wallets(
     return total_activities
 
 
-async def _get_holder_watermark(db: Database, proxy_wallet: str) -> int | None:
-    doc = await db.positions.find_one(
-        {"proxy_wallet": proxy_wallet},
-        sort=[("timestamp", -1)],
-        projection={"timestamp": 1},
-    )
-    return doc["timestamp"] if doc else None
-
-
 def _first_run_cutoff_timestamp(settings: Settings) -> int:
     dt = datetime.now(UTC) - timedelta(days=settings.positions_closed_in_days)
     return int(dt.timestamp())
-
-
-async def _fetch_new_positions(
-    data: DataClient,
-    settings: Settings,
-    user: str,
-    watermark: int | None,
-) -> list[dict[str, Any]]:
-    """Пагинация /closed-positions (новые первыми) до watermark или max_offset."""
-    min_timestamp = (
-        watermark
-        if watermark is not None
-        else _first_run_cutoff_timestamp(settings) - 1
-    )
-    pages: list[list[dict[str, Any]]] = []
-    offset = 0
-    while offset <= settings.closed_positions_max_offset:
-        raw = await data.closed_positions_page(
-            user=user,
-            limit=settings.closed_positions_page_limit,
-            offset=offset,
-        )
-        if not raw:
-            break
-        fresh = [
-            p
-            for p in raw
-            if p["timestamp"] > min_timestamp and _is_valid_closed_position(p)
-        ]
-        pages.append(fresh)
-        if any(p["timestamp"] <= min_timestamp for p in raw):
-            break
-        if len(raw) < settings.closed_positions_page_limit:
-            break
-        offset += settings.closed_positions_page_limit
-    return [p for page in reversed(pages) for p in reversed(page)]
-
-
-async def _write_positions(db: Database, raw_positions: list[dict[str, Any]]) -> int:
-    if not raw_positions:
-        return 0
-    docs = [Position.model_validate(raw).to_doc() for raw in raw_positions]
-    await db.positions.insert_many(docs)
-    return len(docs)
-
-
-async def sync_positions_for_wallets(
-    db: Database,
-    data: DataClient,
-    settings: Settings,
-    wallets: list[str],
-    *,
-    stop: asyncio.Event | None = None,
-) -> int:
-    """Догружает closed positions для списка wallets; returns number of positions written."""
-    total_positions = 0
-    for proxy_wallet in wallets:
-        if stop is not None and stop.is_set():
-            break
-        watermark = await _get_holder_watermark(db, proxy_wallet)
-        positions = await _fetch_new_positions(data, settings, proxy_wallet, watermark)
-        if positions:
-            total_positions += await _write_positions(db, positions)
-        logger.info(
-            "holder_positions_synced",
-            wallet=proxy_wallet,
-            positions=len(positions),
-            watermark=watermark,
-        )
-    return total_positions
