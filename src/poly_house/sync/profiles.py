@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
-from pymongo import UpdateOne
+from pymongo import ReplaceOne, UpdateOne
 
 from poly_house.api.data import DataClient
 from poly_house.api.pnl import PnlClient
@@ -16,6 +16,7 @@ from poly_house.models import (
     Activity,
     EquitySnapshot,
     LeaderboardStats,
+    Position,
     Profile,
     PnlTimeSeries,
 )
@@ -193,6 +194,9 @@ async def sync_profiles_for_wallets(
         logger.info("profiles_sync_skip", reason="no_wallets")
         return
 
+    positions = await sync_positions_for_wallets(
+        db, data, settings, list(wallets.keys()), stop=stop
+    )
     activities = await sync_activities_for_wallets(
         db, data, settings, list(wallets.keys()), stop=stop
     )
@@ -200,6 +204,7 @@ async def sync_profiles_for_wallets(
     logger.info(
         "profiles_sync_complete",
         profiles=profiles,
+        positions=positions,
         activities=activities,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
@@ -249,6 +254,87 @@ async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
         )
         is not None
     }
+
+
+async def _get_position_watermark(db: Database, proxy_wallet: str) -> int | None:
+    doc = await db.positions.find_one(
+        {"proxy_wallet": proxy_wallet},
+        sort=[("timestamp", -1)],
+        projection={"timestamp": 1},
+    )
+    return doc["timestamp"] if doc else None
+
+
+async def _fetch_new_positions(
+    data: DataClient,
+    settings: Settings,
+    user: str,
+    watermark: int | None,
+) -> list[dict[str, Any]]:
+    """Пагинация /closed-positions (новые первыми) до watermark или max_offset."""
+    min_timestamp = watermark if watermark is not None else -1
+    pages: list[list[dict[str, Any]]] = []
+    offset = 0
+    while offset <= settings.closed_positions_max_offset:
+        raw = await data.closed_positions_page(
+            user=user,
+            limit=settings.closed_positions_page_limit,
+            offset=offset,
+        )
+        if not raw:
+            break
+        fresh = [p for p in raw if p["timestamp"] > min_timestamp]
+        pages.append(fresh)
+        if any(p["timestamp"] <= min_timestamp for p in raw):
+            break
+        if len(raw) < settings.closed_positions_page_limit:
+            break
+        offset += settings.closed_positions_page_limit
+    return [p for page in reversed(pages) for p in reversed(page)]
+
+
+async def _write_positions(db: Database, raw_positions: list[dict[str, Any]]) -> int:
+    if not raw_positions:
+        return 0
+    ops = [
+        ReplaceOne(
+            {
+                "proxy_wallet": doc["proxy_wallet"],
+                "condition_id": doc["condition_id"],
+            },
+            doc,
+            upsert=True,
+        )
+        for doc in (Position.model_validate(raw).to_doc() for raw in raw_positions)
+    ]
+    await db.positions.bulk_write(ops)
+    return len(ops)
+
+
+async def sync_positions_for_wallets(
+    db: Database,
+    data: DataClient,
+    settings: Settings,
+    wallets: list[str],
+    *,
+    stop: asyncio.Event | None = None,
+) -> int:
+    """Догружает closed positions для списка wallets; returns number of positions written."""
+    total_positions = 0
+    for proxy_wallet in wallets:
+        if stop is not None and stop.is_set():
+            break
+        watermark = await _get_position_watermark(db, proxy_wallet)
+        positions = await _fetch_new_positions(data, settings, proxy_wallet, watermark)
+        if positions:
+            total_positions += await _write_positions(db, positions)
+        logger.info(
+            "profile_positions_synced",
+            wallet=proxy_wallet,
+            positions=len(positions),
+            watermark=watermark,
+        )
+    return total_positions
 
 
 async def _get_activity_watermark(db: Database, proxy_wallet: str) -> int | None:
@@ -316,7 +402,7 @@ async def sync_activities_for_wallets(
         if activities:
             total_activities += await _write_activities(db, activities)
         logger.info(
-            "holder_activities_synced",
+            "profile_activities_synced",
             wallet=proxy_wallet,
             activities=len(activities),
             watermark=watermark,
