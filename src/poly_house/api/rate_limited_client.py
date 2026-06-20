@@ -10,7 +10,7 @@ import structlog
 from poly_house.api.rate_limiter import RateLimiter
 
 logger = structlog.get_logger()
-
+_MAX_ATTEMPTS = 5
 
 class RateLimitedClient:
     """Async HTTP client with rate limiting (semaphore) and retry with exponential backoff."""
@@ -34,7 +34,7 @@ class RateLimitedClient:
         *,
         params: Mapping[str, Any] | None = None,
         rate_limiter: RateLimiter | None = None,
-        max_attempts: int = 3,
+        max_attempts: int = _MAX_ATTEMPTS,
     ) -> Any:
         last_exc: Exception | None = None
 
@@ -69,7 +69,7 @@ class RateLimitedClient:
         *,
         params: Mapping[str, Any] | None = None,
         rate_limiter: RateLimiter | None = None,
-        max_attempts: int = 3,
+        max_attempts: int = _MAX_ATTEMPTS,
     ) -> bytes:
         last_exc: Exception | None = None
 
@@ -103,7 +103,7 @@ class RateLimitedClient:
         *,
         params: Mapping[str, Any] | None = None,
         rate_limiter: RateLimiter | None = None,
-        max_attempts: int = 3,
+        max_attempts: int = _MAX_ATTEMPTS,
     ) -> Any | None:
         """Like get(), but returns None on any failure instead of raising."""
         try:
@@ -119,7 +119,7 @@ class RateLimitedClient:
         *,
         params: Mapping[str, Any] | None = None,
         rate_limiter: RateLimiter | None = None,
-        max_attempts: int = 3,
+        max_attempts: int = _MAX_ATTEMPTS,
     ) -> bytes | None:
         """Like get_bytes(), but returns None on any failure instead of raising."""
         try:
