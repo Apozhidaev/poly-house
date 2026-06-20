@@ -139,7 +139,7 @@ async def update_tag_profiles_for_wallets(
 
         total_profiles += 1
         logger.info(
-            "holder_tag_profiles_synced",
+            "tag_profiles_synced",
             wallet=proxy_wallet,
             tag_profiles=len(by_tag),
             market_activities=len(market_activities),

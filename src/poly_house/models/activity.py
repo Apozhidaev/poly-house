@@ -20,6 +20,8 @@ class Activity(BaseModel):
     usdc_size: float
     price: float
     outcome_index: int
+    transaction_hash: str
+    is_combo: bool = False
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
@@ -40,6 +42,8 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
     if not activities:
         return None
     if any(a.type in _EXCLUDED_ACTIVITY_TYPES for a in activities):
+        return None
+    if any(a.is_combo for a in activities):
         return None
 
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)

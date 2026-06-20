@@ -344,9 +344,29 @@ async def sync_positions_for_wallets(
     return total_positions
 
 
-async def _get_activity_watermark(db: Database, proxy_wallet: str) -> int | None:
+async def _load_positions_pending_activity(
+    db: Database, wallets: list[str]
+) -> list[Position]:
+    if not wallets:
+        return []
+    market_ids = await db.markets.distinct("condition_id")
+    if not market_ids:
+        return []
+    docs = await db.positions.find(
+        {
+            "proxy_wallet": {"$in": wallets},
+            "activity_synced": False,
+            "condition_id": {"$in": market_ids},
+        }
+    ).to_list(length=None)
+    return [Position.model_validate(doc) for doc in docs]
+
+
+async def _get_activity_watermark(
+    db: Database, proxy_wallet: str, condition_id: str
+) -> int | None:
     doc = await db.activities.find_one(
-        {"proxy_wallet": proxy_wallet},
+        {"proxy_wallet": proxy_wallet, "condition_id": condition_id},
         sort=[("timestamp", -1)],
         projection={"timestamp": 1},
     )
@@ -357,9 +377,10 @@ async def _fetch_new_activities(
     data: DataClient,
     settings: Settings,
     user: str,
+    condition_id: str,
     watermark: int | None,
 ) -> list[dict[str, Any]]:
-    """Пагинация /activity (новые первыми) до watermark или max_offset."""
+    """Пагинация /activity по market (новые первыми) до watermark или max_offset."""
     min_timestamp = watermark if watermark is not None else -1
     pages: list[list[dict[str, Any]]] = []
     offset = 0
@@ -368,6 +389,7 @@ async def _fetch_new_activities(
             user=user,
             limit=settings.activity_page_limit,
             offset=offset,
+            market=condition_id,
         )
         if not raw:
             break
@@ -389,6 +411,15 @@ async def _write_activities(db: Database, raw_activities: list[dict[str, Any]]) 
     return len(docs)
 
 
+async def _mark_position_activity_synced(
+    db: Database, proxy_wallet: str, condition_id: str
+) -> None:
+    await db.positions.update_one(
+        {"proxy_wallet": proxy_wallet, "condition_id": condition_id},
+        {"$set": {"activity_synced": True}},
+    )
+
+
 async def sync_activities_for_wallets(
     db: Database,
     data: DataClient,
@@ -397,20 +428,31 @@ async def sync_activities_for_wallets(
     *,
     stop: asyncio.Event | None = None,
 ) -> int:
-    """Догружает activity для списка wallets; returns number of activities written."""
+    """Догружает activity для pending positions; returns number of activities written."""
+    pending = await _load_positions_pending_activity(db, wallets)
     total_activities = 0
-    for proxy_wallet in wallets:
+    for position in pending:
         if stop is not None and stop.is_set():
             break
-        watermark = await _get_activity_watermark(db, proxy_wallet)
+        watermark = await _get_activity_watermark(
+            db, position.proxy_wallet, position.condition_id
+        )
         activities = await _fetch_new_activities(
-            data, settings, proxy_wallet, watermark
+            data,
+            settings,
+            position.proxy_wallet,
+            position.condition_id,
+            watermark,
         )
         if activities:
             total_activities += await _write_activities(db, activities)
+        await _mark_position_activity_synced(
+            db, position.proxy_wallet, position.condition_id
+        )
         logger.info(
-            "profile_activities_synced",
-            wallet=proxy_wallet,
+            "position_activities_synced",
+            wallet=position.proxy_wallet,
+            condition_id=position.condition_id,
             activities=len(activities),
             watermark=watermark,
         )

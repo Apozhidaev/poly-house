@@ -14,7 +14,7 @@ class Position(BaseModel):
     proxy_wallet: str
     condition_id: str
     timestamp: int
-    activity_loaded: bool = False
+    activity_synced: bool = False
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
