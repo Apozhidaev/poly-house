@@ -22,7 +22,7 @@ from poly_house.models import (
 )
 from poly_house.models.activity import (
     build_market_activities,
-    win_rate_from_market_activities,
+    house_metrics_from_market_activities,
 )
 from poly_house.utils.math import fit_trend_by_days
 
@@ -73,6 +73,8 @@ def build_profile(
     stats: LeaderboardStats | None,
     equity: EquitySnapshot | None,
     ts: PnlTimeSeries | None,
+    house_pnl: float | None = None,
+    house_volume: float | None = None,
     house_win_rate: float | None = None,
     house_markets_count: int,
     synced_at: datetime,
@@ -107,6 +109,8 @@ def build_profile(
         positions_value=positions_value,
         cash_balance=cash_balance,
         total_balance=total_balance,
+        house_pnl=house_pnl,
+        house_volume=house_volume,
         house_win_rate=house_win_rate,
         house_markets_count=house_markets_count,
         synced_at=synced_at,
@@ -145,7 +149,7 @@ async def upsert_profiles_for_wallets(
     """Upsert profiles for wallet->name mapping; returns number of profiles written."""
     ops: list[UpdateOne] = []
     processed = 0
-    win_rate_metrics = await load_win_rate_metrics(db, list(wallets.keys()))
+    house_metrics = await load_house_metrics(db, list(wallets.keys()))
     synced_at = datetime.now(UTC)
 
     for wallet, name in wallets.items():
@@ -153,13 +157,15 @@ async def upsert_profiles_for_wallets(
             break
 
         stats, equity, ts = await _fetch_user_metrics(data, pnl, wallet)
-        metrics = win_rate_metrics.get(wallet)
+        metrics = house_metrics.get(wallet)
         profile = build_profile(
             wallet=wallet,
             name=name,
             stats=stats,
             equity=equity,
             ts=ts,
+            house_pnl=metrics[2] if metrics else None,
+            house_volume=metrics[3] if metrics else None,
             house_win_rate=metrics[0] if metrics else None,
             house_markets_count=metrics[1] if metrics else 0,
             synced_at=synced_at,
@@ -238,9 +244,9 @@ async def sync_profiles(
     await sync_profiles_for_wallets(db, data, pnl, settings, wallets_to_sync, stop=stop)
 
 
-async def load_win_rate_metrics(
+async def load_house_metrics(
     db: Database, wallets: list[str]
-) -> dict[str, tuple[float, int]]:
+) -> dict[str, tuple[float, int, float, float]]:
     if not wallets:
         return {}
     docs = await db.activities.find({"proxy_wallet": {"$in": wallets}}).to_list(
@@ -250,13 +256,15 @@ async def load_win_rate_metrics(
     for doc in docs:
         activity = Activity.model_validate(doc)
         by_wallet.setdefault(activity.proxy_wallet, []).append(activity)
-    metrics: dict[str, tuple[float, int]] = {}
+    metrics: dict[str, tuple[float, int, float, float]] = {}
     for wallet, wallet_activities in by_wallet.items():
-        win_rate, markets_count = win_rate_from_market_activities(
-            build_market_activities(wallet_activities)
+        win_rate, markets_count, house_pnl, house_volume = (
+            house_metrics_from_market_activities(
+                build_market_activities(wallet_activities)
+            )
         )
-        if win_rate is not None:
-            metrics[wallet] = (win_rate, markets_count)
+        if win_rate is not None and house_pnl is not None and house_volume is not None:
+            metrics[wallet] = (win_rate, markets_count, house_pnl, house_volume)
     return metrics
 
 

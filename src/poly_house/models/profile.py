@@ -18,6 +18,8 @@ class Profile(BaseModel):
     positions_value: float | None = None
     cash_balance: float | None = None
     total_balance: float | None = None
+    house_pnl: float | None = None
+    house_volume: float | None = None
     house_win_rate: float | None = None
     house_markets_count: int
     synced_at: datetime

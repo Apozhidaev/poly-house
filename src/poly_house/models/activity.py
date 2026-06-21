@@ -85,11 +85,25 @@ def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
     ]
 
 
+def house_metrics_from_market_activities(
+    market_activities: list[MarketActivity],
+) -> tuple[float | None, int, float | None, float | None]:
+    if not market_activities:
+        return None, 0, None, None
+    markets_count = len(market_activities)
+    win_count = sum(1 for ma in market_activities if ma.pnl > 0)
+    return (
+        win_count / markets_count,
+        markets_count,
+        sum(ma.pnl for ma in market_activities),
+        sum(ma.volume for ma in market_activities),
+    )
+
+
 def win_rate_from_market_activities(
     market_activities: list[MarketActivity],
 ) -> tuple[float | None, int]:
-    if not market_activities:
-        return None, 0
-    markets_count = len(market_activities)
-    win_count = sum(1 for ma in market_activities if ma.pnl > 0)
-    return win_count / markets_count, markets_count
+    win_rate, markets_count, _, _ = house_metrics_from_market_activities(
+        market_activities
+    )
+    return win_rate, markets_count
