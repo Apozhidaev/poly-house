@@ -30,7 +30,13 @@ OPEN_MARKETS_QUERY = {
     "clob_token_ids.1": {"$exists": True},
     "condition_id": {"$ne": None},
 }
-OPEN_MARKETS_PROJECTION = {"_id": 1, "condition_id": 1, "clob_token_ids": 1, "tag_ids": 1}
+OPEN_MARKETS_PROJECTION = {
+    "_id": 1,
+    "condition_id": 1,
+    "slug": 1,
+    "clob_token_ids": 1,
+    "tag_ids": 1,
+}
 
 PROFILE_METRIC_FIELDS = (
     "pnl",
@@ -299,16 +305,15 @@ def snapshot_from_book_and_holders(
     tag_pnls: dict[tuple[str, int], float] | None = None,
     tag_volumes: dict[tuple[str, int], float] | None = None,
 ) -> Snapshot:
-    last_trade = book.get("last_trade_price")
     return Snapshot(
         market_id=market["_id"],
+        market_slug=market["slug"],
         condition_id=market["condition_id"],
         captured_at=captured_at,
         min_order_size=float(book["min_order_size"]),
         tick_size=float(book["tick_size"]),
         best_bid=_book_top_price(book.get("bids")),
         best_ask=_book_top_price(book.get("asks")),
-        last_trade_price=_book_float(last_trade),
         top_holders=parse_top_holders(
             holders_raw,
             market["clob_token_ids"],

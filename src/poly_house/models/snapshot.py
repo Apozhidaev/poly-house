@@ -29,13 +29,13 @@ class Snapshot(BaseModel):
     )
 
     market_id: int
+    market_slug: str
     condition_id: str
     captured_at: datetime
     min_order_size: float
     tick_size: float
     best_bid: float | None
     best_ask: float | None
-    last_trade_price: float | None
     top_holders: list[list[SnapshotHolder]]
 
     def to_doc(self) -> dict[str, Any]:
