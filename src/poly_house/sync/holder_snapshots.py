@@ -20,6 +20,7 @@ from poly_house.sync.tag_profiles import (
     load_condition_tag_ids,
     update_tag_profiles_for_wallets,
 )
+from poly_house.utils.math import compute_stable_growth
 
 logger = structlog.get_logger()
 
@@ -41,8 +42,7 @@ OPEN_MARKETS_PROJECTION = {
 PROFILE_METRIC_FIELDS = (
     "pnl",
     "volume",
-    "pnl_growth",
-    "pnl_stability",
+    "stable_growth",
     "total_balance",
     "house_win_rate",
 )
@@ -59,15 +59,6 @@ def _book_top_price(levels: list[dict[str, Any]] | None) -> float | None:
     if not levels:
         return None
     return _book_float(levels[-1].get("price"))
-
-
-def compute_stable_growth(
-        pnl_growth: float | None,
-        pnl_stability: float | None,
-    ) -> float | None:
-        if pnl_growth is None or pnl_stability is None:
-            return None
-        return pnl_stability if pnl_growth > 0 else 0.0
 
 
 def compute_tag_weighted_average(
@@ -244,10 +235,7 @@ def parse_top_holders(
                     win_rate=metrics.get("house_win_rate"),
                     pnl=metrics.get("pnl"),
                     volume=metrics.get("volume"),
-                    stable_growth=compute_stable_growth(
-                        metrics.get("pnl_growth"),
-                        metrics.get("pnl_stability"),
-                    ),
+                    stable_growth=metrics.get("stable_growth"),
                     total_balance=metrics.get("total_balance"),
                     tag_win_rate=compute_tag_win_rate(
                         wallet, tag_ids, weights, win_rates

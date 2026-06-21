@@ -24,7 +24,7 @@ from poly_house.models.activity import (
     build_market_activities,
     metrics_from_market_activities,
 )
-from poly_house.utils.math import fit_trend_by_days
+from poly_house.utils.math import compute_stable_growth, fit_trend_by_days
 
 logger = structlog.get_logger()
 
@@ -75,8 +75,7 @@ def build_profile(
     ts: PnlTimeSeries | None,
     house_pnl: float | None = None,
     house_volume: float | None = None,
-    house_pnl_growth: float | None = None,
-    house_pnl_stability: float | None = None,
+    house_stable_growth: float | None = None,
     house_win_rate: float | None = None,
     house_markets_count: int,
     synced_at: datetime,
@@ -95,26 +94,22 @@ def build_profile(
 
     if ts and ts.data:
         _, slope, r2 = fit_trend_by_days(ts.data, use_cumulative=False)
-        pnl_growth = slope
-        pnl_stability = r2
+        stable_growth = compute_stable_growth(slope, r2)
     else:
-        pnl_growth = None
-        pnl_stability = None
+        stable_growth = None
 
     return Profile(
         proxy_wallet=wallet,
         name=name,
         pnl=pnl,
         volume=volume,
-        pnl_growth=pnl_growth,
-        pnl_stability=pnl_stability,
+        stable_growth=stable_growth,
         positions_value=positions_value,
         cash_balance=cash_balance,
         total_balance=total_balance,
         house_pnl=house_pnl,
         house_volume=house_volume,
-        house_pnl_growth=house_pnl_growth,
-        house_pnl_stability=house_pnl_stability,
+        house_stable_growth=house_stable_growth,
         house_win_rate=house_win_rate,
         house_markets_count=house_markets_count,
         synced_at=synced_at,
@@ -170,8 +165,7 @@ async def upsert_profiles_for_wallets(
             ts=ts,
             house_pnl=metrics[2] if metrics else None,
             house_volume=metrics[3] if metrics else None,
-            house_pnl_growth=metrics[4] if metrics else None,
-            house_pnl_stability=metrics[5] if metrics else None,
+            house_stable_growth=metrics[4] if metrics else None,
             house_win_rate=metrics[0] if metrics else None,
             house_markets_count=metrics[1] if metrics else 0,
             synced_at=synced_at,
@@ -252,7 +246,7 @@ async def sync_profiles(
 
 async def load_house_metrics(
     db: Database, wallets: list[str]
-) -> dict[str, tuple[float, int, float, float, float | None, float | None]]:
+) -> dict[str, tuple[float, int, float, float, float | None]]:
     if not wallets:
         return {}
     docs = await db.activities.find({"proxy_wallet": {"$in": wallets}}).to_list(
@@ -262,7 +256,7 @@ async def load_house_metrics(
     for doc in docs:
         activity = Activity.model_validate(doc)
         by_wallet.setdefault(activity.proxy_wallet, []).append(activity)
-    metrics: dict[str, tuple[float, int, float, float, float | None, float | None]] = {}
+    metrics: dict[str, tuple[float, int, float, float, float | None]] = {}
     for wallet, wallet_activities in by_wallet.items():
         (
             win_rate,
@@ -280,8 +274,7 @@ async def load_house_metrics(
                 markets_count,
                 house_pnl,
                 house_volume,
-                house_pnl_growth,
-                house_pnl_stability,
+                compute_stable_growth(house_pnl_growth, house_pnl_stability),
             )
     return metrics
 
