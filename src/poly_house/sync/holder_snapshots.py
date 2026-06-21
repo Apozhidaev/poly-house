@@ -61,12 +61,6 @@ def _book_top_price(levels: list[dict[str, Any]] | None) -> float | None:
     return _book_float(levels[-1].get("price"))
 
 
-def compute_roi(pnl: float | None, volume: float | None) -> float | None:
-    if pnl is None or volume is None or volume == 0.0:
-        return None
-    return pnl / volume
-
-
 def compute_stable_growth(
         pnl_growth: float | None,
         pnl_stability: float | None,
@@ -245,7 +239,8 @@ def parse_top_holders(
                     proxy_wallet=wallet,
                     amount=holder["amount"],
                     win_rate=metrics.get("house_win_rate"),
-                    roi=compute_roi(metrics.get("pnl"), metrics.get("volume")),
+                    pnl=metrics.get("pnl"),
+                    volume=metrics.get("volume"),
                     stable_growth=compute_stable_growth(
                         metrics.get("pnl_growth"),
                         metrics.get("pnl_stability"),
