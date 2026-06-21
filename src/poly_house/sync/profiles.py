@@ -525,24 +525,21 @@ async def sync_house_profiles_for_wallets(
         logger.info("house_profiles_sync_skip", reason="no_wallets")
         return
 
-    wallet_list = list(wallets.keys())
-    house_stale = set(await wallets_needing_house_profile_sync(db, wallet_list))
-    house_wallets = {w: wallets[w] for w in house_stale}
-
     activity_cache = 0
     activities = 0
     house_profiles = 0
 
-    if house_wallets:
-        activity_cache = await sync_activity_cache_for_wallets(
-            db, data, settings, list(house_wallets.keys()), stop=stop
-        )
-        activities = await sync_activities_for_wallets(
-            db, data, settings, list(house_wallets.keys()), stop=stop
-        )
-        house_profiles = await upsert_house_profiles_for_wallets(
-            db, house_wallets, stop=stop
-        )
+    wallet_list = list(wallets.keys())
+
+    activity_cache = await sync_activity_cache_for_wallets(
+        db, data, settings, wallet_list, stop=stop
+    )
+    activities = await sync_activities_for_wallets(
+        db, data, settings, wallet_list, stop=stop
+    )
+    house_profiles = await upsert_house_profiles_for_wallets(
+        db, wallets, stop=stop
+    )
 
     logger.info(
         "house_profiles_sync_complete",
@@ -569,15 +566,9 @@ async def sync_profiles_for_wallets(
         logger.info("profiles_sync_skip", reason="no_wallets")
         return
 
-    wallet_list = list(wallets.keys())
-    profile_stale = set(await wallets_needing_profile_sync(db, wallet_list))
-    profile_wallets = {w: wallets[w] for w in profile_stale}
-
-    profiles = 0
-    if profile_wallets:
-        profiles = await upsert_profiles_for_wallets(
-            db, data, pnl, profile_wallets, stop=stop
-        )
+    profiles = await upsert_profiles_for_wallets(
+        db, data, pnl, wallets, stop=stop
+    )
 
     logger.info(
         "profiles_sync_complete",
