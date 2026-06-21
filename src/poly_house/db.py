@@ -50,3 +50,5 @@ async def ensure_indexes(db: Database) -> None:
         [("proxy_wallet", 1), ("tag_id", 1)], unique=True
     )
     await db.tag_profiles.create_index("tag_id")
+
+    await db.house_profiles.create_index("synced_at")

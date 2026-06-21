@@ -1,6 +1,7 @@
 from poly_house.models.event import Event
 from poly_house.models.market import Market
 from poly_house.models.holder_snapshot import HolderSnapshot, SnapshotHolder
+from poly_house.models.house_profile import HouseProfile
 from poly_house.models.tag import Tag
 from poly_house.models.trade import Trade
 from poly_house.models.user import User
@@ -18,6 +19,7 @@ __all__ = [
     "Event",
     "Market",
     "HolderSnapshot",
+    "HouseProfile",
     "SnapshotHolder",
     "Tag",
     "Trade",
