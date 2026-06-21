@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class TagProfile(BaseModel):
     proxy_wallet: str
+    name: str
     tag_id: int
     pnl: float | None = None
     volume: float | None = None

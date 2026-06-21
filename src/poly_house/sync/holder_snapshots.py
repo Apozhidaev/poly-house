@@ -401,7 +401,7 @@ async def sync_holder_snapshots(
             if condition_tags and house_stale:
                 await update_tag_profiles_for_wallets(
                     db,
-                    house_stale,
+                    {w: holders[w] for w in house_stale},
                     condition_tags,
                     stop=stop,
                 )

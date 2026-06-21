@@ -50,6 +50,7 @@ def group_market_activities_by_tag(
 
 def build_tag_profile(
     wallet: str,
+    name: str,
     tag_id: int,
     market_activities: list[MarketActivity],
 ) -> TagProfile:
@@ -57,6 +58,7 @@ def build_tag_profile(
 
     return TagProfile(
         proxy_wallet=wallet,
+        name=name,
         tag_id=tag_id,
         markets_count=metrics.markets_count,
         pnl=metrics.pnl,
@@ -74,7 +76,7 @@ async def _flush_writes(db: Database, ops: list[UpdateOne]) -> None:
 
 async def update_tag_profiles_for_wallets(
     db: Database,
-    wallets: list[str],
+    wallets: dict[str, str],
     condition_tags: dict[str, list[int]],
     *,
     stop: asyncio.Event | None = None,
@@ -88,7 +90,7 @@ async def update_tag_profiles_for_wallets(
     ops: list[UpdateOne] = []
     condition_ids = list(condition_tags)
 
-    for proxy_wallet in wallets:
+    for proxy_wallet, name in wallets.items():
         if stop is not None and stop.is_set():
             break
 
@@ -103,7 +105,12 @@ async def update_tag_profiles_for_wallets(
 
         by_tag = group_market_activities_by_tag(market_activities, condition_tags)
         for tag_id, tag_market_activities in by_tag.items():
-            profile = build_tag_profile(proxy_wallet, tag_id, tag_market_activities)
+            profile = build_tag_profile(
+                proxy_wallet,
+                name,
+                tag_id,
+                tag_market_activities,
+            )
             ops.append(
                 UpdateOne(
                     {"proxy_wallet": proxy_wallet, "tag_id": tag_id},
@@ -146,7 +153,7 @@ async def update_tag_profiles(
     if wallet is not None:
         query["_id"] = wallet
 
-    cursor = db.profiles.find(query, projection={"_id": 1})
+    cursor = db.profiles.find(query, projection={"_id": 1, "name": 1})
     if limit is not None:
         cursor = cursor.limit(limit)
     profiles = await cursor.to_list(length=None)
@@ -159,7 +166,7 @@ async def update_tag_profiles(
     )
 
     started = time.monotonic()
-    wallets = [profile["_id"] for profile in profiles]
+    wallets = {profile["_id"]: profile.get("name") or "" for profile in profiles}
     total_profiles, total_tag_profiles = await update_tag_profiles_for_wallets(
         db, wallets, condition_tags, stop=stop
     )
