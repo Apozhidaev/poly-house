@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 
-class Position(BaseModel):
+class ActivityCache(BaseModel):
     model_config = ConfigDict(
         extra="ignore", alias_generator=to_camel, populate_by_name=True
     )

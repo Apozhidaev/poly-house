@@ -14,9 +14,9 @@ from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import (
     Activity,
+    ActivityCache,
     EquitySnapshot,
     LeaderboardStats,
-    Position,
     Profile,
     PnlTimeSeries,
 )
@@ -194,7 +194,7 @@ async def sync_profiles_for_wallets(
         logger.info("profiles_sync_skip", reason="no_wallets")
         return
 
-    positions = await sync_positions_for_wallets(
+    activity_cache = await sync_activity_cache_for_wallets(
         db, data, settings, list(wallets.keys()), stop=stop
     )
     activities = await sync_activities_for_wallets(
@@ -204,7 +204,7 @@ async def sync_profiles_for_wallets(
     logger.info(
         "profiles_sync_complete",
         profiles=profiles,
-        positions=positions,
+        activity_cache=activity_cache,
         activities=activities,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
@@ -256,8 +256,8 @@ async def load_win_rates(db: Database, wallets: list[str]) -> dict[str, float]:
     }
 
 
-async def _get_position_watermark(db: Database, proxy_wallet: str) -> int | None:
-    doc = await db.positions.find_one(
+async def _get_activity_cache_watermark(db: Database, proxy_wallet: str) -> int | None:
+    doc = await db.activity_caches.find_one(
         {"proxy_wallet": proxy_wallet},
         sort=[("timestamp", -1)],
         projection={"timestamp": 1},
@@ -265,27 +265,27 @@ async def _get_position_watermark(db: Database, proxy_wallet: str) -> int | None
     return doc["timestamp"] if doc else None
 
 
-def _positions_min_timestamp(settings: Settings, watermark: int | None) -> int:
+def _activity_cache_min_timestamp(settings: Settings, watermark: int | None) -> int:
     if watermark is not None:
         return watermark
-    cutoff = datetime.now(UTC) - timedelta(days=settings.closed_positions_in_days)
+    cutoff = datetime.now(UTC) - timedelta(days=settings.activity_cache_in_days)
     return int(cutoff.timestamp())
 
 
-async def _fetch_new_positions(
+async def _fetch_activity_cache_entries(
     data: DataClient,
     settings: Settings,
     user: str,
     watermark: int | None,
 ) -> list[dict[str, Any]]:
     """Пагинация /closed-positions (новые первыми) до watermark или max_offset."""
-    min_timestamp = _positions_min_timestamp(settings, watermark)
+    min_timestamp = _activity_cache_min_timestamp(settings, watermark)
     pages: list[list[dict[str, Any]]] = []
     offset = 0
-    while offset <= settings.closed_positions_max_offset:
+    while offset <= settings.activity_cache_max_offset:
         raw = await data.closed_positions_page(
             user=user,
-            limit=settings.closed_positions_page_limit,
+            limit=settings.activity_cache_page_limit,
             offset=offset,
         )
         if not raw:
@@ -294,14 +294,16 @@ async def _fetch_new_positions(
         pages.append(fresh)
         if any(p["timestamp"] <= min_timestamp for p in raw):
             break
-        if len(raw) < settings.closed_positions_page_limit:
+        if len(raw) < settings.activity_cache_page_limit:
             break
-        offset += settings.closed_positions_page_limit
+        offset += settings.activity_cache_page_limit
     return [p for page in reversed(pages) for p in reversed(page)]
 
 
-async def _write_positions(db: Database, raw_positions: list[dict[str, Any]]) -> int:
-    if not raw_positions:
+async def _write_activity_cache(
+    db: Database, raw_entries: list[dict[str, Any]]
+) -> int:
+    if not raw_entries:
         return 0
     ops = [
         ReplaceOne(
@@ -312,13 +314,13 @@ async def _write_positions(db: Database, raw_positions: list[dict[str, Any]]) ->
             doc,
             upsert=True,
         )
-        for doc in (Position.model_validate(raw).to_doc() for raw in raw_positions)
+        for doc in (ActivityCache.model_validate(raw).to_doc() for raw in raw_entries)
     ]
-    await db.positions.bulk_write(ops)
+    await db.activity_caches.bulk_write(ops)
     return len(ops)
 
 
-async def sync_positions_for_wallets(
+async def sync_activity_cache_for_wallets(
     db: Database,
     data: DataClient,
     settings: Settings,
@@ -326,40 +328,42 @@ async def sync_positions_for_wallets(
     *,
     stop: asyncio.Event | None = None,
 ) -> int:
-    """Догружает closed positions для списка wallets; returns number of positions written."""
-    total_positions = 0
+    """Догружает activity cache из /closed-positions; returns number of entries written."""
+    total_entries = 0
     for proxy_wallet in wallets:
         if stop is not None and stop.is_set():
             break
-        watermark = await _get_position_watermark(db, proxy_wallet)
-        positions = await _fetch_new_positions(data, settings, proxy_wallet, watermark)
-        if positions:
-            total_positions += await _write_positions(db, positions)
+        watermark = await _get_activity_cache_watermark(db, proxy_wallet)
+        entries = await _fetch_activity_cache_entries(
+            data, settings, proxy_wallet, watermark
+        )
+        if entries:
+            total_entries += await _write_activity_cache(db, entries)
         logger.info(
-            "profile_positions_synced",
+            "profile_activity_cache_synced",
             wallet=proxy_wallet,
-            positions=len(positions),
+            activity_cache=len(entries),
             watermark=watermark,
         )
-    return total_positions
+    return total_entries
 
 
-async def _load_positions_pending_activity(
+async def _load_activity_cache_pending_sync(
     db: Database, wallets: list[str]
-) -> list[Position]:
+) -> list[ActivityCache]:
     if not wallets:
         return []
     market_ids = await db.markets.distinct("condition_id")
     if not market_ids:
         return []
-    docs = await db.positions.find(
+    docs = await db.activity_caches.find(
         {
             "proxy_wallet": {"$in": wallets},
             "activity_synced": False,
             "condition_id": {"$in": market_ids},
         }
     ).to_list(length=None)
-    return [Position.model_validate(doc) for doc in docs]
+    return [ActivityCache.model_validate(doc) for doc in docs]
 
 
 async def _get_activity_watermark(
@@ -411,10 +415,10 @@ async def _write_activities(db: Database, raw_activities: list[dict[str, Any]]) 
     return len(docs)
 
 
-async def _mark_position_activity_synced(
+async def _mark_activity_cache_synced(
     db: Database, proxy_wallet: str, condition_id: str
 ) -> None:
-    await db.positions.update_one(
+    await db.activity_caches.update_one(
         {"proxy_wallet": proxy_wallet, "condition_id": condition_id},
         {"$set": {"activity_synced": True}},
     )
@@ -428,31 +432,31 @@ async def sync_activities_for_wallets(
     *,
     stop: asyncio.Event | None = None,
 ) -> int:
-    """Догружает activity для pending positions; returns number of activities written."""
-    pending = await _load_positions_pending_activity(db, wallets)
+    """Догружает activity для pending activity cache entries."""
+    pending = await _load_activity_cache_pending_sync(db, wallets)
     total_activities = 0
-    for position in pending:
+    for entry in pending:
         if stop is not None and stop.is_set():
             break
         watermark = await _get_activity_watermark(
-            db, position.proxy_wallet, position.condition_id
+            db, entry.proxy_wallet, entry.condition_id
         )
         activities = await _fetch_new_activities(
             data,
             settings,
-            position.proxy_wallet,
-            position.condition_id,
+            entry.proxy_wallet,
+            entry.condition_id,
             watermark,
         )
         if activities:
             total_activities += await _write_activities(db, activities)
-        await _mark_position_activity_synced(
-            db, position.proxy_wallet, position.condition_id
+        await _mark_activity_cache_synced(
+            db, entry.proxy_wallet, entry.condition_id
         )
         logger.info(
-            "position_activities_synced",
-            wallet=position.proxy_wallet,
-            condition_id=position.condition_id,
+            "activity_cache_activities_synced",
+            wallet=entry.proxy_wallet,
+            condition_id=entry.condition_id,
             activities=len(activities),
             watermark=watermark,
         )

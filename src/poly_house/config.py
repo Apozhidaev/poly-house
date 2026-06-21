@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     # первый прогон: глубина загрузки маркетов по updatedAt
     updated_in_days: int = 30
 
-    # первый прогон sync-profile: closed positions за последние N дней
-    closed_positions_in_days: int = 365
+    # первый прогон sync-profile: activity cache за последние N дней
+    activity_cache_in_days: int = 365
 
     # необязательный фильтр маркетов по тегам (tag_id=1&tag_id=2)
     markets_tag_ids: list[int] = []
@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     snapshot_holders_limit: int = 500  # max Data API /holders
     activity_page_limit: int = 500
     activity_max_offset: int = 3000  # потолок offset в Data API
-    closed_positions_page_limit: int = 50
-    closed_positions_max_offset: int = 100000
+    activity_cache_page_limit: int = 50
+    activity_cache_max_offset: int = 100000
 
     # REST API
     server_host: str = "127.0.0.1"
