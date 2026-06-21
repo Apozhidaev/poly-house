@@ -43,6 +43,15 @@ class MarketActivity(BaseModel):
     avg_sell_price: float | None = None
 
 
+class ActivityMetrics(BaseModel):
+    win_rate: float | None = None
+    markets_count: int = 0
+    pnl: float | None = None
+    volume: float | None = None
+    pnl_growth: float | None = None
+    pnl_stability: float | None = None
+
+
 def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
     if not activities:
         return None
@@ -115,9 +124,9 @@ def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
 
 def metrics_from_market_activities(
     market_activities: list[MarketActivity],
-) -> tuple[float | None, int, float | None, float | None, float | None, float | None]:
+) -> ActivityMetrics:
     if not market_activities:
-        return None, 0, None, None, None, None
+        return ActivityMetrics()
     markets_count = len(market_activities)
     win_count = sum(1 for ma in market_activities if ma.pnl > 0)
     points = [
@@ -129,16 +138,16 @@ def metrics_from_market_activities(
     ]
     if len(points) >= 2:
         _, slope, r2 = fit_trend_by_days(points, use_cumulative=True)
-        house_pnl_growth = slope
-        house_pnl_stability = r2
+        pnl_growth = slope
+        pnl_stability = r2
     else:
-        house_pnl_growth = None
-        house_pnl_stability = None
-    return (
-        win_count / markets_count,
-        markets_count,
-        sum(ma.pnl for ma in market_activities),
-        sum(ma.volume for ma in market_activities),
-        house_pnl_growth,
-        house_pnl_stability,
+        pnl_growth = None
+        pnl_stability = None
+    return ActivityMetrics(
+        win_rate=win_count / markets_count,
+        markets_count=markets_count,
+        pnl=sum(ma.pnl for ma in market_activities),
+        volume=sum(ma.volume for ma in market_activities),
+        pnl_growth=pnl_growth,
+        pnl_stability=pnl_stability,
     )

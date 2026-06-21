@@ -15,15 +15,13 @@ from poly_house.db import Database
 from poly_house.models import (
     Activity,
     ActivityCache,
+    ActivityMetrics,
     EquitySnapshot,
     LeaderboardStats,
     Profile,
     PnlTimeSeries,
 )
-from poly_house.models.activity import (
-    build_market_activities,
-    metrics_from_market_activities,
-)
+from poly_house.models.activity import build_market_activities, metrics_from_market_activities
 from poly_house.utils.math import compute_stable_growth, fit_trend_by_days
 
 logger = structlog.get_logger()
@@ -163,11 +161,15 @@ async def upsert_profiles_for_wallets(
             stats=stats,
             equity=equity,
             ts=ts,
-            house_pnl=metrics[2] if metrics else None,
-            house_volume=metrics[3] if metrics else None,
-            house_stable_growth=metrics[4] if metrics else None,
-            house_win_rate=metrics[0] if metrics else None,
-            house_markets_count=metrics[1] if metrics else 0,
+            house_pnl=metrics.pnl if metrics else None,
+            house_volume=metrics.volume if metrics else None,
+            house_stable_growth=(
+                compute_stable_growth(metrics.pnl_growth, metrics.pnl_stability)
+                if metrics
+                else None
+            ),
+            house_win_rate=metrics.win_rate if metrics else None,
+            house_markets_count=metrics.markets_count if metrics else 0,
             synced_at=synced_at,
         )
         ops.append(
@@ -246,7 +248,7 @@ async def sync_profiles(
 
 async def load_house_metrics(
     db: Database, wallets: list[str]
-) -> dict[str, tuple[float, int, float, float, float | None]]:
+) -> dict[str, ActivityMetrics]:
     if not wallets:
         return {}
     docs = await db.activities.find({"proxy_wallet": {"$in": wallets}}).to_list(
@@ -256,26 +258,17 @@ async def load_house_metrics(
     for doc in docs:
         activity = Activity.model_validate(doc)
         by_wallet.setdefault(activity.proxy_wallet, []).append(activity)
-    metrics: dict[str, tuple[float, int, float, float, float | None]] = {}
+    metrics: dict[str, ActivityMetrics] = {}
     for wallet, wallet_activities in by_wallet.items():
-        (
-            win_rate,
-            markets_count,
-            house_pnl,
-            house_volume,
-            house_pnl_growth,
-            house_pnl_stability,
-        ) = metrics_from_market_activities(
+        activity_metrics = metrics_from_market_activities(
             build_market_activities(wallet_activities)
         )
-        if win_rate is not None and house_pnl is not None and house_volume is not None:
-            metrics[wallet] = (
-                win_rate,
-                markets_count,
-                house_pnl,
-                house_volume,
-                compute_stable_growth(house_pnl_growth, house_pnl_stability),
-            )
+        if (
+            activity_metrics.win_rate is not None
+            and activity_metrics.pnl is not None
+            and activity_metrics.volume is not None
+        ):
+            metrics[wallet] = activity_metrics
     return metrics
 
 

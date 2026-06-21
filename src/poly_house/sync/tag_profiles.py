@@ -53,24 +53,17 @@ def build_tag_profile(
     tag_id: int,
     market_activities: list[MarketActivity],
 ) -> TagProfile:
-    (
-        win_rate,
-        markets_count,
-        pnl,
-        volume,
-        pnl_growth,
-        pnl_stability,
-    ) = metrics_from_market_activities(market_activities)
+    metrics = metrics_from_market_activities(market_activities)
 
     return TagProfile(
         proxy_wallet=wallet,
         tag_id=tag_id,
-        markets_count=markets_count,
-        pnl=pnl,
-        volume=volume,
-        pnl_growth=pnl_growth,
-        pnl_stability=pnl_stability,
-        win_rate=win_rate,
+        markets_count=metrics.markets_count,
+        pnl=metrics.pnl,
+        volume=metrics.volume,
+        pnl_growth=metrics.pnl_growth,
+        pnl_stability=metrics.pnl_stability,
+        win_rate=metrics.win_rate,
     )
 
 
