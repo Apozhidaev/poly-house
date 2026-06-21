@@ -73,8 +73,8 @@ def build_profile(
     stats: LeaderboardStats | None,
     equity: EquitySnapshot | None,
     ts: PnlTimeSeries | None,
-    win_rate: float | None = None,
-    markets_count: int,
+    house_win_rate: float | None = None,
+    house_markets_count: int,
     synced_at: datetime,
 ) -> Profile:
     pnl = stats.pnl if stats else None
@@ -107,8 +107,8 @@ def build_profile(
         positions_value=positions_value,
         cash_balance=cash_balance,
         total_balance=total_balance,
-        win_rate=win_rate,
-        markets_count=markets_count,
+        house_win_rate=house_win_rate,
+        house_markets_count=house_markets_count,
         synced_at=synced_at,
     )
 
@@ -160,8 +160,8 @@ async def upsert_profiles_for_wallets(
             stats=stats,
             equity=equity,
             ts=ts,
-            win_rate=metrics[0] if metrics else None,
-            markets_count=metrics[1] if metrics else 0,
+            house_win_rate=metrics[0] if metrics else None,
+            house_markets_count=metrics[1] if metrics else 0,
             synced_at=synced_at,
         )
         ops.append(

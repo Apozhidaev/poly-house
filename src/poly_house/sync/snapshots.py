@@ -38,7 +38,7 @@ PROFILE_METRIC_FIELDS = (
     "pnl_growth",
     "pnl_stability",
     "total_balance",
-    "win_rate",
+    "house_win_rate",
 )
 PROFILE_METRICS_PROJECTION = {"_id": 1, **{f: 1 for f in PROFILE_METRIC_FIELDS}}
 
@@ -238,7 +238,7 @@ def parse_top_holders(
                 SnapshotHolder(
                     proxy_wallet=wallet,
                     amount=holder["amount"],
-                    win_rate=metrics.get("win_rate"),
+                    win_rate=metrics.get("house_win_rate"),
                     roi=compute_roi(metrics.get("pnl"), metrics.get("volume")),
                     stable_growth=compute_stable_growth(
                         metrics.get("pnl_growth"),
