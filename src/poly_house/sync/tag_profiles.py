@@ -57,8 +57,7 @@ def build_tag_profile(
 ) -> TagProfile:
     pnl = sum(ma.pnl for ma in market_activities)
     volume = sum(ma.volume for ma in market_activities)
-    markets_count = len(market_activities)
-    win_rate = win_rate_from_market_activities(market_activities)
+    win_rate, markets_count = win_rate_from_market_activities(market_activities)
 
     points = [
         TimeSeriesPoint(
