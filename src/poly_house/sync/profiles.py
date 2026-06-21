@@ -17,7 +17,7 @@ from poly_house.models import (
     ActivityCache,
     ActivityMetrics,
     EquitySnapshot,
-    HouseProfile,
+    HomeProfile,
     LeaderboardStats,
     Profile,
     PnlTimeSeries,
@@ -29,7 +29,7 @@ logger = structlog.get_logger()
 
 BULK_SIZE = 100
 PROFILE_SYNC_MIN_INTERVAL = timedelta(days=1)
-HOUSE_PROFILE_SYNC_MIN_INTERVAL = timedelta(hours=6)
+HOME_PROFILE_SYNC_MIN_INTERVAL = timedelta(hours=6)
 
 
 async def wallets_needing_profile_sync(db: Database, wallets: list[str]) -> list[str]:
@@ -44,13 +44,13 @@ async def wallets_needing_profile_sync(db: Database, wallets: list[str]) -> list
     return [wallet for wallet in wallets if wallet not in recent]
 
 
-async def wallets_needing_house_profile_sync(
+async def wallets_needing_home_profile_sync(
     db: Database, wallets: list[str]
 ) -> list[str]:
     if not wallets:
         return []
-    cutoff = datetime.now(UTC) - HOUSE_PROFILE_SYNC_MIN_INTERVAL
-    cursor = db.house_profiles.find(
+    cutoff = datetime.now(UTC) - HOME_PROFILE_SYNC_MIN_INTERVAL
+    cursor = db.home_profiles.find(
         {"_id": {"$in": wallets}, "synced_at": {"$gte": cutoff}},
         projection={"_id": 1},
     )
@@ -80,13 +80,13 @@ async def _load_profiles_needing_sync(
     return {doc["_id"]: doc.get("name") or "" for doc in docs}
 
 
-async def _load_house_profiles_needing_sync(
+async def _load_home_profiles_needing_sync(
     db: Database,
     *,
     wallet: str | None = None,
     limit: int | None = None,
 ) -> dict[str, str]:
-    cutoff = datetime.now(UTC) - HOUSE_PROFILE_SYNC_MIN_INTERVAL
+    cutoff = datetime.now(UTC) - HOME_PROFILE_SYNC_MIN_INTERVAL
     query: dict[str, Any] = {
         "$or": [
             {"synced_at": {"$lt": cutoff}},
@@ -95,7 +95,7 @@ async def _load_house_profiles_needing_sync(
     }
     if wallet is not None:
         query = {"_id": wallet, **query}
-    cursor = db.house_profiles.find(query, projection={"_id": 1, "name": 1})
+    cursor = db.home_profiles.find(query, projection={"_id": 1, "name": 1})
     if limit is not None:
         cursor = cursor.limit(limit)
     docs = await cursor.to_list(length=None)
@@ -141,14 +141,14 @@ def build_profile(
     )
 
 
-def build_house_profile(
+def build_home_profile(
     *,
     wallet: str,
     name: str,
     metrics: ActivityMetrics | None,
     synced_at: datetime,
-) -> HouseProfile:
-    return HouseProfile(
+) -> HomeProfile:
+    return HomeProfile(
         proxy_wallet=wallet,
         name=name,
         pnl=metrics.pnl if metrics else None,
@@ -185,9 +185,9 @@ async def _flush_profile_writes(db: Database, ops: list[UpdateOne]) -> None:
         await db.profiles.bulk_write(ops)
 
 
-async def _flush_house_profile_writes(db: Database, ops: list[UpdateOne]) -> None:
+async def _flush_home_profile_writes(db: Database, ops: list[UpdateOne]) -> None:
     if ops:
-        await db.house_profiles.bulk_write(ops)
+        await db.home_profiles.bulk_write(ops)
 
 
 async def upsert_profiles_for_wallets(
@@ -234,26 +234,26 @@ async def upsert_profiles_for_wallets(
     return processed
 
 
-async def upsert_house_profiles_for_wallets(
+async def upsert_home_profiles_for_wallets(
     db: Database,
     wallets: dict[str, str],
     *,
     stop: asyncio.Event | None = None,
 ) -> int:
-    """Upsert house profiles from activities; returns number of house profiles written."""
+    """Upsert home profiles from activities; returns number of home profiles written."""
     if not wallets:
         return 0
 
     ops: list[UpdateOne] = []
     processed = 0
-    house_metrics = await load_house_metrics(db, list(wallets.keys()))
+    home_metrics = await load_home_metrics(db, list(wallets.keys()))
 
     for wallet, name in wallets.items():
         if stop is not None and stop.is_set():
             break
 
-        metrics = house_metrics.get(wallet)
-        house_profile = build_house_profile(
+        metrics = home_metrics.get(wallet)
+        home_profile = build_home_profile(
             wallet=wallet,
             name=name,
             metrics=metrics,
@@ -262,23 +262,23 @@ async def upsert_house_profiles_for_wallets(
         ops.append(
             UpdateOne(
                 {"_id": wallet},
-                {"$set": house_profile.to_doc()},
+                {"$set": home_profile.to_doc()},
                 upsert=True,
             )
         )
         processed += 1
 
         if len(ops) >= BULK_SIZE:
-            await _flush_house_profile_writes(db, ops)
+            await _flush_home_profile_writes(db, ops)
             ops.clear()
 
-        logger.info("house_profile_synced", wallet=wallet)
+        logger.info("home_profile_synced", wallet=wallet)
 
-    await _flush_house_profile_writes(db, ops)
+    await _flush_home_profile_writes(db, ops)
     return processed
 
 
-async def load_house_metrics(
+async def load_home_metrics(
     db: Database, wallets: list[str]
 ) -> dict[str, ActivityMetrics]:
     if not wallets:
@@ -511,7 +511,7 @@ async def sync_activities_for_wallets(
     return total_activities
 
 
-async def sync_house_profiles_for_wallets(
+async def sync_home_profiles_for_wallets(
     db: Database,
     data: DataClient,
     settings: Settings,
@@ -519,15 +519,15 @@ async def sync_house_profiles_for_wallets(
     *,
     stop: asyncio.Event | None = None,
 ) -> None:
-    """Sync house profiles for given wallets (activity cache → activities → house_profiles)."""
+    """Sync home profiles for given wallets (activity cache → activities → home_profiles)."""
     started = time.monotonic()
     if not wallets:
-        logger.info("house_profiles_sync_skip", reason="no_wallets")
+        logger.info("home_profiles_sync_skip", reason="no_wallets")
         return
 
     activity_cache = 0
     activities = 0
-    house_profiles = 0
+    home_profiles = 0
 
     wallet_list = list(wallets.keys())
 
@@ -537,13 +537,13 @@ async def sync_house_profiles_for_wallets(
     activities = await sync_activities_for_wallets(
         db, data, settings, wallet_list, stop=stop
     )
-    house_profiles = await upsert_house_profiles_for_wallets(
+    home_profiles = await upsert_home_profiles_for_wallets(
         db, wallets, stop=stop
     )
 
     logger.info(
-        "house_profiles_sync_complete",
-        house_profiles=house_profiles,
+        "home_profiles_sync_complete",
+        home_profiles=home_profiles,
         activity_cache=activity_cache,
         activities=activities,
         interrupted=stop is not None and stop.is_set(),
@@ -605,7 +605,7 @@ async def sync_profiles(
     )
 
 
-async def sync_house_profiles(
+async def sync_home_profiles(
     db: Database,
     data: DataClient,
     settings: Settings,
@@ -614,18 +614,18 @@ async def sync_house_profiles(
     limit: int | None = None,
     stop: asyncio.Event | None = None,
 ) -> None:
-    """Sync stale house profiles."""
-    wallets_to_sync = await _load_house_profiles_needing_sync(
+    """Sync stale home profiles."""
+    wallets_to_sync = await _load_home_profiles_needing_sync(
         db, wallet=wallet, limit=limit
     )
 
     logger.info(
-        "house_profiles_sync_start",
+        "home_profiles_sync_start",
         wallets=len(wallets_to_sync),
         wallet=wallet,
         limit=limit,
     )
 
-    await sync_house_profiles_for_wallets(
+    await sync_home_profiles_for_wallets(
         db, data, settings, wallets_to_sync, stop=stop
     )

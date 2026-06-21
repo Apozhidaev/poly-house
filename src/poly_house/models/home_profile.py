@@ -6,7 +6,7 @@ from typing import Any
 from pydantic import BaseModel
 
 
-class HouseProfile(BaseModel):
+class HomeProfile(BaseModel):
     """User profile metrics computed from synced activities."""
 
     proxy_wallet: str

@@ -51,6 +51,6 @@ async def ensure_indexes(db: Database) -> None:
     )
     await db.tag_profiles.create_index("tag_id")
 
-    await db.house_profiles.create_index("synced_at")
+    await db.home_profiles.create_index("synced_at")
 
     await db.profiles.create_index("synced_at")

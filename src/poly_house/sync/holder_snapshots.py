@@ -13,9 +13,9 @@ from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import HolderSnapshot, SnapshotHolder
 from poly_house.sync.profiles import (
-    sync_house_profiles_for_wallets,
+    sync_home_profiles_for_wallets,
     sync_profiles_for_wallets,
-    wallets_needing_house_profile_sync,
+    wallets_needing_home_profile_sync,
     wallets_needing_profile_sync,
 )
 from poly_house.sync.tag_profiles import (
@@ -49,16 +49,16 @@ PROFILE_METRIC_FIELDS = (
 )
 PROFILE_METRICS_PROJECTION = {"_id": 1, **{f: 1 for f in PROFILE_METRIC_FIELDS}}
 
-HOUSE_PROFILE_METRIC_FIELDS = (
+HOME_PROFILE_METRIC_FIELDS = (
     "pnl",
     "volume",
     "stable_growth",
     "win_rate",
     "markets_count",
 )
-HOUSE_PROFILE_METRICS_PROJECTION = {
+HOME_PROFILE_METRICS_PROJECTION = {
     "_id": 1,
-    **{f: 1 for f in HOUSE_PROFILE_METRIC_FIELDS},
+    **{f: 1 for f in HOME_PROFILE_METRIC_FIELDS},
 }
 
 
@@ -213,7 +213,7 @@ def parse_top_holders(
     clob_token_ids: list[str],
     profiles: dict[str, dict[str, float | int | None]] | None = None,
     *,
-    house_profiles: dict[str, dict[str, float | int | None]] | None = None,
+    home_profiles: dict[str, dict[str, float | int | None]] | None = None,
     market_tag_ids: list[int] | None = None,
     tag_weights: dict[int, float] | None = None,
     tag_win_rates: dict[tuple[str, int], float] | None = None,
@@ -224,7 +224,7 @@ def parse_top_holders(
     token_to_outcome = {token: i for i, token in enumerate(clob_token_ids)}
     result: list[list[SnapshotHolder]] = [[], []]
     profile_map = profiles or {}
-    house_profile_map = house_profiles or {}
+    home_profile_map = home_profiles or {}
     tag_ids = market_tag_ids or []
     weights = tag_weights or {}
     win_rates = tag_win_rates or {}
@@ -240,7 +240,7 @@ def parse_top_holders(
                 continue
             wallet = holder["proxyWallet"]
             metrics = profile_map.get(wallet, {})
-            house_metrics = house_profile_map.get(wallet, {})
+            home_metrics = home_profile_map.get(wallet, {})
             tag_pnl, tag_volume = compute_tag_pnl_volume(
                 wallet, tag_ids, weights, pnls, tag_volume_map
             )
@@ -253,11 +253,11 @@ def parse_top_holders(
                     volume=metrics.get("volume"),
                     stable_growth=metrics.get("stable_growth"),
                     total_balance=metrics.get("total_balance"),
-                    house_pnl=house_metrics.get("pnl"),
-                    house_volume=house_metrics.get("volume"),
-                    house_stable_growth=house_metrics.get("stable_growth"),
-                    house_win_rate=house_metrics.get("win_rate"),
-                    house_markets_count=int(house_metrics.get("markets_count") or 0),
+                    home_pnl=home_metrics.get("pnl"),
+                    home_volume=home_metrics.get("volume"),
+                    home_stable_growth=home_metrics.get("stable_growth"),
+                    home_win_rate=home_metrics.get("win_rate"),
+                    home_markets_count=int(home_metrics.get("markets_count") or 0),
                     tag_win_rate=compute_tag_win_rate(
                         wallet, tag_ids, weights, win_rates
                     ),
@@ -271,18 +271,18 @@ def parse_top_holders(
     return result
 
 
-async def load_house_profile_metrics(
+async def load_home_profile_metrics(
     db: Database, wallets: list[str]
 ) -> dict[str, dict[str, float | int | None]]:
     if not wallets:
         return {}
-    cursor = db.house_profiles.find(
+    cursor = db.home_profiles.find(
         {"_id": {"$in": wallets}},
-        projection=HOUSE_PROFILE_METRICS_PROJECTION,
+        projection=HOME_PROFILE_METRICS_PROJECTION,
     )
     docs = await cursor.to_list(length=None)
     return {
-        doc["_id"]: {field: doc.get(field) for field in HOUSE_PROFILE_METRIC_FIELDS}
+        doc["_id"]: {field: doc.get(field) for field in HOME_PROFILE_METRIC_FIELDS}
         for doc in docs
     }
 
@@ -320,7 +320,7 @@ def holder_snapshot_from_book_and_holders(
     *,
     captured_at: datetime,
     profiles: dict[str, dict[str, float | int | None]] | None = None,
-    house_profiles: dict[str, dict[str, float | int | None]] | None = None,
+    home_profiles: dict[str, dict[str, float | int | None]] | None = None,
     market_tag_ids: list[int] | None = None,
     tag_weights: dict[int, float] | None = None,
     tag_win_rates: dict[tuple[str, int], float] | None = None,
@@ -341,7 +341,7 @@ def holder_snapshot_from_book_and_holders(
             holders_raw,
             market["clob_token_ids"],
             profiles=profiles,
-            house_profiles=house_profiles,
+            home_profiles=home_profiles,
             market_tag_ids=market_tag_ids,
             tag_weights=tag_weights,
             tag_win_rates=tag_win_rates,
@@ -393,20 +393,20 @@ async def sync_holder_snapshots(
                 await sync_profiles_for_wallets(
                     db, data, pnl, settings, profile_wallets, stop=stop
                 )
-            house_stale = await wallets_needing_house_profile_sync(db, wallet_list)
-            if house_wallets := {w: holders[w] for w in house_stale}:
-                await sync_house_profiles_for_wallets(
-                    db, data, settings, house_wallets, stop=stop
+            home_stale = await wallets_needing_home_profile_sync(db, wallet_list)
+            if home_wallets := {w: holders[w] for w in home_stale}:
+                await sync_home_profiles_for_wallets(
+                    db, data, settings, home_wallets, stop=stop
                 )
-            if condition_tags and house_stale:
+            if condition_tags and home_stale:
                 await update_tag_profiles_for_wallets(
                     db,
-                    {w: holders[w] for w in house_stale},
+                    {w: holders[w] for w in home_stale},
                     condition_tags,
                     stop=stop,
                 )
         profiles = await load_profile_metrics(db, list(holders.keys()))
-        house_profiles = await load_house_profile_metrics(
+        home_profiles = await load_home_profile_metrics(
             db, list(holders.keys())
         )
         market_tag_ids = market.get("tag_ids") or []
@@ -429,7 +429,7 @@ async def sync_holder_snapshots(
             holders_raw,
             captured_at=captured_at,
             profiles=profiles,
-            house_profiles=house_profiles,
+            home_profiles=home_profiles,
             market_tag_ids=market_tag_ids,
             tag_weights=tag_weights,
             tag_win_rates=tag_win_rates,

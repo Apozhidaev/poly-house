@@ -14,7 +14,7 @@ from poly_house.sync.runner import (
     TagProfileSyncOptions,
     run_sync_markets,
     run_sync_profile,
-    run_sync_house_profile,
+    run_sync_home_profile,
     run_sync_holder_snapshots,
     run_sync_trades,
     run_update_tag_profiles,
@@ -92,17 +92,17 @@ def sync_profile(
     asyncio.run(run_sync_profile(settings, options, watch=watch))
 
 
-@app.command("sync-house-profile")
-def sync_house_profile(
+@app.command("sync-home-profile")
+def sync_home_profile(
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
-    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число house_profiles (для теста).")] = None,
-    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один house profile по proxy_wallet.")] = None,
+    limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число home_profiles (для теста).")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один home profile по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация устаревших house_profiles (activity cache → activities, synced_at > 6h)."""
+    """Синхронизация устаревших home_profiles (activity cache → activities, synced_at > 6h)."""
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_sync_house_profile(settings, options, watch=watch))
+    asyncio.run(run_sync_home_profile(settings, options, watch=watch))
 
 
 @app.command("update-tag-profile")
