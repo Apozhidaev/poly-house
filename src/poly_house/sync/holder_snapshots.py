@@ -112,13 +112,13 @@ def compute_tag_stable_growth(
     )
 
 
-def compute_tag_roi(
+def compute_tag_pnl_volume(
     wallet: str,
     tag_ids: list[int],
     tag_weights: dict[int, float],
     pnls: dict[tuple[str, int], float],
     volumes: dict[tuple[str, int], float],
-) -> float | None:
+) -> tuple[float | None, float | None]:
     weighted_pnl = 0.0
     weighted_volume = 0.0
     for tag_id in tag_ids:
@@ -133,8 +133,8 @@ def compute_tag_roi(
         weighted_pnl += pnl * weight
         weighted_volume += volume * weight
     if weighted_volume == 0.0:
-        return None
-    return weighted_pnl / weighted_volume
+        return None, None
+    return weighted_pnl, weighted_volume
 
 
 async def load_tag_weights(db: Database, tag_ids: list[int]) -> dict[int, float]:
@@ -234,6 +234,9 @@ def parse_top_holders(
                 continue
             wallet = holder["proxyWallet"]
             metrics = profile_map.get(wallet, {})
+            tag_pnl, tag_volume = compute_tag_pnl_volume(
+                wallet, tag_ids, weights, pnls, tag_volume_map
+            )
             result[outcome_index].append(
                 SnapshotHolder(
                     proxy_wallet=wallet,
@@ -252,9 +255,8 @@ def parse_top_holders(
                     tag_stable_growth=compute_tag_stable_growth(
                         wallet, tag_ids, weights, stable_growths
                     ),
-                    tag_roi=compute_tag_roi(
-                        wallet, tag_ids, weights, pnls, tag_volume_map
-                    ),
+                    tag_pnl=tag_pnl,
+                    tag_volume=tag_volume,
                 )
             )
     return result
