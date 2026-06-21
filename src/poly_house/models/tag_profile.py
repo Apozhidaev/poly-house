@@ -16,8 +16,6 @@ class TagProfile(BaseModel):
     win_rate: float | None = None
     avg_entry_price: float | None = None
     avg_exit_price: float | None = None
-    avg_buy_price: float | None = None
-    avg_sell_price: float | None = None
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()

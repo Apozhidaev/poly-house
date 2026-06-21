@@ -66,8 +66,6 @@ def build_tag_profile(
         win_rate=metrics.win_rate,
         avg_entry_price=metrics.avg_entry_price,
         avg_exit_price=metrics.avg_exit_price,
-        avg_buy_price=metrics.avg_buy_price,
-        avg_sell_price=metrics.avg_sell_price,
     )
 
 

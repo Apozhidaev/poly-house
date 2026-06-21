@@ -24,8 +24,6 @@ class Profile(BaseModel):
     house_markets_count: int
     house_avg_entry_price: float | None = None
     house_avg_exit_price: float | None = None
-    house_avg_buy_price: float | None = None
-    house_avg_sell_price: float | None = None
     synced_at: datetime
 
     def to_doc(self) -> dict[str, Any]:

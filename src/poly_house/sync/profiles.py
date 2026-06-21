@@ -78,8 +78,6 @@ def build_profile(
     house_markets_count: int,
     house_avg_entry_price: float | None = None,
     house_avg_exit_price: float | None = None,
-    house_avg_buy_price: float | None = None,
-    house_avg_sell_price: float | None = None,
     synced_at: datetime,
 ) -> Profile:
     pnl = stats.pnl if stats else None
@@ -116,8 +114,6 @@ def build_profile(
         house_markets_count=house_markets_count,
         house_avg_entry_price=house_avg_entry_price,
         house_avg_exit_price=house_avg_exit_price,
-        house_avg_buy_price=house_avg_buy_price,
-        house_avg_sell_price=house_avg_sell_price,
         synced_at=synced_at,
     )
 
@@ -180,8 +176,6 @@ async def upsert_profiles_for_wallets(
             house_markets_count=metrics.markets_count if metrics else 0,
             house_avg_entry_price=metrics.avg_entry_price if metrics else None,
             house_avg_exit_price=metrics.avg_exit_price if metrics else None,
-            house_avg_buy_price=metrics.avg_buy_price if metrics else None,
-            house_avg_sell_price=metrics.avg_sell_price if metrics else None,
             synced_at=synced_at,
         )
         ops.append(
