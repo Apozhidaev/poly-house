@@ -17,7 +17,7 @@ class RateLimitedClient:
 
     def __init__(self) -> None:
         self._backoff_base = 2
-        self._client = httpx.AsyncClient(timeout=30)
+        self._client = httpx.AsyncClient(timeout=60)
 
     async def close(self) -> None:
         await self._client.aclose()

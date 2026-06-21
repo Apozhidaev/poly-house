@@ -41,25 +41,16 @@ class MarketActivity(BaseModel):
 
 class ActivityMetrics(BaseModel):
     win_rate: float | None = None
-    markets_count: int = 0
     pnl: float | None = None
     volume: float | None = None
     pnl_growth: float | None = None
     pnl_stability: float | None = None
+    markets_count: int = 0
 
 
-def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
-    if not activities:
-        return None
-    if any(a.is_combo for a in activities):
-        return None
-
-    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
-
+def compute_pnl(activities: list[Activity]) -> float:
     pnl = 0.0
-    volume = 0.0
-    for activity in sorted_activities:
-        volume += activity.usdc_size
+    for activity in activities:
         match activity.type:
             case "SPLIT":
                 pnl -= activity.usdc_size
@@ -76,13 +67,31 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
             case "REDEEM":
                 pnl += activity.usdc_size
 
+    return pnl
+
+
+def compute_volume(activities: list[Activity]) -> float:
+    volume = 0.0
+    for activity in activities:
+        volume += activity.usdc_size
+
+    return volume
+
+
+def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
+    if not activities:
+        return None
+    if any(a.is_combo for a in activities):
+        return None
+
+    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
     last_activity = sorted_activities[-1]
 
     return MarketActivity(
         condition_id=last_activity.condition_id,
         proxy_wallet=last_activity.proxy_wallet,
-        pnl=pnl,
-        volume=volume,
+        pnl=compute_pnl(sorted_activities),
+        volume=compute_volume(sorted_activities),
         timestamp=last_activity.timestamp,
     )
 
