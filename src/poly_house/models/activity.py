@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 from poly_house.models.ts import TimeSeriesPoint
-from poly_house.utils.math import fit_trend_by_days
+from poly_house.utils.metrics import fit_trend_by_days
 
 
 class Activity(BaseModel):

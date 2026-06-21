@@ -23,7 +23,7 @@ from poly_house.models import (
     PnlTimeSeries,
 )
 from poly_house.models.activity import build_market_activities, metrics_from_market_activities
-from poly_house.utils.math import compute_stable_growth, fit_trend_by_days
+from poly_house.utils.metrics import compute_stable_growth, fit_trend_by_days
 
 logger = structlog.get_logger()
 

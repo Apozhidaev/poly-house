@@ -22,7 +22,7 @@ from poly_house.sync.tag_profiles import (
     load_condition_tag_ids,
     update_tag_profiles_for_wallets,
 )
-from poly_house.utils.math import compute_stable_growth
+from poly_house.utils.metrics import compute_stable_growth
 
 logger = structlog.get_logger()
 
