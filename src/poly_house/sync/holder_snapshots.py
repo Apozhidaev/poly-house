@@ -44,7 +44,11 @@ PROFILE_METRIC_FIELDS = (
     "volume",
     "stable_growth",
     "total_balance",
+    "house_pnl",
+    "house_volume",
+    "house_stable_growth",
     "house_win_rate",
+    "house_markets_count",
 )
 PROFILE_METRICS_PROJECTION = {"_id": 1, **{f: 1 for f in PROFILE_METRIC_FIELDS}}
 
@@ -198,7 +202,7 @@ async def load_tag_profile_tag_metrics(
 def parse_top_holders(
     raw: list[dict[str, Any]],
     clob_token_ids: list[str],
-    profiles: dict[str, dict[str, float | None]] | None = None,
+    profiles: dict[str, dict[str, float | int | None]] | None = None,
     *,
     market_tag_ids: list[int] | None = None,
     tag_weights: dict[int, float] | None = None,
@@ -233,11 +237,15 @@ def parse_top_holders(
                     proxy_wallet=wallet,
                     name=holder["name"],
                     amount=holder["amount"],
-                    win_rate=metrics.get("house_win_rate"),
                     pnl=metrics.get("pnl"),
                     volume=metrics.get("volume"),
                     stable_growth=metrics.get("stable_growth"),
                     total_balance=metrics.get("total_balance"),
+                    house_pnl=metrics.get("house_pnl"),
+                    house_volume=metrics.get("house_volume"),
+                    house_stable_growth=metrics.get("house_stable_growth"),
+                    house_win_rate=metrics.get("house_win_rate"),
+                    house_markets_count=int(metrics.get("house_markets_count") or 0),
                     tag_win_rate=compute_tag_win_rate(
                         wallet, tag_ids, weights, win_rates
                     ),
@@ -253,7 +261,7 @@ def parse_top_holders(
 
 async def load_profile_metrics(
     db: Database, wallets: list[str]
-) -> dict[str, dict[str, float | None]]:
+) -> dict[str, dict[str, float | int | None]]:
     if not wallets:
         return {}
     cursor = db.profiles.find(
@@ -283,7 +291,7 @@ def holder_snapshot_from_book_and_holders(
     holders_raw: list[dict[str, Any]],
     *,
     captured_at: datetime,
-    profiles: dict[str, dict[str, float | None]] | None = None,
+    profiles: dict[str, dict[str, float | int | None]] | None = None,
     market_tag_ids: list[int] | None = None,
     tag_weights: dict[int, float] | None = None,
     tag_win_rates: dict[tuple[str, int], float] | None = None,

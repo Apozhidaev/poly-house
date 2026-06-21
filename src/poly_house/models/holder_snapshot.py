@@ -20,6 +20,11 @@ class SnapshotHolder(BaseModel):
     volume: float | None = None
     stable_growth: float | None = None
     total_balance: float | None = None
+    house_pnl: float | None = None
+    house_volume: float | None = None
+    house_stable_growth: float | None = None
+    house_win_rate: float | None = None
+    house_markets_count: int
     tag_win_rate: float | None = None
     tag_stable_growth: float | None = None
     tag_pnl: float | None = None
