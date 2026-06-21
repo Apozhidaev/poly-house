@@ -28,14 +28,14 @@ from poly_house.utils.math import compute_stable_growth, fit_trend_by_days
 logger = structlog.get_logger()
 
 BULK_SIZE = 100
-PROFILE_SYNC_MIN_INTERVAL = timedelta(days=1)
-HOME_PROFILE_SYNC_MIN_INTERVAL = timedelta(hours=6)
 
 
-async def wallets_needing_profile_sync(db: Database, wallets: list[str]) -> list[str]:
+async def wallets_needing_profile_sync(
+    db: Database, settings: Settings, wallets: list[str]
+) -> list[str]:
     if not wallets:
         return []
-    cutoff = datetime.now(UTC) - PROFILE_SYNC_MIN_INTERVAL
+    cutoff = datetime.now(UTC) - timedelta(days=settings.profile_sync_interval_days)
     cursor = db.profiles.find(
         {"_id": {"$in": wallets}, "synced_at": {"$gte": cutoff}},
         projection={"_id": 1},
@@ -45,11 +45,13 @@ async def wallets_needing_profile_sync(db: Database, wallets: list[str]) -> list
 
 
 async def wallets_needing_home_profile_sync(
-    db: Database, wallets: list[str]
+    db: Database, settings: Settings, wallets: list[str]
 ) -> list[str]:
     if not wallets:
         return []
-    cutoff = datetime.now(UTC) - HOME_PROFILE_SYNC_MIN_INTERVAL
+    cutoff = datetime.now(UTC) - timedelta(
+        hours=settings.home_profile_sync_interval_hours
+    )
     cursor = db.home_profiles.find(
         {"_id": {"$in": wallets}, "synced_at": {"$gte": cutoff}},
         projection={"_id": 1},
@@ -60,11 +62,12 @@ async def wallets_needing_home_profile_sync(
 
 async def _load_profiles_needing_sync(
     db: Database,
+    settings: Settings,
     *,
     wallet: str | None = None,
     limit: int | None = None,
 ) -> dict[str, str]:
-    cutoff = datetime.now(UTC) - PROFILE_SYNC_MIN_INTERVAL
+    cutoff = datetime.now(UTC) - timedelta(days=settings.profile_sync_interval_days)
     query: dict[str, Any] = {
         "$or": [
             {"synced_at": {"$lt": cutoff}},
@@ -82,11 +85,14 @@ async def _load_profiles_needing_sync(
 
 async def _load_home_profiles_needing_sync(
     db: Database,
+    settings: Settings,
     *,
     wallet: str | None = None,
     limit: int | None = None,
 ) -> dict[str, str]:
-    cutoff = datetime.now(UTC) - HOME_PROFILE_SYNC_MIN_INTERVAL
+    cutoff = datetime.now(UTC) - timedelta(
+        hours=settings.home_profile_sync_interval_hours
+    )
     query: dict[str, Any] = {
         "$or": [
             {"synced_at": {"$lt": cutoff}},
@@ -590,7 +596,7 @@ async def sync_profiles(
 ) -> None:
     """Sync stale Polymarket profiles."""
     wallets_to_sync = await _load_profiles_needing_sync(
-        db, wallet=wallet, limit=limit
+        db, settings, wallet=wallet, limit=limit
     )
 
     logger.info(
@@ -616,7 +622,7 @@ async def sync_home_profiles(
 ) -> None:
     """Sync stale home profiles."""
     wallets_to_sync = await _load_home_profiles_needing_sync(
-        db, wallet=wallet, limit=limit
+        db, settings, wallet=wallet, limit=limit
     )
 
     logger.info(

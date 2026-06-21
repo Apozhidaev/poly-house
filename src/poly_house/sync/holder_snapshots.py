@@ -388,12 +388,16 @@ async def sync_holder_snapshots(
        
         if holders:
             wallet_list = list(holders.keys())
-            profile_stale = await wallets_needing_profile_sync(db, wallet_list)
+            profile_stale = await wallets_needing_profile_sync(
+                db, settings, wallet_list
+            )
             if profile_wallets := {w: holders[w] for w in profile_stale}:
                 await sync_profiles_for_wallets(
                     db, data, pnl, settings, profile_wallets, stop=stop
                 )
-            home_stale = await wallets_needing_home_profile_sync(db, wallet_list)
+            home_stale = await wallets_needing_home_profile_sync(
+                db, settings, wallet_list
+            )
             if home_wallets := {w: holders[w] for w in home_stale}:
                 await sync_home_profiles_for_wallets(
                     db, data, settings, home_wallets, stop=stop

@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     # первый прогон sync-home-profile: activity cache за последние N дней
     activity_cache_in_days: int = 365
 
+    # sync-profile: считать profile свежим, если synced_at моложе N дней
+    profile_sync_interval_days: int = 1
+
+    # sync-home-profile: считать home profile свежим, если synced_at моложе N часов
+    home_profile_sync_interval_hours: int = 6
+
     # необязательный фильтр маркетов по тегам (tag_id=1&tag_id=2)
     markets_tag_ids: list[int] = []
 
