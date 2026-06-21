@@ -37,8 +37,6 @@ class MarketActivity(BaseModel):
     pnl: float
     volume: float
     timestamp: int
-    entry_price: float | None = None
-    exit_price: float | None = None
 
 
 class ActivityMetrics(BaseModel):
@@ -48,15 +46,6 @@ class ActivityMetrics(BaseModel):
     volume: float | None = None
     pnl_growth: float | None = None
     pnl_stability: float | None = None
-    avg_entry_price: float | None = None
-    avg_exit_price: float | None = None
-
-
-def _mean_non_null(values: list[float | None]) -> float | None:
-    present = [value for value in values if value is not None]
-    if not present:
-        return None
-    return sum(present) / len(present)
 
 
 def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
@@ -69,10 +58,6 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
 
     pnl = 0.0
     volume = 0.0
-    buy_size = 0.0
-    buy_usdc = 0.0
-    sell_size = 0.0
-    sell_usdc = 0.0
     for activity in sorted_activities:
         volume += activity.usdc_size
         match activity.type:
@@ -85,21 +70,13 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
             case "TRADE":
                 match activity.side:
                     case "SELL":
-                        sell_size += activity.size
-                        sell_usdc += activity.usdc_size
                         pnl += activity.usdc_size
                     case "BUY":
-                        buy_size += activity.size
-                        buy_usdc += activity.usdc_size
                         pnl -= activity.usdc_size
             case "REDEEM":
-                sell_size += activity.size
-                sell_usdc += activity.usdc_size
                 pnl += activity.usdc_size
 
     last_activity = sorted_activities[-1]
-    entry_price = buy_usdc / buy_size if buy_size > 0 else None
-    exit_price = sell_usdc / sell_size if sell_size > 0 else None
 
     return MarketActivity(
         condition_id=last_activity.condition_id,
@@ -107,8 +84,6 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
         pnl=pnl,
         volume=volume,
         timestamp=last_activity.timestamp,
-        entry_price=entry_price,
-        exit_price=exit_price,
     )
 
 
@@ -151,6 +126,4 @@ def metrics_from_market_activities(
         volume=sum(ma.volume for ma in market_activities),
         pnl_growth=pnl_growth,
         pnl_stability=pnl_stability,
-        avg_entry_price=_mean_non_null([ma.entry_price for ma in market_activities]),
-        avg_exit_price=_mean_non_null([ma.exit_price for ma in market_activities]),
     )

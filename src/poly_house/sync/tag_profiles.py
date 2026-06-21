@@ -64,8 +64,6 @@ def build_tag_profile(
         pnl_growth=metrics.pnl_growth,
         pnl_stability=metrics.pnl_stability,
         win_rate=metrics.win_rate,
-        avg_entry_price=metrics.avg_entry_price,
-        avg_exit_price=metrics.avg_exit_price,
     )
 
 
