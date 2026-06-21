@@ -13,6 +13,7 @@ class SnapshotHolder(BaseModel):
     )
 
     proxy_wallet: str
+    name: str
     amount: float
     win_rate: float | None = None
     pnl: float | None = None

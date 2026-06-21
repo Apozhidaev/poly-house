@@ -231,6 +231,7 @@ def parse_top_holders(
             result[outcome_index].append(
                 SnapshotHolder(
                     proxy_wallet=wallet,
+                    name=holder["name"],
                     amount=holder["amount"],
                     win_rate=metrics.get("house_win_rate"),
                     pnl=metrics.get("pnl"),
