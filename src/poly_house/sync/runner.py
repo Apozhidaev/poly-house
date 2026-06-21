@@ -18,7 +18,7 @@ from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.markets import sync_markets
 from poly_house.sync.profiles import sync_profiles
-from poly_house.sync.snapshots import sync_snapshots
+from poly_house.sync.holder_snapshots import sync_holder_snapshots
 from poly_house.sync.tag_profiles import update_tag_profiles
 from poly_house.sync.trades import sync_trades
 
@@ -182,7 +182,7 @@ async def run_sync_profile(
     await _run(settings, make_once, watch=watch)
 
 
-async def run_sync_snapshots(settings: Settings, *, watch: bool = False) -> None:
+async def run_sync_holder_snapshots(settings: Settings, *, watch: bool = False) -> None:
     def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
         data = DataClient(http)
         clob = ClobClient(http)
@@ -190,11 +190,11 @@ async def run_sync_snapshots(settings: Settings, *, watch: bool = False) -> None
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            written, skipped = await sync_snapshots(
+            written, skipped = await sync_holder_snapshots(
                 db, data, clob, pnl, settings, stop=stop
             )
             logger.info(
-                "snapshots_sync_run_complete",
+                "holder_snapshots_sync_run_complete",
                 written=written,
                 skipped=skipped,
                 seconds=round(time.monotonic() - started, 1),

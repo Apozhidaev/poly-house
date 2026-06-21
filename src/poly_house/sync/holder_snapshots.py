@@ -11,7 +11,7 @@ from poly_house.api.data import DataClient
 from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.models import Snapshot, SnapshotHolder
+from poly_house.models import HolderSnapshot, SnapshotHolder
 from poly_house.sync.profiles import (
     sync_profiles_for_wallets,
     wallets_needing_profile_sync,
@@ -291,7 +291,7 @@ def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, str]:
     return holders
 
 
-def snapshot_from_book_and_holders(
+def holder_snapshot_from_book_and_holders(
     market: dict[str, Any],
     book: dict[str, Any],
     holders_raw: list[dict[str, Any]],
@@ -304,8 +304,8 @@ def snapshot_from_book_and_holders(
     tag_stable_growths: dict[tuple[str, int], float] | None = None,
     tag_pnls: dict[tuple[str, int], float] | None = None,
     tag_volumes: dict[tuple[str, int], float] | None = None,
-) -> Snapshot:
-    return Snapshot(
+) -> HolderSnapshot:
+    return HolderSnapshot(
         market_id=market["_id"],
         market_slug=market["slug"],
         condition_id=market["condition_id"],
@@ -328,7 +328,7 @@ def snapshot_from_book_and_holders(
     )
 
 
-async def sync_snapshots(
+async def sync_holder_snapshots(
     db: Database,
     data: DataClient,
     clob: ClobClient,
@@ -338,7 +338,7 @@ async def sync_snapshots(
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
     """Снимки ордербука + holders для открытых маркетов; returns (written, skipped)."""
-    logger.info("snapshots_sync_start")
+    logger.info("holder_snapshots_sync_start")
     cursor = db.markets.find(OPEN_MARKETS_QUERY, OPEN_MARKETS_PROJECTION)
     markets = await cursor.to_list(length=None)
     condition_tags = await load_condition_tag_ids(db)
@@ -395,7 +395,7 @@ async def sync_snapshots(
             tag_stable_growths = {}
             tag_pnls = {}
             tag_volumes = {}
-        snapshot = snapshot_from_book_and_holders(
+        holder_snapshot = holder_snapshot_from_book_and_holders(
             market,
             book,
             holders_raw,
@@ -408,15 +408,20 @@ async def sync_snapshots(
             tag_pnls=tag_pnls,
             tag_volumes=tag_volumes,
         )
-        await db.snapshots.insert_one(snapshot.to_doc())
+        await db.holder_snapshots.insert_one(holder_snapshot.to_doc())
         written += 1
         logger.info(
-            "snapshot_inserted",
+            "holder_snapshot_inserted",
             market_id=market["_id"],
             condition_id=market["condition_id"],
-            best_bid=snapshot.best_bid,
-            best_ask=snapshot.best_ask,
+            best_bid=holder_snapshot.best_bid,
+            best_ask=holder_snapshot.best_ask,
         )
 
-    logger.info("snapshots_sync_done", written=written, skipped=skipped, markets=len(markets))
+    logger.info(
+        "holder_snapshots_sync_done",
+        written=written,
+        skipped=skipped,
+        markets=len(markets),
+    )
     return written, skipped

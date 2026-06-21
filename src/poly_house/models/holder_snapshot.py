@@ -23,7 +23,7 @@ class SnapshotHolder(BaseModel):
     tag_roi: float | None = None
 
 
-class Snapshot(BaseModel):
+class HolderSnapshot(BaseModel):
     model_config = ConfigDict(
         extra="ignore", alias_generator=to_camel, populate_by_name=True
     )
