@@ -35,13 +35,8 @@ class MarketActivity(BaseModel):
     timestamp: int
 
 
-_EXCLUDED_ACTIVITY_TYPES = frozenset({"SPLIT", "MERGE", "CONVERSION"})
-
-
 def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
     if not activities:
-        return None
-    if any(a.type in _EXCLUDED_ACTIVITY_TYPES for a in activities):
         return None
     if any(a.is_combo for a in activities):
         return None
@@ -52,13 +47,21 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
     volume = 0.0
     for activity in sorted_activities:
         volume += activity.usdc_size
-        if activity.type == "TRADE":
-            if activity.side == "SELL":
-                pnl += activity.usdc_size
-            elif activity.side == "BUY":
+        match activity.type:
+            case "SPLIT":
                 pnl -= activity.usdc_size
-        if activity.type == "REDEEM":
-            pnl += activity.usdc_size
+            case "MERGE":
+                pnl += activity.usdc_size
+            case "CONVERSION":
+                pnl -= activity.usdc_size
+            case "TRADE":
+                match activity.side:
+                    case "SELL":
+                        pnl += activity.usdc_size
+                    case "BUY":
+                        pnl -= activity.usdc_size
+            case "REDEEM":
+                pnl += activity.usdc_size
 
     last_activity = sorted_activities[-1]
 
