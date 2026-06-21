@@ -102,23 +102,7 @@ async def _load_house_profiles_needing_sync(
     return {doc["_id"]: doc.get("name") or "" for doc in docs}
 
 
-async def _load_wallets_needing_sync(
-    db: Database,
-    *,
-    wallet: str | None = None,
-    limit: int | None = None,
-) -> dict[str, str]:
-    profile_wallets = await _load_profiles_needing_sync(
-        db, wallet=wallet, limit=limit
-    )
-    house_wallets = await _load_house_profiles_needing_sync(
-        db, wallet=wallet, limit=limit
-    )
-    return {**house_wallets, **profile_wallets}
-
-
 def build_profile(
-    *,
     wallet: str,
     name: str,
     stats: LeaderboardStats | None,
@@ -292,87 +276,6 @@ async def upsert_house_profiles_for_wallets(
 
     await _flush_house_profile_writes(db, ops)
     return processed
-
-
-async def sync_profiles_for_wallets(
-    db: Database,
-    data: DataClient,
-    pnl: PnlClient,
-    settings: Settings,
-    wallets: dict[str, str],
-    *,
-    stop: asyncio.Event | None = None,
-) -> None:
-    """Sync profiles and/or house profiles for given wallets."""
-    started = time.monotonic()
-    if not wallets:
-        logger.info("profiles_sync_skip", reason="no_wallets")
-        return
-
-    wallet_list = list(wallets.keys())
-    house_stale = set(await wallets_needing_house_profile_sync(db, wallet_list))
-    profile_stale = set(await wallets_needing_profile_sync(db, wallet_list))
-
-    house_wallets = {w: wallets[w] for w in house_stale}
-    profile_wallets = {w: wallets[w] for w in profile_stale}
-
-    activity_cache = 0
-    activities = 0
-    house_profiles = 0
-    profiles = 0
-
-    if house_wallets:
-        activity_cache = await sync_activity_cache_for_wallets(
-            db, data, settings, list(house_wallets.keys()), stop=stop
-        )
-        activities = await sync_activities_for_wallets(
-            db, data, settings, list(house_wallets.keys()), stop=stop
-        )
-        house_profiles = await upsert_house_profiles_for_wallets(
-            db, house_wallets, stop=stop
-        )
-
-    if profile_wallets:
-        profiles = await upsert_profiles_for_wallets(
-            db, data, pnl, profile_wallets, stop=stop
-        )
-
-    logger.info(
-        "profiles_sync_complete",
-        profiles=profiles,
-        house_profiles=house_profiles,
-        activity_cache=activity_cache,
-        activities=activities,
-        interrupted=stop is not None and stop.is_set(),
-        seconds=round(time.monotonic() - started, 1),
-    )
-
-
-async def sync_profiles(
-    db: Database,
-    data: DataClient,
-    pnl: PnlClient,
-    settings: Settings,
-    *,
-    wallet: str | None = None,
-    limit: int | None = None,
-    stop: asyncio.Event | None = None,
-) -> None:
-    """Sync stale profiles and/or house profiles."""
-    wallets_to_sync = await _load_wallets_needing_sync(
-        db, wallet=wallet, limit=limit
-    )
-
-    logger.info(
-        "profiles_sync_start",
-        wallets=len(wallets_to_sync),
-        wallet=wallet,
-        limit=limit,
-    )
-
-    await sync_profiles_for_wallets(
-        db, data, pnl, settings, wallets_to_sync, stop=stop
-    )
 
 
 async def load_house_metrics(
@@ -606,3 +509,132 @@ async def sync_activities_for_wallets(
             watermark=watermark,
         )
     return total_activities
+
+
+async def sync_house_profiles_for_wallets(
+    db: Database,
+    data: DataClient,
+    settings: Settings,
+    wallets: dict[str, str],
+    *,
+    stop: asyncio.Event | None = None,
+) -> None:
+    """Sync house profiles for given wallets (activity cache → activities → house_profiles)."""
+    started = time.monotonic()
+    if not wallets:
+        logger.info("house_profiles_sync_skip", reason="no_wallets")
+        return
+
+    wallet_list = list(wallets.keys())
+    house_stale = set(await wallets_needing_house_profile_sync(db, wallet_list))
+    house_wallets = {w: wallets[w] for w in house_stale}
+
+    activity_cache = 0
+    activities = 0
+    house_profiles = 0
+
+    if house_wallets:
+        activity_cache = await sync_activity_cache_for_wallets(
+            db, data, settings, list(house_wallets.keys()), stop=stop
+        )
+        activities = await sync_activities_for_wallets(
+            db, data, settings, list(house_wallets.keys()), stop=stop
+        )
+        house_profiles = await upsert_house_profiles_for_wallets(
+            db, house_wallets, stop=stop
+        )
+
+    logger.info(
+        "house_profiles_sync_complete",
+        house_profiles=house_profiles,
+        activity_cache=activity_cache,
+        activities=activities,
+        interrupted=stop is not None and stop.is_set(),
+        seconds=round(time.monotonic() - started, 1),
+    )
+
+
+async def sync_profiles_for_wallets(
+    db: Database,
+    data: DataClient,
+    pnl: PnlClient,
+    settings: Settings,
+    wallets: dict[str, str],
+    *,
+    stop: asyncio.Event | None = None,
+) -> None:
+    """Sync Polymarket profiles for given wallets."""
+    started = time.monotonic()
+    if not wallets:
+        logger.info("profiles_sync_skip", reason="no_wallets")
+        return
+
+    wallet_list = list(wallets.keys())
+    profile_stale = set(await wallets_needing_profile_sync(db, wallet_list))
+    profile_wallets = {w: wallets[w] for w in profile_stale}
+
+    profiles = 0
+    if profile_wallets:
+        profiles = await upsert_profiles_for_wallets(
+            db, data, pnl, profile_wallets, stop=stop
+        )
+
+    logger.info(
+        "profiles_sync_complete",
+        profiles=profiles,
+        interrupted=stop is not None and stop.is_set(),
+        seconds=round(time.monotonic() - started, 1),
+    )
+
+
+async def sync_profiles(
+    db: Database,
+    data: DataClient,
+    pnl: PnlClient,
+    settings: Settings,
+    *,
+    wallet: str | None = None,
+    limit: int | None = None,
+    stop: asyncio.Event | None = None,
+) -> None:
+    """Sync stale Polymarket profiles."""
+    wallets_to_sync = await _load_profiles_needing_sync(
+        db, wallet=wallet, limit=limit
+    )
+
+    logger.info(
+        "profiles_sync_start",
+        wallets=len(wallets_to_sync),
+        wallet=wallet,
+        limit=limit,
+    )
+
+    await sync_profiles_for_wallets(
+        db, data, pnl, settings, wallets_to_sync, stop=stop
+    )
+
+
+async def sync_house_profiles(
+    db: Database,
+    data: DataClient,
+    settings: Settings,
+    *,
+    wallet: str | None = None,
+    limit: int | None = None,
+    stop: asyncio.Event | None = None,
+) -> None:
+    """Sync stale house profiles."""
+    wallets_to_sync = await _load_house_profiles_needing_sync(
+        db, wallet=wallet, limit=limit
+    )
+
+    logger.info(
+        "house_profiles_sync_start",
+        wallets=len(wallets_to_sync),
+        wallet=wallet,
+        limit=limit,
+    )
+
+    await sync_house_profiles_for_wallets(
+        db, data, settings, wallets_to_sync, stop=stop
+    )

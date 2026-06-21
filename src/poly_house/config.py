@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # первый прогон: глубина загрузки маркетов по updatedAt
     updated_in_days: int = 30
 
-    # первый прогон sync-profile: activity cache за последние N дней
+    # первый прогон sync-house-profile: activity cache за последние N дней
     activity_cache_in_days: int = 365
 
     # необязательный фильтр маркетов по тегам (tag_id=1&tag_id=2)

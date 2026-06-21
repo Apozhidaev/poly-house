@@ -13,8 +13,10 @@ from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import HolderSnapshot, SnapshotHolder
 from poly_house.sync.profiles import (
+    sync_house_profiles_for_wallets,
     sync_profiles_for_wallets,
     wallets_needing_house_profile_sync,
+    wallets_needing_profile_sync,
 )
 from poly_house.sync.tag_profiles import (
     load_condition_tag_ids,
@@ -385,12 +387,17 @@ async def sync_holder_snapshots(
         holders = collect_holders(holders_raw)
        
         if holders:
-            house_stale = await wallets_needing_house_profile_sync(
-                db, list(holders.keys())
-            )
-            await sync_profiles_for_wallets(
-                db, data, pnl, settings, holders, stop=stop
-            )
+            wallet_list = list(holders.keys())
+            profile_stale = await wallets_needing_profile_sync(db, wallet_list)
+            if profile_wallets := {w: holders[w] for w in profile_stale}:
+                await sync_profiles_for_wallets(
+                    db, data, pnl, settings, profile_wallets, stop=stop
+                )
+            house_stale = await wallets_needing_house_profile_sync(db, wallet_list)
+            if house_wallets := {w: holders[w] for w in house_stale}:
+                await sync_house_profiles_for_wallets(
+                    db, data, settings, house_wallets, stop=stop
+                )
             if condition_tags and house_stale:
                 await update_tag_profiles_for_wallets(
                     db,
