@@ -75,6 +75,8 @@ def build_profile(
     ts: PnlTimeSeries | None,
     house_pnl: float | None = None,
     house_volume: float | None = None,
+    house_pnl_growth: float | None = None,
+    house_pnl_stability: float | None = None,
     house_win_rate: float | None = None,
     house_markets_count: int,
     synced_at: datetime,
@@ -111,6 +113,8 @@ def build_profile(
         total_balance=total_balance,
         house_pnl=house_pnl,
         house_volume=house_volume,
+        house_pnl_growth=house_pnl_growth,
+        house_pnl_stability=house_pnl_stability,
         house_win_rate=house_win_rate,
         house_markets_count=house_markets_count,
         synced_at=synced_at,
@@ -166,6 +170,8 @@ async def upsert_profiles_for_wallets(
             ts=ts,
             house_pnl=metrics[2] if metrics else None,
             house_volume=metrics[3] if metrics else None,
+            house_pnl_growth=metrics[4] if metrics else None,
+            house_pnl_stability=metrics[5] if metrics else None,
             house_win_rate=metrics[0] if metrics else None,
             house_markets_count=metrics[1] if metrics else 0,
             synced_at=synced_at,
@@ -246,7 +252,7 @@ async def sync_profiles(
 
 async def load_house_metrics(
     db: Database, wallets: list[str]
-) -> dict[str, tuple[float, int, float, float]]:
+) -> dict[str, tuple[float, int, float, float, float | None, float | None]]:
     if not wallets:
         return {}
     docs = await db.activities.find({"proxy_wallet": {"$in": wallets}}).to_list(
@@ -256,15 +262,27 @@ async def load_house_metrics(
     for doc in docs:
         activity = Activity.model_validate(doc)
         by_wallet.setdefault(activity.proxy_wallet, []).append(activity)
-    metrics: dict[str, tuple[float, int, float, float]] = {}
+    metrics: dict[str, tuple[float, int, float, float, float | None, float | None]] = {}
     for wallet, wallet_activities in by_wallet.items():
-        win_rate, markets_count, house_pnl, house_volume = (
-            house_metrics_from_market_activities(
-                build_market_activities(wallet_activities)
-            )
+        (
+            win_rate,
+            markets_count,
+            house_pnl,
+            house_volume,
+            house_pnl_growth,
+            house_pnl_stability,
+        ) = house_metrics_from_market_activities(
+            build_market_activities(wallet_activities)
         )
         if win_rate is not None and house_pnl is not None and house_volume is not None:
-            metrics[wallet] = (win_rate, markets_count, house_pnl, house_volume)
+            metrics[wallet] = (
+                win_rate,
+                markets_count,
+                house_pnl,
+                house_volume,
+                house_pnl_growth,
+                house_pnl_stability,
+            )
     return metrics
 
 

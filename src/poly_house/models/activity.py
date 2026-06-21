@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+
+from poly_house.models.ts import TimeSeriesPoint
+from poly_house.utils.math import fit_trend_by_days
 
 
 class Activity(BaseModel):
@@ -87,23 +91,39 @@ def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
 
 def house_metrics_from_market_activities(
     market_activities: list[MarketActivity],
-) -> tuple[float | None, int, float | None, float | None]:
+) -> tuple[float | None, int, float | None, float | None, float | None, float | None]:
     if not market_activities:
-        return None, 0, None, None
+        return None, 0, None, None, None, None
     markets_count = len(market_activities)
     win_count = sum(1 for ma in market_activities if ma.pnl > 0)
+    points = [
+        TimeSeriesPoint(
+            timestamp=datetime.fromtimestamp(ma.timestamp, UTC),
+            value=ma.pnl,
+        )
+        for ma in market_activities
+    ]
+    if len(points) >= 2:
+        _, slope, r2 = fit_trend_by_days(points, use_cumulative=True)
+        house_pnl_growth = slope
+        house_pnl_stability = r2
+    else:
+        house_pnl_growth = None
+        house_pnl_stability = None
     return (
         win_count / markets_count,
         markets_count,
         sum(ma.pnl for ma in market_activities),
         sum(ma.volume for ma in market_activities),
+        house_pnl_growth,
+        house_pnl_stability,
     )
 
 
 def win_rate_from_market_activities(
     market_activities: list[MarketActivity],
 ) -> tuple[float | None, int]:
-    win_rate, markets_count, _, _ = house_metrics_from_market_activities(
+    win_rate, markets_count, _, _, _, _ = house_metrics_from_market_activities(
         market_activities
     )
     return win_rate, markets_count

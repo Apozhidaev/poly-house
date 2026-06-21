@@ -20,6 +20,8 @@ class Profile(BaseModel):
     total_balance: float | None = None
     house_pnl: float | None = None
     house_volume: float | None = None
+    house_pnl_growth: float | None = None
+    house_pnl_stability: float | None = None
     house_win_rate: float | None = None
     house_markets_count: int
     synced_at: datetime
