@@ -50,6 +50,17 @@ class ActivityMetrics(BaseModel):
     volume: float | None = None
     pnl_growth: float | None = None
     pnl_stability: float | None = None
+    avg_entry_price: float | None = None
+    avg_exit_price: float | None = None
+    avg_buy_price: float | None = None
+    avg_sell_price: float | None = None
+
+
+def _mean_non_null(values: list[float | None]) -> float | None:
+    present = [value for value in values if value is not None]
+    if not present:
+        return None
+    return sum(present) / len(present)
 
 
 def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
@@ -150,4 +161,8 @@ def metrics_from_market_activities(
         volume=sum(ma.volume for ma in market_activities),
         pnl_growth=pnl_growth,
         pnl_stability=pnl_stability,
+        avg_entry_price=_mean_non_null([ma.entry_price for ma in market_activities]),
+        avg_exit_price=_mean_non_null([ma.exit_price for ma in market_activities]),
+        avg_buy_price=_mean_non_null([ma.avg_buy_price for ma in market_activities]),
+        avg_sell_price=_mean_non_null([ma.avg_sell_price for ma in market_activities]),
     )
