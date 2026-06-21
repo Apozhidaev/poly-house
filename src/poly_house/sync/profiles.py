@@ -22,7 +22,7 @@ from poly_house.models import (
 )
 from poly_house.models.activity import (
     build_market_activities,
-    house_metrics_from_market_activities,
+    metrics_from_market_activities,
 )
 from poly_house.utils.math import fit_trend_by_days
 
@@ -271,7 +271,7 @@ async def load_house_metrics(
             house_volume,
             house_pnl_growth,
             house_pnl_stability,
-        ) = house_metrics_from_market_activities(
+        ) = metrics_from_market_activities(
             build_market_activities(wallet_activities)
         )
         if win_rate is not None and house_pnl is not None and house_volume is not None:

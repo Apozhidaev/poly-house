@@ -2,21 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 from pymongo import UpdateOne
 
 from poly_house.db import Database
-from poly_house.models import TagProfile, TimeSeriesPoint
+from poly_house.models import TagProfile
 from poly_house.models.activity import (
     Activity,
     MarketActivity,
     build_market_activities,
-    win_rate_from_market_activities,
+    metrics_from_market_activities,
 )
-from poly_house.utils.math import fit_trend_by_days
 
 logger = structlog.get_logger()
 
@@ -55,24 +53,14 @@ def build_tag_profile(
     tag_id: int,
     market_activities: list[MarketActivity],
 ) -> TagProfile:
-    pnl = sum(ma.pnl for ma in market_activities)
-    volume = sum(ma.volume for ma in market_activities)
-    win_rate, markets_count = win_rate_from_market_activities(market_activities)
-
-    points = [
-        TimeSeriesPoint(
-            timestamp=datetime.fromtimestamp(ma.timestamp, UTC),
-            value=ma.pnl,
-        )
-        for ma in market_activities
-    ]
-    if len(points) >= 2:
-        _, slope, r2 = fit_trend_by_days(points, use_cumulative=True)
-        pnl_growth = slope
-        pnl_stability = r2
-    else:
-        pnl_growth = None
-        pnl_stability = None
+    (
+        win_rate,
+        markets_count,
+        pnl,
+        volume,
+        pnl_growth,
+        pnl_stability,
+    ) = metrics_from_market_activities(market_activities)
 
     return TagProfile(
         proxy_wallet=wallet,

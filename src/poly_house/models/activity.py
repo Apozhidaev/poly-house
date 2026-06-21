@@ -89,7 +89,7 @@ def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
     ]
 
 
-def house_metrics_from_market_activities(
+def metrics_from_market_activities(
     market_activities: list[MarketActivity],
 ) -> tuple[float | None, int, float | None, float | None, float | None, float | None]:
     if not market_activities:
@@ -118,12 +118,3 @@ def house_metrics_from_market_activities(
         house_pnl_growth,
         house_pnl_stability,
     )
-
-
-def win_rate_from_market_activities(
-    market_activities: list[MarketActivity],
-) -> tuple[float | None, int]:
-    win_rate, markets_count, _, _, _, _ = house_metrics_from_market_activities(
-        market_activities
-    )
-    return win_rate, markets_count
