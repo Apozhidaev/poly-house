@@ -13,7 +13,8 @@ class Profile(BaseModel):
     name: str
     pnl: float | None = None
     volume: float | None = None
-    stable_growth: float | None = None
+    pnl_growth: float | None = None
+    pnl_stability: float | None = None
     positions_value: float | None = None
     cash_balance: float | None = None
     total_balance: float | None = None

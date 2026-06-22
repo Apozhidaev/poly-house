@@ -44,7 +44,8 @@ OPEN_MARKETS_PROJECTION = {
 PROFILE_METRIC_FIELDS = (
     "pnl",
     "volume",
-    "stable_growth",
+    "pnl_growth",
+    "pnl_stability",
     "total_balance",
 )
 PROFILE_METRICS_PROJECTION = {"_id": 1, **{f: 1 for f in PROFILE_METRIC_FIELDS}}
@@ -52,7 +53,8 @@ PROFILE_METRICS_PROJECTION = {"_id": 1, **{f: 1 for f in PROFILE_METRIC_FIELDS}}
 HOME_PROFILE_METRIC_FIELDS = (
     "pnl",
     "volume",
-    "stable_growth",
+    "pnl_growth",
+    "pnl_stability",
     "win_rate",
     "markets_count",
 )
@@ -251,11 +253,17 @@ def parse_top_holders(
                     amount=holder["amount"],
                     pnl=metrics.get("pnl"),
                     volume=metrics.get("volume"),
-                    stable_growth=metrics.get("stable_growth"),
+                    stable_growth=compute_stable_growth(
+                        metrics.get("pnl_growth"),
+                        metrics.get("pnl_stability"),
+                    ),
                     total_balance=metrics.get("total_balance"),
                     home_pnl=home_metrics.get("pnl"),
                     home_volume=home_metrics.get("volume"),
-                    home_stable_growth=home_metrics.get("stable_growth"),
+                    home_stable_growth=compute_stable_growth(
+                        home_metrics.get("pnl_growth"),
+                        home_metrics.get("pnl_stability"),
+                    ),
                     home_win_rate=home_metrics.get("win_rate"),
                     home_markets_count=int(home_metrics.get("markets_count") or 0),
                     tag_win_rate=compute_tag_win_rate(

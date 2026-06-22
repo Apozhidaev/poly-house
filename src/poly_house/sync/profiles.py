@@ -23,7 +23,7 @@ from poly_house.models import (
     PnlTimeSeries,
 )
 from poly_house.models.activity import build_market_activities, metrics_from_market_activities
-from poly_house.utils.metrics import compute_stable_growth, fit_trend_by_days
+from poly_house.utils.metrics import fit_trend_by_days
 
 logger = structlog.get_logger()
 
@@ -130,16 +130,19 @@ def build_profile(
 
     if ts and ts.data:
         _, slope, r2 = fit_trend_by_days(ts.data, use_cumulative=False)
-        stable_growth = compute_stable_growth(slope, r2)
+        pnl_growth = slope
+        pnl_stability = r2
     else:
-        stable_growth = None
+        pnl_growth = None
+        pnl_stability = None
 
     return Profile(
         proxy_wallet=wallet,
         name=name,
         pnl=pnl,
         volume=volume,
-        stable_growth=stable_growth,
+        pnl_growth=pnl_growth,
+        pnl_stability=pnl_stability,
         positions_value=positions_value,
         cash_balance=cash_balance,
         total_balance=total_balance,
@@ -159,11 +162,8 @@ def build_home_profile(
         name=name,
         pnl=metrics.pnl if metrics else None,
         volume=metrics.volume if metrics else None,
-        stable_growth=(
-            compute_stable_growth(metrics.pnl_growth, metrics.pnl_stability)
-            if metrics
-            else None
-        ),
+        pnl_growth=metrics.pnl_growth if metrics else None,
+        pnl_stability=metrics.pnl_stability if metrics else None,
         win_rate=metrics.win_rate if metrics else None,
         markets_count=metrics.markets_count if metrics else 0,
         synced_at=synced_at,
