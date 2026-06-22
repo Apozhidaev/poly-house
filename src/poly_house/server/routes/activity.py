@@ -9,7 +9,6 @@ from poly_house.models.activity import build_market_activities
 from poly_house.server.deps import Db, Page
 
 router = APIRouter(prefix="/activity", tags=["activity"])
-market_activity_router = APIRouter(prefix="/market-activity", tags=["market-activity"])
 
 
 def _build_activity_query(
@@ -73,7 +72,7 @@ async def list_activity(
     return {"items": await cursor.to_list(page.limit)}
 
 
-@market_activity_router.get("")
+@router.get("/by-market")
 async def list_market_activity(
     db: Db,
     page: Page,

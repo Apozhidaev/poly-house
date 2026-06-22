@@ -97,7 +97,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /trades/mid-prices` | `condition_id` |
 | `GET /trades/to-outcome` | `target_outcome_index` (default 0), `condition_id`, `user`, `side`, `from`, `to` |
 | `GET /activity` | `condition_id`, `outcome_index`, `user`, `type`, `side`, `from`, `to` |
-| `GET /market-activity` | `user` (required), `condition_id` |
+| `GET /activity/by-market` | `user` (required), `condition_id` |
 
 Все списки пагинируются через `limit` (default 50, max 500) и `offset`.
 
