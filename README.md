@@ -94,6 +94,9 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /profile` | пагинация `limit`, `offset` |
 | `GET /profile/{proxy_wallet}` | — |
 | `POST /profile/batch` | body: `{ "proxy_wallets": [...] }` |
+| `GET /home-profile` | пагинация `limit`, `offset` |
+| `GET /home-profile/{proxy_wallet}` | — |
+| `POST /home-profile/batch` | body: `{ "proxy_wallets": [...] }` |
 | `GET /trades` | `condition_id`, `outcome_index`, `user`, `side`, `from`, `to` |
 | `GET /trades/take-prices` | `condition_id`, `outcome_index`, `side` |
 | `GET /trades/stop-prices` | `condition_id`, `outcome_index`, `side` |
