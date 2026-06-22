@@ -125,7 +125,13 @@ class DataClient:
         return parse_equity_zip(data)
 
     async def activity_page(
-        self, *, user: str, limit: int, offset: int, market: str | None = None
+        self,
+        *,
+        user: str,
+        limit: int,
+        offset: int,
+        market: str | None = None,
+        event_id: int | None = None,
     ) -> list[dict[str, Any]]:
         """Страница /activity по пользователю, новые первыми."""
         params: dict[str, Any] = {
@@ -136,7 +142,9 @@ class DataClient:
             "sortDirection": "DESC",
             "type": "TRADE,SPLIT,MERGE,REDEEM,CONVERSION",
         }
-        if market is not None:
+        if event_id is not None:
+            params["eventId"] = event_id
+        elif market is not None:
             params["market"] = market
         return (
             await self._http.get(

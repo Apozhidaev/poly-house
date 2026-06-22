@@ -363,7 +363,7 @@ async def _write_activity_cache(
         ReplaceOne(
             {
                 "proxy_wallet": doc["proxy_wallet"],
-                "condition_id": doc["condition_id"],
+                "event_slug": doc["event_slug"],
             },
             doc,
             upsert=True,
@@ -402,29 +402,39 @@ async def sync_activity_cache_for_wallets(
     return total_entries
 
 
+async def _load_event_slug_to_id(db: Database) -> dict[str, int]:
+    docs = await db.events.find(
+        {"slug": {"$exists": True, "$nin": [None, ""]}},
+        projection={"_id": 1, "slug": 1},
+    ).to_list(length=None)
+    return {doc["slug"]: doc["_id"] for doc in docs}
+
+
 async def _load_activity_cache_pending_sync(
     db: Database, wallets: list[str]
 ) -> list[ActivityCache]:
     if not wallets:
         return []
-    market_ids = await db.markets.distinct("condition_id")
-    if not market_ids:
+    event_slugs = await db.events.distinct(
+        "slug", {"slug": {"$exists": True, "$nin": [None, ""]}}
+    )
+    if not event_slugs:
         return []
     docs = await db.activity_caches.find(
         {
             "proxy_wallet": {"$in": wallets},
             "activity_synced": False,
-            "condition_id": {"$in": market_ids},
+            "event_slug": {"$in": event_slugs},
         }
     ).to_list(length=None)
     return [ActivityCache.model_validate(doc) for doc in docs]
 
 
 async def _get_activity_watermark(
-    db: Database, proxy_wallet: str, condition_id: str
+    db: Database, proxy_wallet: str, event_slug: str
 ) -> int | None:
     doc = await db.activities.find_one(
-        {"proxy_wallet": proxy_wallet, "condition_id": condition_id},
+        {"proxy_wallet": proxy_wallet, "event_slug": event_slug},
         sort=[("timestamp", -1)],
         projection={"timestamp": 1},
     )
@@ -435,10 +445,10 @@ async def _fetch_new_activities(
     data: DataClient,
     settings: Settings,
     user: str,
-    condition_id: str,
+    event_id: int,
     watermark: int | None,
 ) -> list[dict[str, Any]]:
-    """Пагинация /activity по market (новые первыми) до watermark или max_offset."""
+    """Пагинация /activity по event (новые первыми) до watermark или max_offset."""
     min_timestamp = watermark if watermark is not None else -1
     pages: list[list[dict[str, Any]]] = []
     offset = 0
@@ -447,7 +457,7 @@ async def _fetch_new_activities(
             user=user,
             limit=settings.activity_page_limit,
             offset=offset,
-            market=condition_id,
+            event_id=event_id,
         )
         if not raw:
             break
@@ -470,10 +480,10 @@ async def _write_activities(db: Database, raw_activities: list[dict[str, Any]]) 
 
 
 async def _mark_activity_cache_synced(
-    db: Database, proxy_wallet: str, condition_id: str
+    db: Database, proxy_wallet: str, event_slug: str
 ) -> None:
     await db.activity_caches.update_one(
-        {"proxy_wallet": proxy_wallet, "condition_id": condition_id},
+        {"proxy_wallet": proxy_wallet, "event_slug": event_slug},
         {"$set": {"activity_synced": True}},
     )
 
@@ -488,29 +498,34 @@ async def sync_activities_for_wallets(
 ) -> int:
     """Догружает activity для pending activity cache entries."""
     pending = await _load_activity_cache_pending_sync(db, wallets)
+    slug_to_event_id = await _load_event_slug_to_id(db)
     total_activities = 0
     for entry in pending:
         if stop is not None and stop.is_set():
             break
+        event_id = slug_to_event_id.get(entry.event_slug)
+        if event_id is None:
+            continue
         watermark = await _get_activity_watermark(
-            db, entry.proxy_wallet, entry.condition_id
+            db, entry.proxy_wallet, entry.event_slug
         )
         activities = await _fetch_new_activities(
             data,
             settings,
             entry.proxy_wallet,
-            entry.condition_id,
+            event_id,
             watermark,
         )
         if activities:
             total_activities += await _write_activities(db, activities)
         await _mark_activity_cache_synced(
-            db, entry.proxy_wallet, entry.condition_id
+            db, entry.proxy_wallet, entry.event_slug
         )
         logger.info(
             "activity_cache_activities_synced",
             wallet=entry.proxy_wallet,
-            condition_id=entry.condition_id,
+            event_slug=entry.event_slug,
+            event_id=event_id,
             activities=len(activities),
             watermark=watermark,
         )

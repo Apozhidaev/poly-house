@@ -12,7 +12,7 @@ class ActivityCache(BaseModel):
     )
 
     proxy_wallet: str
-    condition_id: str
+    event_slug: str
     timestamp: int
     activity_synced: bool = False
 

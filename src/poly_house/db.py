@@ -39,9 +39,10 @@ async def ensure_indexes(db: Database) -> None:
 
     await db.activities.create_index([("proxy_wallet", 1), ("timestamp", -1)])
     await db.activities.create_index("condition_id")
+    await db.activities.create_index([("proxy_wallet", 1), ("event_slug", 1)])
 
     await db.activity_caches.create_index(
-        [("proxy_wallet", 1), ("condition_id", 1)], unique=True
+        [("proxy_wallet", 1), ("event_slug", 1)], unique=True
     )
     await db.activity_caches.create_index([("proxy_wallet", 1), ("timestamp", -1)])
     await db.activity_caches.create_index([("activity_synced", 1), ("proxy_wallet", 1)])
