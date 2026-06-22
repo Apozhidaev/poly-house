@@ -284,14 +284,29 @@ async def upsert_home_profiles_for_wallets(
     return processed
 
 
+async def load_closed_condition_ids(db: Database) -> list[str]:
+    cursor = db.markets.find(
+        {"condition_id": {"$ne": None}, "closed": True},
+        projection={"condition_id": 1},
+    )
+    docs = await cursor.to_list(length=None)
+    return [doc["condition_id"] for doc in docs]
+
+
 async def load_home_metrics(
     db: Database, wallets: list[str]
 ) -> dict[str, ActivityMetrics]:
     if not wallets:
         return {}
-    docs = await db.activities.find({"proxy_wallet": {"$in": wallets}}).to_list(
-        length=None
-    )
+    condition_ids = await load_closed_condition_ids(db)
+    if not condition_ids:
+        return {}
+    docs = await db.activities.find(
+        {
+            "proxy_wallet": {"$in": wallets},
+            "condition_id": {"$in": condition_ids},
+        }
+    ).to_list(length=None)
     by_wallet: dict[str, list[Activity]] = {}
     for doc in docs:
         activity = Activity.model_validate(doc)
