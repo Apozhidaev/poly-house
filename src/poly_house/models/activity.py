@@ -17,6 +17,7 @@ class Activity(BaseModel):
 
     proxy_wallet: str
     condition_id: str
+    event_slug: str
     timestamp: int
     type: str
     side: str = ""

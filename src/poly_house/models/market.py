@@ -94,6 +94,10 @@ class Market(BaseModel):
     def event_id(self) -> int | None:
         return self.events[0].id if self.events else None
 
+    @property
+    def event_slug(self) -> str | None:
+        return self.events[0].slug if self.events else None
+
     def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:
         doc = self.model_dump(exclude={"tags", "events", "id"})
         doc["_id"] = self.id
@@ -101,6 +105,7 @@ class Market(BaseModel):
         if not doc.get("condition_id"):
             doc.pop("condition_id", None)
         doc["event_id"] = self.event_id
+        doc["event_slug"] = self.event_slug
         doc["tag_ids"] = [t.id for t in self.tags]
         doc["synced_at"] = synced_at
         return doc
