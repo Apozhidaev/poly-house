@@ -57,8 +57,6 @@ def compute_pnl(activities: list[Activity]) -> float:
                 pnl -= activity.usdc_size
             case "MERGE":
                 pnl += activity.usdc_size
-            case "CONVERSION":
-                pnl -= activity.usdc_size
             case "TRADE":
                 match activity.side:
                     case "SELL":

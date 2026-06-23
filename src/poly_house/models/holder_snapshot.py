@@ -17,15 +17,18 @@ class SnapshotHolder(BaseModel):
     amount: float
     pnl: float | None = None
     volume: float | None = None
-    stable_growth: float | None = None
+    pnl_growth: float | None = None
+    pnl_stability: float | None = None
     total_balance: float | None = None
     home_pnl: float | None = None
     home_volume: float | None = None
-    home_stable_growth: float | None = None
+    home_pnl_growth: float | None = None
+    home_pnl_stability: float | None = None
     home_win_rate: float | None = None
     home_markets_count: int
     tag_win_rate: float | None = None
-    tag_stable_growth: float | None = None
+    tag_pnl_growth: float | None = None
+    tag_pnl_stability: float | None = None
     tag_pnl: float | None = None
     tag_volume: float | None = None
 

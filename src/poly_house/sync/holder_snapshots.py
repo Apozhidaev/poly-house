@@ -22,7 +22,6 @@ from poly_house.sync.tag_profiles import (
     load_condition_tag_ids,
     update_tag_profiles_for_wallets,
 )
-from poly_house.utils.metrics import compute_stable_growth
 
 logger = structlog.get_logger()
 
@@ -107,14 +106,25 @@ def compute_tag_win_rate(
     return compute_tag_weighted_average(wallet, tag_ids, tag_weights, win_rates)
 
 
-def compute_tag_stable_growth(
+def compute_tag_pnl_growth(
     wallet: str,
     tag_ids: list[int],
     tag_weights: dict[int, float],
-    stable_growths: dict[tuple[str, int], float],
+    pnl_growths: dict[tuple[str, int], float],
 ) -> float | None:
     return compute_tag_weighted_average(
-        wallet, tag_ids, tag_weights, stable_growths
+        wallet, tag_ids, tag_weights, pnl_growths
+    )
+
+
+def compute_tag_pnl_stability(
+    wallet: str,
+    tag_ids: list[int],
+    tag_weights: dict[int, float],
+    pnl_stabilities: dict[tuple[str, int], float],
+) -> float | None:
+    return compute_tag_weighted_average(
+        wallet, tag_ids, tag_weights, pnl_stabilities
     )
 
 
@@ -167,9 +177,10 @@ async def load_tag_profile_tag_metrics(
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
 ]:
     if not wallets or not tag_ids:
-        return {}, {}, {}, {}
+        return {}, {}, {}, {}, {}
     cursor = db.tag_profiles.find(
         {
             "proxy_wallet": {"$in": wallets},
@@ -187,7 +198,8 @@ async def load_tag_profile_tag_metrics(
     )
     docs = await cursor.to_list(length=None)
     win_rates: dict[tuple[str, int], float] = {}
-    stable_growths: dict[tuple[str, int], float] = {}
+    pnl_growths: dict[tuple[str, int], float] = {}
+    pnl_stabilities: dict[tuple[str, int], float] = {}
     pnls: dict[tuple[str, int], float] = {}
     volumes: dict[tuple[str, int], float] = {}
     for doc in docs:
@@ -195,19 +207,19 @@ async def load_tag_profile_tag_metrics(
         win_rate = doc.get("win_rate")
         if win_rate is not None:
             win_rates[key] = win_rate
+        pnl_growth = doc.get("pnl_growth")
+        if pnl_growth is not None:
+            pnl_growths[key] = pnl_growth
+        pnl_stability = doc.get("pnl_stability")
+        if pnl_stability is not None:
+            pnl_stabilities[key] = pnl_stability
         pnl = doc.get("pnl")
         if pnl is not None:
             pnls[key] = pnl
         volume = doc.get("volume")
         if volume is not None:
             volumes[key] = volume
-        stable_growth = compute_stable_growth(
-            doc.get("pnl_growth"),
-            doc.get("pnl_stability"),
-        )
-        if stable_growth is not None:
-            stable_growths[key] = stable_growth
-    return win_rates, stable_growths, pnls, volumes
+    return win_rates, pnl_growths, pnl_stabilities, pnls, volumes
 
 
 def parse_top_holders(
@@ -219,7 +231,8 @@ def parse_top_holders(
     market_tag_ids: list[int] | None = None,
     tag_weights: dict[int, float] | None = None,
     tag_win_rates: dict[tuple[str, int], float] | None = None,
-    tag_stable_growths: dict[tuple[str, int], float] | None = None,
+    tag_pnl_growths: dict[tuple[str, int], float] | None = None,
+    tag_pnl_stabilities: dict[tuple[str, int], float] | None = None,
     tag_pnls: dict[tuple[str, int], float] | None = None,
     tag_volumes: dict[tuple[str, int], float] | None = None,
 ) -> list[list[SnapshotHolder]]:
@@ -230,7 +243,8 @@ def parse_top_holders(
     tag_ids = market_tag_ids or []
     weights = tag_weights or {}
     win_rates = tag_win_rates or {}
-    stable_growths = tag_stable_growths or {}
+    pnl_growths = tag_pnl_growths or {}
+    pnl_stabilities = tag_pnl_stabilities or {}
     pnls = tag_pnls or {}
     tag_volume_map = tag_volumes or {}
     for entry in raw:
@@ -253,24 +267,23 @@ def parse_top_holders(
                     amount=holder["amount"],
                     pnl=metrics.get("pnl"),
                     volume=metrics.get("volume"),
-                    stable_growth=compute_stable_growth(
-                        metrics.get("pnl_growth"),
-                        metrics.get("pnl_stability"),
-                    ),
+                    pnl_growth=metrics.get("pnl_growth"),
+                    pnl_stability=metrics.get("pnl_stability"),
                     total_balance=metrics.get("total_balance"),
                     home_pnl=home_metrics.get("pnl"),
                     home_volume=home_metrics.get("volume"),
-                    home_stable_growth=compute_stable_growth(
-                        home_metrics.get("pnl_growth"),
-                        home_metrics.get("pnl_stability"),
-                    ),
+                    home_pnl_growth=home_metrics.get("pnl_growth"),
+                    home_pnl_stability=home_metrics.get("pnl_stability"),
                     home_win_rate=home_metrics.get("win_rate"),
                     home_markets_count=int(home_metrics.get("markets_count") or 0),
                     tag_win_rate=compute_tag_win_rate(
                         wallet, tag_ids, weights, win_rates
                     ),
-                    tag_stable_growth=compute_tag_stable_growth(
-                        wallet, tag_ids, weights, stable_growths
+                    tag_pnl_growth=compute_tag_pnl_growth(
+                        wallet, tag_ids, weights, pnl_growths
+                    ),
+                    tag_pnl_stability=compute_tag_pnl_stability(
+                        wallet, tag_ids, weights, pnl_stabilities
                     ),
                     tag_pnl=tag_pnl,
                     tag_volume=tag_volume,
@@ -332,7 +345,8 @@ def holder_snapshot_from_book_and_holders(
     market_tag_ids: list[int] | None = None,
     tag_weights: dict[int, float] | None = None,
     tag_win_rates: dict[tuple[str, int], float] | None = None,
-    tag_stable_growths: dict[tuple[str, int], float] | None = None,
+    tag_pnl_growths: dict[tuple[str, int], float] | None = None,
+    tag_pnl_stabilities: dict[tuple[str, int], float] | None = None,
     tag_pnls: dict[tuple[str, int], float] | None = None,
     tag_volumes: dict[tuple[str, int], float] | None = None,
 ) -> HolderSnapshot:
@@ -353,7 +367,8 @@ def holder_snapshot_from_book_and_holders(
             market_tag_ids=market_tag_ids,
             tag_weights=tag_weights,
             tag_win_rates=tag_win_rates,
-            tag_stable_growths=tag_stable_growths,
+            tag_pnl_growths=tag_pnl_growths,
+            tag_pnl_stabilities=tag_pnl_stabilities,
             tag_pnls=tag_pnls,
             tag_volumes=tag_volumes,
         ),
@@ -424,7 +439,7 @@ async def sync_holder_snapshots(
         market_tag_ids = market.get("tag_ids") or []
         if market_tag_ids and holders:
             tag_weights = await load_tag_weights(db, market_tag_ids)
-            tag_win_rates, tag_stable_growths, tag_pnls, tag_volumes = (
+            tag_win_rates, tag_pnl_growths, tag_pnl_stabilities, tag_pnls, tag_volumes = (
                 await load_tag_profile_tag_metrics(
                     db, list(holders.keys()), market_tag_ids
                 )
@@ -432,7 +447,8 @@ async def sync_holder_snapshots(
         else:
             tag_weights = {}
             tag_win_rates = {}
-            tag_stable_growths = {}
+            tag_pnl_growths = {}
+            tag_pnl_stabilities = {}
             tag_pnls = {}
             tag_volumes = {}
         holder_snapshot = holder_snapshot_from_book_and_holders(
@@ -445,7 +461,8 @@ async def sync_holder_snapshots(
             market_tag_ids=market_tag_ids,
             tag_weights=tag_weights,
             tag_win_rates=tag_win_rates,
-            tag_stable_growths=tag_stable_growths,
+            tag_pnl_growths=tag_pnl_growths,
+            tag_pnl_stabilities=tag_pnl_stabilities,
             tag_pnls=tag_pnls,
             tag_volumes=tag_volumes,
         )
