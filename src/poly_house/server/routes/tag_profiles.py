@@ -43,7 +43,7 @@ async def _aggregate_for_wallets(
     if not wallets:
         return []
     tag_weights = await load_tag_weights(db, tag_ids)
-    win_rates, pnl_growths, pnl_stabilities, pnls, volumes, markets_counts = (
+    win_rates, pnl_growths, pnl_stabilities, pnls, volumes, markets_counts, win_holder_counts, lose_holder_counts = (
         await load_tag_profile_tag_metrics(db, wallets, tag_ids)
     )
     metric_maps = (win_rates, pnl_growths, pnl_stabilities, pnls, volumes)
@@ -62,6 +62,8 @@ async def _aggregate_for_wallets(
                 pnls,
                 volumes,
                 markets_counts,
+                win_holder_counts,
+                lose_holder_counts,
             )
         )
     return items

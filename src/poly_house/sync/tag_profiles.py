@@ -62,6 +62,8 @@ def build_tag_profile(
         name=name,
         tag_id=tag_id,
         markets_count=metrics.markets_count,
+        win_holder_count=metrics.win_holder_count,
+        lose_holder_count=metrics.lose_holder_count,
         pnl=metrics.pnl,
         volume=metrics.volume,
         pnl_growth=metrics.pnl_growth,

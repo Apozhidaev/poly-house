@@ -16,6 +16,8 @@ class TagProfile(BaseModel):
     pnl_stability: float | None = None
     win_rate: float | None = None
     markets_count: int
+    win_holder_count: int
+    lose_holder_count: int
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
@@ -33,3 +35,5 @@ class TagProfileAggregate(BaseModel):
     pnl: float | None = None
     volume: float | None = None
     markets_count: float | None = None
+    win_holder_count: float | None = None
+    lose_holder_count: float | None = None
