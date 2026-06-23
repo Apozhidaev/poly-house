@@ -43,30 +43,38 @@ async def _aggregate_for_wallets(
     ) = await load_tag_profile_tag_metrics(db, wallets, tag_ids)
     metric_maps = (win_rates, pnl_growths, pnl_stabilities, pnls, volumes)
     items: list[dict[str, Any]] = []
-    for wallet in wallets:
-        if not wallet_has_tag_metrics(wallet, tag_ids, *metric_maps):
-            continue
-        aggregate = aggregate_wallet_tag_metrics(
-            wallet,
-            tag_ids,
-            tag_weights,
-            win_rates,
-            pnl_growths,
-            pnl_stabilities,
-            pnls,
-            volumes,
-            markets_counts,
-            win_holder_counts,
-            lose_holder_counts,
-        )
-        items.append(
-            {
-                "proxy_wallet": wallet,
-                "pnl": profile_map.get(wallet, {}).get("pnl"),
-                "total_balance": profile_map.get(wallet, {}).get("total_balance"),
-                "tag_pnl": aggregate.pnl,
-            }
-        )
+    for profile in profiles:
+        if wallet_has_tag_metrics(profile["_id"], tag_ids, *metric_maps):
+            aggregate = aggregate_wallet_tag_metrics(
+                profile["_id"],
+                tag_ids,
+                tag_weights,
+                win_rates,
+                pnl_growths,
+                pnl_stabilities,
+                pnls,
+                volumes,
+                markets_counts,
+                win_holder_counts,
+                lose_holder_counts,
+            )
+            items.append(
+                {
+                    "proxy_wallet": profile["_id"],
+                    "pnl": profile.get("pnl"),
+                    "total_balance": profile.get("total_balance"),
+                    "tag_pnl": aggregate.pnl,
+                }
+            )
+        else:
+            items.append(
+                {
+                    "proxy_wallet": profile["_id"],
+                    "pnl": profile.get("pnl"),
+                    "total_balance": profile.get("total_balance"),
+                    "tag_pnl": None,
+                }
+            )
     return items
 
 
