@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from poly_house.config import Settings
 from poly_house.db import create_client
-from poly_house.server.routes import activity, events, home_profiles, markets, profiles, profile_summary, tag_profiles, tags, trades
+from poly_house.server.routes import activity, events, home_profiles, markets, predict, profiles, profile_summary, tag_profiles, tags, trades
 
 
 @asynccontextmanager
@@ -27,4 +27,5 @@ app.include_router(profiles.router)
 app.include_router(home_profiles.router)
 app.include_router(tag_profiles.router)
 app.include_router(profile_summary.router)
+app.include_router(predict.router)
 app.include_router(activity.router)
