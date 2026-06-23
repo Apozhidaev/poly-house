@@ -72,11 +72,3 @@ def fit_trend_by_days(
     r_squared = 1 - (ss_res / ss_tot)
     return (intercept, slope, r_squared)
 
-
-def compute_stable_growth(
-    pnl_growth: float | None,
-    pnl_stability: float | None,
-) -> float | None:
-    if pnl_growth is None or pnl_stability is None:
-        return None
-    return pnl_stability if pnl_growth > 0 else 0.0
