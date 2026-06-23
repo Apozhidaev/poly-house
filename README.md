@@ -97,6 +97,9 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /home-profile` | пагинация `limit`, `offset` |
 | `GET /home-profile/{proxy_wallet}` | — |
 | `POST /home-profile/batch` | body: `{ "proxy_wallets": [...] }` |
+| `GET /tag-profile` | `tag_id` (required, list), пагинация `limit`, `offset`; агрегат по весам `1/tags.markets_count` |
+| `GET /tag-profile/{proxy_wallet}` | `tag_id` (required, list) |
+| `POST /tag-profile/batch` | body: `{ "proxy_wallets": [...], "tag_ids": [...] }` |
 | `GET /trades` | `condition_id`, `outcome_index`, `user`, `side`, `from`, `to` |
 | `GET /trades/take-prices` | `condition_id`, `outcome_index`, `side` |
 | `GET /trades/stop-prices` | `condition_id`, `outcome_index`, `side` |
