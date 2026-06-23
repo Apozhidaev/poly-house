@@ -27,6 +27,7 @@ class Market(BaseModel):
     @classmethod
     def _parse_id(cls, v: Any) -> int:
         return parse_id(v)
+
     question: str | None = None
     condition_id: str
     slug: str
@@ -98,6 +99,14 @@ class Market(BaseModel):
     def event_slug(self) -> str | None:
         return self.events[0].slug if self.events else None
 
+    @property
+    def resolved_outcome_index(self) -> int | None:
+        return (
+            self.outcome_prices.index(max(self.outcome_prices))
+            if self.closed and self.outcome_prices
+            else None
+        )
+
     def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:
         doc = self.model_dump(exclude={"tags", "events", "id"})
         doc["_id"] = self.id
@@ -106,6 +115,7 @@ class Market(BaseModel):
             doc.pop("condition_id", None)
         doc["event_id"] = self.event_id
         doc["event_slug"] = self.event_slug
+        doc["resolved_outcome_index"] = self.resolved_outcome_index
         doc["tag_ids"] = [t.id for t in self.tags]
         doc["synced_at"] = synced_at
         return doc
