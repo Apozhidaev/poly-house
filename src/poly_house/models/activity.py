@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
+from pydantic.type_adapter import R
 
 from poly_house.models.ts import TimeSeriesPoint
 from poly_house.utils.metrics import fit_trend_by_days
@@ -38,6 +39,8 @@ class MarketActivity(BaseModel):
     pnl: float
     volume: float
     timestamp: int
+    win_holder: bool
+    lose_holder: bool
 
 
 class ActivityMetrics(BaseModel):
@@ -47,6 +50,8 @@ class ActivityMetrics(BaseModel):
     pnl_growth: float | None = None
     pnl_stability: float | None = None
     markets_count: int = 0
+    win_holder_count: int = 0
+    lose_holder_count: int = 0
 
 
 def compute_pnl(activities: list[Activity]) -> float:
@@ -77,7 +82,23 @@ def compute_volume(activities: list[Activity]) -> float:
     return volume
 
 
-def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
+def is_outcome_holder(activities: list[Activity], outcome_index: int) -> bool:
+    for activity in activities:
+        match activity.type:
+            case "SPLIT":
+                return True
+            case "MERGE":
+                return True
+            case "TRADE":
+                if activity.outcome_index == outcome_index:
+                    return True
+
+    return False
+
+
+def build_market_activity(
+    activities: list[Activity], resolved_outcome_index: int
+) -> MarketActivity | None:
     if not activities:
         return None
     if any(a.is_combo for a in activities):
@@ -86,23 +107,31 @@ def build_market_activity(activities: list[Activity]) -> MarketActivity | None:
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
     last_activity = sorted_activities[-1]
 
+    win_holder = is_outcome_holder(sorted_activities, resolved_outcome_index)
+    lose_holder = is_outcome_holder(sorted_activities, 1 - resolved_outcome_index)
+
     return MarketActivity(
         condition_id=last_activity.condition_id,
         proxy_wallet=last_activity.proxy_wallet,
         pnl=compute_pnl(sorted_activities),
         volume=compute_volume(sorted_activities),
         timestamp=last_activity.timestamp,
+        win_holder=win_holder,
+        lose_holder=lose_holder,
     )
 
 
-def build_market_activities(activities: list[Activity]) -> list[MarketActivity]:
+def build_market_activities(
+    activities: list[Activity], resolved_outcomes: dict[str, int] = {}
+) -> list[MarketActivity]:
     by_condition: dict[str, list[Activity]] = {}
     for activity in activities:
         by_condition.setdefault(activity.condition_id, []).append(activity)
     return [
         ma
-        for group in by_condition.values()
-        if (ma := build_market_activity(group)) is not None
+        for condition_id, group in by_condition.items()
+        if (ma := build_market_activity(group, resolved_outcomes.get(condition_id, 0)))
+        is not None
     ]
 
 
@@ -112,6 +141,8 @@ def metrics_from_market_activities(
     if not market_activities:
         return ActivityMetrics()
     markets_count = len(market_activities)
+    win_holder_count = sum(1 for ma in market_activities if ma.win_holder)
+    lose_holder_count = sum(1 for ma in market_activities if ma.lose_holder)
     win_count = sum(1 for ma in market_activities if ma.pnl > 0)
     points = [
         TimeSeriesPoint(
@@ -134,4 +165,6 @@ def metrics_from_market_activities(
         volume=sum(ma.volume for ma in market_activities),
         pnl_growth=pnl_growth,
         pnl_stability=pnl_stability,
+        win_holder_count=win_holder_count,
+        lose_holder_count=lose_holder_count,
     )
