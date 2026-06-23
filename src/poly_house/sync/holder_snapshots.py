@@ -300,7 +300,7 @@ async def sync_holder_snapshots(
         market_tag_ids = market.get("tag_ids") or []
         if market_tag_ids and holders:
             tag_weights = await load_tag_weights(db, market_tag_ids)
-            tag_win_rates, tag_pnl_growths, tag_pnl_stabilities, tag_pnls, tag_volumes = (
+            tag_win_rates, tag_pnl_growths, tag_pnl_stabilities, tag_pnls, tag_volumes, _ = (
                 await load_tag_profile_tag_metrics(
                     db, list(holders.keys()), market_tag_ids
                 )

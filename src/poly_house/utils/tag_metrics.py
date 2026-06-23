@@ -57,6 +57,17 @@ def compute_tag_pnl_stability(
     )
 
 
+def compute_tag_markets_count(
+    wallet: str,
+    tag_ids: list[int],
+    tag_weights: dict[int, float],
+    markets_counts: dict[tuple[str, int], float],
+) -> float | None:
+    return compute_tag_weighted_average(
+        wallet, tag_ids, tag_weights, markets_counts
+    )
+
+
 def compute_tag_pnl_volume(
     wallet: str,
     tag_ids: list[int],
@@ -107,9 +118,10 @@ async def load_tag_profile_tag_metrics(
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
 ]:
     if not wallets or not tag_ids:
-        return {}, {}, {}, {}, {}
+        return {}, {}, {}, {}, {}, {}
     cursor = db.tag_profiles.find(
         {
             "proxy_wallet": {"$in": wallets},
@@ -123,6 +135,7 @@ async def load_tag_profile_tag_metrics(
             "volume": 1,
             "pnl_growth": 1,
             "pnl_stability": 1,
+            "markets_count": 1,
         },
     )
     docs = await cursor.to_list(length=None)
@@ -131,8 +144,10 @@ async def load_tag_profile_tag_metrics(
     pnl_stabilities: dict[tuple[str, int], float] = {}
     pnls: dict[tuple[str, int], float] = {}
     volumes: dict[tuple[str, int], float] = {}
+    markets_counts: dict[tuple[str, int], float] = {}
     for doc in docs:
         key = (doc["proxy_wallet"], doc["tag_id"])
+        markets_counts[key] = float(doc.get("markets_count", 0))
         win_rate = doc.get("win_rate")
         if win_rate is not None:
             win_rates[key] = win_rate
@@ -148,7 +163,7 @@ async def load_tag_profile_tag_metrics(
         volume = doc.get("volume")
         if volume is not None:
             volumes[key] = volume
-    return win_rates, pnl_growths, pnl_stabilities, pnls, volumes
+    return win_rates, pnl_growths, pnl_stabilities, pnls, volumes, markets_counts
 
 
 def wallet_has_tag_metrics(
@@ -172,6 +187,7 @@ def aggregate_wallet_tag_metrics(
     pnl_stabilities: dict[tuple[str, int], float],
     pnls: dict[tuple[str, int], float],
     volumes: dict[tuple[str, int], float],
+    markets_counts: dict[tuple[str, int], float],
 ) -> TagProfileAggregate:
     pnl, volume = compute_tag_pnl_volume(
         wallet, tag_ids, tag_weights, pnls, volumes
@@ -187,4 +203,7 @@ def aggregate_wallet_tag_metrics(
         ),
         pnl=pnl,
         volume=volume,
+        markets_count=compute_tag_markets_count(
+            wallet, tag_ids, tag_weights, markets_counts
+        ),
     )

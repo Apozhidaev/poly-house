@@ -32,3 +32,4 @@ class TagProfileAggregate(BaseModel):
     pnl_stability: float | None = None
     pnl: float | None = None
     volume: float | None = None
+    markets_count: float | None = None
