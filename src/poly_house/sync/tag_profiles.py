@@ -13,6 +13,7 @@ from poly_house.models.activity import (
     Activity,
     MarketActivity,
     build_market_activities,
+    load_resolved_outcomes,
     metrics_from_market_activities,
 )
 
@@ -89,6 +90,7 @@ async def update_tag_profiles_for_wallets(
     total_tag_profiles = 0
     ops: list[UpdateOne] = []
     condition_ids = list(condition_tags)
+    resolved_outcomes = await load_resolved_outcomes(db, condition_ids)
 
     for proxy_wallet, name in wallets.items():
         if stop is not None and stop.is_set():
@@ -101,7 +103,7 @@ async def update_tag_profiles_for_wallets(
             }
         ).to_list(length=None)
         activities = [Activity.model_validate(doc) for doc in activity_docs]
-        market_activities = build_market_activities(activities)
+        market_activities = build_market_activities(activities, resolved_outcomes)
 
         by_tag = group_market_activities_by_tag(market_activities, condition_tags)
         for tag_id, tag_market_activities in by_tag.items():

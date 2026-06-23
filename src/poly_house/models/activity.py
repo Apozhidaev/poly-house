@@ -5,8 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
-from pydantic.type_adapter import R
 
+from poly_house.db import Database
 from poly_house.models.ts import TimeSeriesPoint
 from poly_house.utils.metrics import fit_trend_by_days
 
@@ -122,17 +122,39 @@ def build_market_activity(
 
 
 def build_market_activities(
-    activities: list[Activity], resolved_outcomes: dict[str, int] = {}
+    activities: list[Activity], resolved_outcomes: dict[str, int]
 ) -> list[MarketActivity]:
     by_condition: dict[str, list[Activity]] = {}
     for activity in activities:
         by_condition.setdefault(activity.condition_id, []).append(activity)
-    return [
-        ma
-        for condition_id, group in by_condition.items()
-        if (ma := build_market_activity(group, resolved_outcomes.get(condition_id, 0)))
-        is not None
-    ]
+    result: list[MarketActivity] = []
+    for condition_id, group in by_condition.items():
+        resolved_outcome_index = resolved_outcomes.get(condition_id)
+        if resolved_outcome_index is None:
+            continue
+        if ma := build_market_activity(group, resolved_outcome_index):
+            result.append(ma)
+    return result
+
+
+async def load_resolved_outcomes(
+    db: Database, condition_ids: list[str]
+) -> dict[str, int]:
+    if not condition_ids:
+        return {}
+    cursor = db.markets.find(
+        {
+            "condition_id": {"$in": condition_ids},
+            "resolved_outcome_index": {"$ne": None},
+        },
+        projection={"condition_id": 1, "resolved_outcome_index": 1},
+    )
+    docs = await cursor.to_list(length=None)
+    return {
+        doc["condition_id"]: doc["resolved_outcome_index"]
+        for doc in docs
+        if doc.get("resolved_outcome_index") is not None
+    }
 
 
 def metrics_from_market_activities(

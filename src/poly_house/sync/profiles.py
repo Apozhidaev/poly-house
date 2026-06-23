@@ -22,7 +22,11 @@ from poly_house.models import (
     Profile,
     PnlTimeSeries,
 )
-from poly_house.models.activity import build_market_activities, metrics_from_market_activities
+from poly_house.models.activity import (
+    build_market_activities,
+    load_resolved_outcomes,
+    metrics_from_market_activities,
+)
 from poly_house.utils.metrics import fit_trend_by_days
 
 logger = structlog.get_logger()
@@ -301,6 +305,7 @@ async def load_home_metrics(
     condition_ids = await load_closed_condition_ids(db)
     if not condition_ids:
         return {}
+    resolved_outcomes = await load_resolved_outcomes(db, condition_ids)
     docs = await db.activities.find(
         {
             "proxy_wallet": {"$in": wallets},
@@ -314,7 +319,7 @@ async def load_home_metrics(
     metrics: dict[str, ActivityMetrics] = {}
     for wallet, wallet_activities in by_wallet.items():
         activity_metrics = metrics_from_market_activities(
-            build_market_activities(wallet_activities)
+            build_market_activities(wallet_activities, resolved_outcomes)
         )
         if (
             activity_metrics.win_rate is not None

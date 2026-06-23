@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query
 
 from poly_house.models import Activity
-from poly_house.models.activity import build_market_activities
+from poly_house.models.activity import build_market_activities, load_resolved_outcomes
 from poly_house.server.deps import Db, Page
 
 router = APIRouter(prefix="/activity", tags=["activity"])
@@ -84,7 +84,9 @@ async def list_market_activity(
         query["condition_id"] = condition_id
     docs = await db.activities.find(query).to_list(length=None)
     activities = [Activity.model_validate(doc) for doc in docs]
-    market_activities = build_market_activities(activities)
+    condition_ids = list({activity.condition_id for activity in activities})
+    resolved_outcomes = await load_resolved_outcomes(db, condition_ids)
+    market_activities = build_market_activities(activities, resolved_outcomes)
     market_activities.sort(key=lambda ma: ma.timestamp, reverse=True)
     page_items = market_activities[page.offset : page.offset + page.limit]
     return {"items": [ma.model_dump() for ma in page_items]}
