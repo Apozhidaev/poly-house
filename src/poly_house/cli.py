@@ -69,8 +69,8 @@ def sync_trade(
     asyncio.run(run_sync_trades(settings, watch=watch))
 
 
-@app.command("holder-snapshot")
-def holder_snapshot(
+@app.command("sync-holder")
+def sync_holder(
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
 ) -> None:
     """Holder snapshots: ордербук и top holders для открытых маркетов."""

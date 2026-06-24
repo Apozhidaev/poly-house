@@ -30,7 +30,7 @@ uv run poly-house sync-close-market
 uv run poly-house sync-trade
 
 # holder snapshots: ордербук + top holders для открытых маркетов
-uv run poly-house holder-snapshot
+uv run poly-house sync-holder
 
 # устаревшие profiles (Polymarket API, synced_at > 24h)
 uv run poly-house sync-profile
@@ -45,7 +45,7 @@ uv run poly-house update-tag-profile
 uv run poly-house sync-open-market --watch
 uv run poly-house sync-close-market --watch
 uv run poly-house sync-trade --watch
-uv run poly-house holder-snapshot --watch
+uv run poly-house sync-holder --watch
 uv run poly-house sync-profile --watch
 uv run poly-house sync-home-profile --watch
 uv run poly-house update-tag-profile --watch
@@ -69,9 +69,9 @@ uv run poly-house update-tag-profile --wallet 0x...
 - **sync-close-market**: то же для закрытых маркетов (`closed=true`), watermark — `sync_state.closed_markets_watermark`.
 - Первый прогон каждой команды загружает маркеты, обновлявшиеся за последние `UPDATED_IN_DAYS` дней (по умолчанию 30).
 - **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды из Data API (`/trades?takerOnly=true`) по watermark `timestamp` для каждого маркета (потолок API: `limit=1000`, `offset<=3000`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов.
-- **holder-snapshot**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — CLOB orderbook по `clob_token_ids[0]`; при успехе Data API `/holders` — для публичных holders (`displayUsernamePublic=true`) inline sync: два вызова — `sync_profiles_for_wallets` (stale > 24h) и `sync_home_profiles_for_wallets` (stale > 6h: activity cache → activities → upsert); `tag_profiles` обновляются только после home sync (activities). Затем insert в `holder_snapshots` с `captured_at`. `top_holders` = `[outcome_0, outcome_1]` по `entry.token` ↔ `clob_token_ids`; каждый holder включает метрики из `profiles` (`pnl`, `volume`, `pnl_growth`, `pnl_stability`, `total_balance`), home-метрики из `home_profiles` (`pnl`, `volume`, `pnl_growth`, `pnl_stability`, `win_rate`, `markets_count`), `tag_win_rate`, `tag_pnl_growth`, `tag_pnl_stability`, `tag_pnl` и `tag_volume` — по тегам маркета из `tag_profiles`, вес `1/markets_count`; только теги с `tag_profile`. Нужны `sync-open-market`, `sync-close-market` и `tag_profiles`.
-- **sync-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> 24h) — Polymarket API (leaderboard, equity, pnl time series) → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `holder-snapshot`.
-- **sync-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> 6h) — activity cache из `/closed-positions` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/activity?eventId=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `holder-snapshot`.
+- **sync-holder**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — CLOB orderbook по `clob_token_ids[0]`; при успехе Data API `/holders` — для публичных holders (`displayUsernamePublic=true`) inline sync: два вызова — `sync_profiles_for_wallets` (stale > 24h) и `sync_home_profiles_for_wallets` (stale > 6h: activity cache → activities → upsert); `tag_profiles` обновляются только после home sync (activities). Затем insert в `holder_snapshots` с `captured_at`. `top_holders` = `[outcome_0, outcome_1]` по `entry.token` ↔ `clob_token_ids`; каждый holder включает метрики из `profiles` (`pnl`, `volume`, `pnl_growth`, `pnl_stability`, `total_balance`), home-метрики из `home_profiles` (`pnl`, `volume`, `pnl_growth`, `pnl_stability`, `win_rate`, `markets_count`), `tag_win_rate`, `tag_pnl_growth`, `tag_pnl_stability`, `tag_pnl` и `tag_volume` — по тегам маркета из `tag_profiles`, вес `1/markets_count`; только теги с `tag_profile`. Нужны `sync-open-market`, `sync-close-market` и `tag_profiles`.
+- **sync-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> 24h) — Polymarket API (leaderboard, equity, pnl time series) → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `sync-holder`.
+- **sync-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> 6h) — activity cache из `/closed-positions` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/activity?eventId=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `sync-holder`.
 - **update-tag-profile**: для каждого wallet из `profiles` — activities из `activities`, у которых `condition_id` есть в `markets`; агрегирует в `market_activities` (по `condition_id`: `volume` = sum `usdc_size`, `pnl` = signed sum TRADE BUY/SELL); по `tag_ids` маркета группирует метрики и upsert в `tag_profiles` (уникальность `(proxy_wallet, tag_id)`, `_id` — MongoDB ObjectId). Поля: `markets_count`, `pnl` (sum per-market `pnl`), `volume` (sum per-market `volume`), `win_rate` (доля market_activities с `pnl > 0`), `pnl_growth` / `pnl_stability` (линейная регрессия по per-market `pnl` с `use_cumulative=True`; `null` при одном маркете). Маркет с несколькими тегами учитывается в каждом теге. Нужны `sync-close-market`, `profiles` и `activities`.
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
