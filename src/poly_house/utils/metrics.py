@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from math import sqrt
+from statistics import NormalDist
 
 from poly_house.models.ts import TimeSeriesPoint
 
+_STANDARD_NORMAL = NormalDist()
 
-def wilson_ci(p_hat: float, n: int, *, z: float = 1.96) -> tuple[float, float]:
+
+def wilson_ci(p_hat: float, n: int, *, confidence: float = 0.95) -> tuple[float, float]:
     """Wilson confidence interval for binomial proportion."""
+    z = _STANDARD_NORMAL.inv_cdf(0.5 + confidence / 2)
     denom = 1 + z**2 / n
     center = (p_hat + z**2 / (2 * n)) / denom
     margin = z * sqrt(p_hat * (1 - p_hat) / n + z**2 / (4 * n**2)) / denom
@@ -71,4 +75,3 @@ def fit_trend_by_days(
 
     r_squared = 1 - (ss_res / ss_tot)
     return (intercept, slope, r_squared)
-

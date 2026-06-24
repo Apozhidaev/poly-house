@@ -38,12 +38,15 @@ def compute_win_votes(
         return 0.0
     if agg.win_holder_count is None or agg.markets_count is None:
         return 0.0
-    if agg.markets_count == 0:
+    if agg.win_holder_count == 0:
+        return 0.0
+    markets_count = int(agg.markets_count)
+    if markets_count == 0:
         return 0.0
 
     p = agg.win_holder_count / agg.markets_count
-    ci = wilson_ci(p, int(agg.markets_count) + 1)
-    return agg.win_holder_count * ci[0]
+    ci = wilson_ci(p, markets_count, confidence=0.99999)
+    return ci[0]
 
 
 def compute_lose_votes(
@@ -53,10 +56,15 @@ def compute_lose_votes(
         return 0.0
     if agg.lose_holder_count is None or agg.markets_count is None:
         return 0.0
-    if agg.markets_count == 0:
+    if agg.lose_holder_count == 0:
+        return 0.0
+    markets_count = int(agg.markets_count)
+    if markets_count == 0:
         return 0.0
 
-    return agg.lose_holder_count * agg.lose_holder_count / agg.markets_count
+    p = agg.lose_holder_count / agg.markets_count
+    ci = wilson_ci(p, markets_count, confidence=0.99999)
+    return ci[0]
 
 
 def compute_market_vote_prices(
