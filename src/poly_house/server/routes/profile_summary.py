@@ -40,8 +40,6 @@ async def _aggregate_for_wallets(
         markets_counts,
         win_holder_counts,
         lose_holder_counts,
-        strict_win_counts,
-        strict_lose_counts,
     ) = await load_tag_profile_tag_metrics(db, wallets, tag_ids)
     metric_maps = (win_rates, pnl_growths, pnl_stabilities, pnls, volumes)
     items: list[dict[str, Any]] = []
@@ -59,8 +57,6 @@ async def _aggregate_for_wallets(
                 markets_counts,
                 win_holder_counts,
                 lose_holder_counts,
-                strict_win_counts,
-                strict_lose_counts,
             )
             items.append(
                 {
