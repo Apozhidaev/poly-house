@@ -18,6 +18,7 @@ class TagProfile(BaseModel):
     markets_count: int
     win_holder_count: int
     lose_holder_count: int
+    strict_win_count: int
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
@@ -37,3 +38,4 @@ class TagProfileAggregate(BaseModel):
     markets_count: float | None = None
     win_holder_count: float | None = None
     lose_holder_count: float | None = None
+    strict_win_count: float | None = None

@@ -90,6 +90,17 @@ def compute_tag_lose_holder_count(
     )
 
 
+def compute_tag_strict_win_count(
+    wallet: str,
+    tag_ids: list[int],
+    tag_weights: dict[int, float],
+    strict_win_counts: dict[tuple[str, int], float],
+) -> float | None:
+    return compute_tag_weighted_average(
+        wallet, tag_ids, tag_weights, strict_win_counts
+    )
+
+
 def compute_tag_pnl_volume(
     wallet: str,
     tag_ids: list[int],
@@ -143,9 +154,10 @@ async def load_tag_profile_tag_metrics(
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
 ]:
     if not wallets or not tag_ids:
-        return {}, {}, {}, {}, {}, {}, {}, {}
+        return {}, {}, {}, {}, {}, {}, {}, {}, {}
     cursor = db.tag_profiles.find(
         {
             "proxy_wallet": {"$in": wallets},
@@ -162,6 +174,7 @@ async def load_tag_profile_tag_metrics(
             "markets_count": 1,
             "win_holder_count": 1,
             "lose_holder_count": 1,
+            "strict_win_count": 1,
         },
     )
     docs = await cursor.to_list(length=None)
@@ -173,11 +186,13 @@ async def load_tag_profile_tag_metrics(
     markets_counts: dict[tuple[str, int], float] = {}
     win_holder_counts: dict[tuple[str, int], float] = {}
     lose_holder_counts: dict[tuple[str, int], float] = {}
+    strict_win_counts: dict[tuple[str, int], float] = {}
     for doc in docs:
         key = (doc["proxy_wallet"], doc["tag_id"])
         markets_counts[key] = float(doc.get("markets_count", 0))
         win_holder_counts[key] = float(doc.get("win_holder_count", 0))
         lose_holder_counts[key] = float(doc.get("lose_holder_count", 0))
+        strict_win_counts[key] = float(doc.get("strict_win_count", 0))
         win_rate = doc.get("win_rate")
         if win_rate is not None:
             win_rates[key] = win_rate
@@ -202,6 +217,7 @@ async def load_tag_profile_tag_metrics(
         markets_counts,
         win_holder_counts,
         lose_holder_counts,
+        strict_win_counts,
     )
 
 
@@ -229,6 +245,7 @@ def aggregate_wallet_tag_metrics(
     markets_counts: dict[tuple[str, int], float],
     win_holder_counts: dict[tuple[str, int], float],
     lose_holder_counts: dict[tuple[str, int], float],
+    strict_win_counts: dict[tuple[str, int], float],
 ) -> TagProfileAggregate:
     pnl, volume = compute_tag_pnl_volume(
         wallet, tag_ids, tag_weights, pnls, volumes
@@ -252,5 +269,8 @@ def aggregate_wallet_tag_metrics(
         ),
         lose_holder_count=compute_tag_lose_holder_count(
             wallet, tag_ids, tag_weights, lose_holder_counts
+        ),
+        strict_win_count=compute_tag_strict_win_count(
+            wallet, tag_ids, tag_weights, strict_win_counts
         ),
     )

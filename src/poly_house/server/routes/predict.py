@@ -57,6 +57,7 @@ async def _load_tag_aggregates(
         markets_counts,
         win_holder_counts,
         lose_holder_counts,
+        strict_win_counts,
     ) = await load_tag_profile_tag_metrics(db, wallets, tag_ids)
     aggregates = {}
     for wallet in wallets:
@@ -72,6 +73,7 @@ async def _load_tag_aggregates(
             markets_counts,
             win_holder_counts,
             lose_holder_counts,
+            strict_win_counts,
         )
     return aggregates
 
