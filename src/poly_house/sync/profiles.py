@@ -458,9 +458,17 @@ async def sync_activity_cache_for_wallets(
         if stop is not None and stop.is_set():
             break
         watermark = await _get_activity_cache_watermark(db, proxy_wallet)
-        entries = await _fetch_activity_cache_entries(
-            data, settings, proxy_wallet, watermark
-        )
+        try:
+            entries = await _fetch_activity_cache_entries(
+                data, settings, proxy_wallet, watermark
+            )
+        except RuntimeError as exc:
+            logger.warning(
+                "profile_activity_cache_sync_failed",
+                wallet=proxy_wallet,
+                error=str(exc),
+            )
+            continue
         if entries:
             total_entries += await _write_activity_cache(db, entries)
         logger.info(
