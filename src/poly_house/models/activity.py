@@ -163,8 +163,8 @@ def metrics_from_market_activities(
     if not market_activities:
         return ActivityMetrics()
     markets_count = len(market_activities)
-    win_holder_count = sum(1 for ma in market_activities if ma.win_holder)
-    lose_holder_count = sum(1 for ma in market_activities if ma.lose_holder)
+    win_holder_count = sum(1 for ma in market_activities if ma.win_holder and not ma.lose_holder)
+    lose_holder_count = sum(1 for ma in market_activities if ma.lose_holder and not ma.win_holder)
     win_count = sum(1 for ma in market_activities if ma.pnl > 0)
     points = [
         TimeSeriesPoint(
