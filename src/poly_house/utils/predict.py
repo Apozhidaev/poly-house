@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Protocol, Sequence
 
 from poly_house.models.tag_profile import TagProfileAggregate
+from poly_house.utils import wilson_ci
 
 
 class VoteHolder(Protocol):
@@ -30,6 +31,34 @@ def compute_roi(pnl: float | None, volume: float | None) -> float:
     return pnl / volume
 
 
+def compute_win_votes(
+    agg: TagProfileAggregate | None,
+) -> float:
+    if agg is None:
+        return 0.0
+    if agg.win_holder_count is None or agg.markets_count is None:
+        return 0.0
+    if agg.markets_count == 0:
+        return 0.0
+
+    p = agg.win_holder_count / agg.markets_count
+    ci = wilson_ci(p, int(agg.markets_count) + 1)
+    return agg.win_holder_count * ci[0]
+
+
+def compute_lose_votes(
+    agg: TagProfileAggregate | None,
+) -> float:
+    if agg is None:
+        return 0.0
+    if agg.lose_holder_count is None or agg.markets_count is None:
+        return 0.0
+    if agg.markets_count == 0:
+        return 0.0
+
+    return agg.lose_holder_count * agg.lose_holder_count / agg.markets_count
+
+
 def compute_market_vote_prices(
     holders: Sequence[VoteHolder],
     aggregates: dict[str, TagProfileAggregate],
@@ -37,18 +66,8 @@ def compute_market_vote_prices(
     votes = [0.0, 0.0]
     for holder in holders:
         agg = aggregates.get(holder.proxy_wallet)
-        win = (
-            agg.win_holder_count
-            if agg is not None and agg.win_holder_count is not None
-            else 0.0
-        )
-        lose = (
-            agg.lose_holder_count
-            if agg is not None and agg.lose_holder_count is not None
-            else 0.0
-        )
-        votes[holder.outcome_index] += win
-        votes[1 - holder.outcome_index] += lose
+        votes[holder.outcome_index] += compute_win_votes(agg)
+        # votes[1 - holder.outcome_index] += compute_lose_votes(agg)
     total = votes[0] + votes[1]
     if total == 0.0:
         return [None, None]
