@@ -13,6 +13,7 @@ from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import HolderSnapshot, SnapshotHolder
 from poly_house.sync.profiles import (
+    WalletIdentity,
     sync_home_profiles_for_wallets,
     sync_profiles_for_wallets,
     wallets_needing_home_profile_sync,
@@ -185,13 +186,17 @@ async def load_profile_metrics(
     }
 
 
-def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, str]:
-    holders: dict[str, str] = {}
+def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, WalletIdentity]:
+    holders: dict[str, WalletIdentity] = {}
     for entry in holders_raw:
         for raw in entry.get("holders") or []:
             if not raw.get("displayUsernamePublic"):
                 continue
-            holders[raw["proxyWallet"]] = raw["name"]
+            holders[raw["proxyWallet"]] = WalletIdentity(
+                name=raw["name"],
+                bio=raw.get("bio") or "",
+                profile_image=raw.get("profileImage") or "",
+            )
     return holders
 
 
@@ -275,21 +280,27 @@ async def sync_holder_snapshots(
             profile_stale = await wallets_needing_profile_sync(
                 db, settings, wallet_list
             )
-            if profile_wallets := {w: holders[w] for w in profile_stale}:
+            if profile_wallets := {w: holders[w].name for w in profile_stale}:
                 await sync_profiles_for_wallets(
-                    db, data, pnl, settings, profile_wallets, stop=stop
+                    db,
+                    data,
+                    pnl,
+                    settings,
+                    profile_wallets,
+                    identities={w: holders[w] for w in profile_stale},
+                    stop=stop,
                 )
             home_stale = await wallets_needing_home_profile_sync(
                 db, settings, wallet_list
             )
-            if home_wallets := {w: holders[w] for w in home_stale}:
+            if home_wallets := {w: holders[w].name for w in home_stale}:
                 await sync_home_profiles_for_wallets(
                     db, data, settings, home_wallets, stop=stop
                 )
             if condition_tags and home_stale:
                 await update_tag_profiles_for_wallets(
                     db,
-                    {w: holders[w] for w in home_stale},
+                    {w: holders[w].name for w in home_stale},
                     condition_tags,
                     stop=stop,
                 )
