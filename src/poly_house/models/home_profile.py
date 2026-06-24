@@ -17,6 +17,8 @@ class HomeProfile(BaseModel):
     pnl_stability: float | None = None
     win_rate: float | None = None
     markets_count: int
+    win_holder_count: int
+    lose_holder_count: int
     synced_at: datetime
 
     def to_doc(self) -> dict[str, Any]:

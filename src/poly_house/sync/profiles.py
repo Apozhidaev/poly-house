@@ -212,6 +212,8 @@ def build_home_profile(
         pnl_stability=metrics.pnl_stability if metrics else None,
         win_rate=metrics.win_rate if metrics else None,
         markets_count=metrics.markets_count if metrics else 0,
+        win_holder_count=metrics.win_holder_count if metrics else 0,
+        lose_holder_count=metrics.lose_holder_count if metrics else 0,
         synced_at=synced_at,
     )
 
