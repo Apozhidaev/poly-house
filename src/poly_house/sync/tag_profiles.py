@@ -65,6 +65,7 @@ def build_tag_profile(
         win_holder_count=metrics.win_holder_count,
         lose_holder_count=metrics.lose_holder_count,
         strict_win_count=metrics.strict_win_count,
+        strict_lose_count=metrics.strict_lose_count,
         pnl=metrics.pnl,
         volume=metrics.volume,
         pnl_growth=metrics.pnl_growth,

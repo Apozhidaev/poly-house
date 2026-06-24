@@ -52,7 +52,8 @@ class ActivityMetrics(BaseModel):
     markets_count: int = 0
     win_holder_count: int = 0
     lose_holder_count: int = 0
-    strict_win_count:  int = 0
+    strict_win_count: int = 0
+    strict_lose_count: int = 0
 
 
 def compute_pnl(activities: list[Activity]) -> float:
@@ -166,7 +167,12 @@ def metrics_from_market_activities(
     markets_count = len(market_activities)
     win_holder_count = sum(1 for ma in market_activities if ma.win_holder)
     lose_holder_count = sum(1 for ma in market_activities if ma.lose_holder)
-    strict_win_count = sum(1 for ma in market_activities if ma.win_holder and not ma.lose_holder)
+    strict_win_count = sum(
+        1 for ma in market_activities if ma.win_holder and not ma.lose_holder
+    )
+    strict_lose_count = sum(
+        1 for ma in market_activities if ma.lose_holder and not ma.win_holder
+    )
     win_count = sum(1 for ma in market_activities if ma.pnl > 0)
     points = [
         TimeSeriesPoint(
@@ -192,4 +198,5 @@ def metrics_from_market_activities(
         win_holder_count=win_holder_count,
         lose_holder_count=lose_holder_count,
         strict_win_count=strict_win_count,
+        strict_lose_count=strict_lose_count,
     )
