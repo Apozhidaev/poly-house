@@ -42,6 +42,15 @@ class MarketActivity(BaseModel):
     lose_holder: bool
 
 
+class EventActivity(BaseModel):
+    event_slug: str
+    proxy_wallet: str
+    pnl: float
+    volume: float
+    timestamp: int
+    markets_count: int
+
+
 class ActivityMetrics(BaseModel):
     win_rate: float | None = None
     pnl: float | None = None
@@ -100,7 +109,7 @@ def build_market_activity(
 ) -> MarketActivity | None:
     if not activities:
         return None
-    if any(a.is_combo for a in activities):
+    if any(a.is_combo or a.type == "CONVERSION" for a in activities):
         return None
 
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
@@ -142,8 +151,12 @@ def metrics_from_market_activities(
     if not market_activities:
         return ActivityMetrics()
     markets_count = len(market_activities)
-    win_holder_count = sum(1 for ma in market_activities if ma.win_holder and not ma.lose_holder)
-    lose_holder_count = sum(1 for ma in market_activities if ma.lose_holder and not ma.win_holder)
+    win_holder_count = sum(
+        1 for ma in market_activities if ma.win_holder and not ma.lose_holder
+    )
+    lose_holder_count = sum(
+        1 for ma in market_activities if ma.lose_holder and not ma.win_holder
+    )
     win_count = sum(1 for ma in market_activities if ma.pnl > 0)
     points = [
         TimeSeriesPoint(
@@ -169,3 +182,33 @@ def metrics_from_market_activities(
         win_holder_count=win_holder_count,
         lose_holder_count=lose_holder_count,
     )
+
+
+def build_event_activity(activities: list[Activity]) -> EventActivity | None:
+    if not activities:
+        return None
+    if any(a.is_combo or a.type == "CONVERSION" for a in activities):
+        return None
+
+    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
+    last_activity = sorted_activities[-1]
+
+    return EventActivity(
+        event_slug=last_activity.event_slug,
+        proxy_wallet=last_activity.proxy_wallet,
+        pnl=compute_pnl(sorted_activities),
+        volume=compute_volume(sorted_activities),
+        timestamp=last_activity.timestamp,
+        markets_count=len(sorted_activities),
+    )
+
+
+def build_event_activities(activities: list[Activity]) -> list[EventActivity]:
+    by_event: dict[str, list[Activity]] = {}
+    for activity in activities:
+        by_event.setdefault(activity.event_slug, []).append(activity)
+    result: list[EventActivity] = []
+    for event_slug, group in by_event.items():
+        if ea := build_event_activity(group):
+            result.append(ea)
+    return result
