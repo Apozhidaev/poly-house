@@ -39,25 +39,25 @@ def _keep_event(entry: EventWithMarkets, settings: Settings) -> bool:
     return True
 
 
-async def _refresh_tag_markets_counts(db: Database) -> None:
-    """Set `markets_count` on each tag doc from cached `markets` (distinct markets per tag)."""
-    pipeline = [
-        {"$match": {"tag_ids.0": {"$exists": True}}},
-        {"$unwind": "$tag_ids"},
-        {"$group": {"_id": "$tag_ids", "markets_count": {"$sum": 1}}},
-    ]
-    cursor = await db.markets.aggregate(pipeline)
-    docs = await cursor.to_list(length=None)
-    counts: dict[int, int] = {doc["_id"]: doc["markets_count"] for doc in docs}
-
+async def _refresh_tag_events_count(db: Database) -> None:
+    """Set `events_count` on each tag doc from cached `events` (distinct events per tag)."""
     tag_docs = await db.tags.find({}, projection={"_id": 1}).to_list(length=None)
     if not tag_docs:
         return
 
+    pipeline = [
+        {"$match": {"tag_ids.0": {"$exists": True}}},
+        {"$unwind": "$tag_ids"},
+        {"$group": {"_id": "$tag_ids", "events_count": {"$sum": 1}}},
+    ]
+    cursor = await db.events.aggregate(pipeline)
+    docs = await cursor.to_list(length=None)
+    counts: dict[int, int] = {doc["_id"]: doc["events_count"] for doc in docs}
+
     ops = [
         UpdateOne(
             {"_id": doc["_id"]},
-            {"$set": {"markets_count": counts.get(doc["_id"], 0)}},
+            {"$set": {"events_count": counts.get(doc["_id"], 0)}},
         )
         for doc in tag_docs
     ]
@@ -149,11 +149,11 @@ async def _write_page(
 
     if tag_ops:
         await db.tags.bulk_write(list(tag_ops.values()))
-    if event_ops:
-        await db.events.bulk_write(event_ops)
     if market_ops:
         await db.markets.bulk_write(market_ops)
-        await _refresh_tag_markets_counts(db)
+    if event_ops:
+        await db.events.bulk_write(event_ops)
+        await _refresh_tag_events_count(db)
 
 
 async def sync_events(
