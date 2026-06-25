@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from poly_house.models.deadline import (
     deadline_from_end_date,
@@ -14,6 +15,11 @@ from poly_house.server.deps import Db, Page
 from poly_house.sync.sync_state import parse_iso
 
 router = APIRouter(prefix="/markets", tags=["markets"])
+
+
+class CheckHomeMarketsRequest(BaseModel):
+    condition_ids: list[str]
+    tag_ids: list[int] | None = None
 
 
 async def _resolve_market_deadline(db: Db, market: dict[str, Any]) -> datetime | None:
@@ -69,6 +75,24 @@ async def list_markets(
         query["condition_id"] = condition_id
     cursor = db.markets.find(query).skip(page.offset).limit(page.limit)
     return {"items": await cursor.to_list(page.limit)}
+
+
+@router.post("/check-home")
+async def check_home_markets(body: CheckHomeMarketsRequest, db: Db) -> dict[str, Any]:
+    if not body.condition_ids:
+        return {"condition_ids": []}
+
+    query: dict[str, Any] = {"condition_id": {"$in": body.condition_ids}}
+    if body.tag_ids:
+        query["tag_ids"] = {"$in": body.tag_ids}
+
+    docs = await db.markets.find(query, projection={"condition_id": 1}).to_list(
+        length=None
+    )
+    found = {doc["condition_id"] for doc in docs if doc.get("condition_id")}
+    return {
+        "condition_ids": [cid for cid in body.condition_ids if cid in found],
+    }
 
 
 @router.get("/deadline/{market_id}")
