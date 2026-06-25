@@ -25,11 +25,7 @@ class EventWithMarkets:
 
 def parse_event_with_markets(raw: dict[str, Any]) -> EventWithMarkets:
     event = Event.model_validate(raw)
-    event_stub = event.model_dump()
-    markets = [
-        Market.model_validate({**m, "events": [event_stub]})
-        for m in raw.get("markets") or []
-    ]
+    markets = [Market.model_validate(m) for m in raw.get("markets") or []]
     return EventWithMarkets(event=event, markets=markets)
 
 
@@ -138,7 +134,7 @@ async def _write_page(
         for tag in entry.event.tags:
             tag_ops[tag.id] = ReplaceOne({"_id": tag.id}, tag.to_doc(), upsert=True)
         market_ids = [market.id for market in entry.markets]
-        event_doc = entry.event.to_doc(fallback_tags=[], synced_at=synced_at)
+        event_doc = entry.event.to_doc(synced_at=synced_at)
         event_ops.append(
             UpdateOne(
                 {"_id": entry.event.id},
@@ -153,7 +149,7 @@ async def _write_page(
             market_ops.append(
                 ReplaceOne(
                     {"_id": market.id},
-                    market.to_doc(synced_at=synced_at),
+                    market.to_doc(synced_at=synced_at, event=entry.event),
                     upsert=True,
                 )
             )

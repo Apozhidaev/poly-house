@@ -9,7 +9,7 @@ from pydantic.alias_generators import to_camel
 
 from poly_house.db import Database
 from poly_house.models.event import Event
-from poly_house.models.tag import Tag, parse_id
+from poly_house.models.tag import parse_id
 
 
 class Market(BaseModel):
@@ -64,8 +64,6 @@ class Market(BaseModel):
     best_ask: float | None = None
     order_price_min_tick_size: float | None = None
     order_min_size: float | None = None
-    tags: list[Tag] = []
-    events: list[Event] = []
 
     @field_validator("neg_risk", mode="before")
     @classmethod
@@ -89,19 +87,6 @@ class Market(BaseModel):
             return []
         return [float(x) for x in v]
 
-    @field_validator("tags", "events", mode="before")
-    @classmethod
-    def _none_to_list(cls, v: Any) -> Any:
-        return v if v is not None else []
-
-    @property
-    def event_id(self) -> int | None:
-        return self.events[0].id if self.events else None
-
-    @property
-    def event_slug(self) -> str | None:
-        return self.events[0].slug if self.events else None
-
     @property
     def resolved_outcome_index(self) -> int | None:
         return (
@@ -110,16 +95,13 @@ class Market(BaseModel):
             else None
         )
 
-    def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:
-        doc = self.model_dump(exclude={"tags", "events", "id"})
+    def to_doc(self, *, synced_at: datetime, event: Event) -> dict[str, Any]:
+        doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
-        # пустой condition_id убираем, чтобы не ломать sparse-unique индекс
-        if not doc.get("condition_id"):
-            doc.pop("condition_id", None)
-        doc["event_id"] = self.event_id
-        doc["event_slug"] = self.event_slug
+        doc["event_id"] = event.id
+        doc["event_slug"] = event.slug
+        doc["tag_ids"] = [t.id for t in event.tags]
         doc["resolved_outcome_index"] = self.resolved_outcome_index
-        doc["tag_ids"] = [t.id for t in self.tags]
         doc["synced_at"] = synced_at
         return doc
 

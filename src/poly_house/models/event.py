@@ -54,10 +54,10 @@ class Event(BaseModel):
     def _none_to_list(cls, v: Any) -> Any:
         return v if v is not None else []
 
-    def to_doc(self, *, fallback_tags: list[Tag], synced_at: datetime) -> dict[str, Any]:
+    def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:
         """Документ события без _id (для $set) и без вложенных tags/series."""
         doc = self.model_dump(exclude={"tags", "series", "id"})
-        tags = self.tags or fallback_tags
+        tags = self.tags
         doc["tag_ids"] = [t.id for t in tags]
         doc["series_ids"] = [
             parse_id(s["id"])
