@@ -127,7 +127,7 @@ async def _write_page(
 ) -> None:
     """Пишем страницу: tags → events → markets."""
     tag_ops: dict[int, ReplaceOne[Doc]] = {}
-    event_ops: list[UpdateOne] = []
+    event_ops: list[ReplaceOne[Doc]] = []
     market_ops: list[ReplaceOne[Doc]] = []
 
     for entry in entries:
@@ -136,11 +136,7 @@ async def _write_page(
         market_ids = [market.id for market in entry.markets]
         event_doc = entry.event.to_doc(synced_at=synced_at, market_ids=market_ids)
         event_ops.append(
-            UpdateOne(
-                {"_id": entry.event.id},
-                {"$set": event_doc},
-                upsert=True,
-            )
+            ReplaceOne({"_id": entry.event.id}, event_doc, upsert=True)
         )
         for market in entry.markets:
             market_ops.append(
