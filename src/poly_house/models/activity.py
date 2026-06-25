@@ -112,18 +112,16 @@ def build_market_activity(
     if any(a.is_combo or a.type == "CONVERSION" for a in activities):
         return None
 
-    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
-    last_activity = sorted_activities[-1]
+    win_holder = is_outcome_holder(activities, resolved_outcome_index)
+    lose_holder = is_outcome_holder(activities, 1 - resolved_outcome_index)
 
-    win_holder = is_outcome_holder(sorted_activities, resolved_outcome_index)
-    lose_holder = is_outcome_holder(sorted_activities, 1 - resolved_outcome_index)
-
+    first_activity = activities[0]
     return MarketActivity(
-        condition_id=last_activity.condition_id,
-        proxy_wallet=last_activity.proxy_wallet,
-        pnl=compute_pnl(sorted_activities),
-        volume=compute_volume(sorted_activities),
-        timestamp=last_activity.timestamp,
+        condition_id=first_activity.condition_id,
+        proxy_wallet=first_activity.proxy_wallet,
+        pnl=compute_pnl(activities),
+        volume=compute_volume(activities),
+        timestamp=max(a.timestamp for a in activities),
         win_holder=win_holder,
         lose_holder=lose_holder,
     )
@@ -187,19 +185,21 @@ def metrics_from_market_activities(
 def build_event_activity(activities: list[Activity]) -> EventActivity | None:
     if not activities:
         return None
-    if any(a.is_combo or a.type == "CONVERSION" for a in activities):
+    if any(a.is_combo for a in activities):
         return None
 
-    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
-    last_activity = sorted_activities[-1]
+    market_activities = [a for a in activities if a.type != "CONVERSION"]
+    if not market_activities:
+        return None
 
+    first_activity = activities[0]
     return EventActivity(
-        event_slug=last_activity.event_slug,
-        proxy_wallet=last_activity.proxy_wallet,
-        pnl=compute_pnl(sorted_activities),
-        volume=compute_volume(sorted_activities),
-        timestamp=last_activity.timestamp,
-        markets_count=len(sorted_activities),
+        event_slug=first_activity.event_slug,
+        proxy_wallet=first_activity.proxy_wallet,
+        pnl=compute_pnl(market_activities),
+        volume=compute_volume(market_activities),
+        timestamp=max(a.timestamp for a in activities),
+        markets_count=len({a.condition_id for a in market_activities}),
     )
 
 
