@@ -33,6 +33,8 @@ class Market(BaseModel):
     condition_id: str
     slug: str
     description: str | None = None
+    icon: str | None = None
+    image: str | None = None
     group_item_title: str | None = None
     group_item_threshold: int | None = None
     outcomes: list[str] = []

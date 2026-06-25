@@ -39,6 +39,8 @@ class Event(BaseModel):
     volume: float | None = None
     liquidity: float | None = None
     open_interest: float | None = None
+    icon: str | None = None
+    image: str | None = None
     tags: list[Tag] = []
     series: list[dict[str, Any]] = []
 
