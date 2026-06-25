@@ -12,6 +12,7 @@ dependencies = [
     "pymongo>=4.17.0",
     "structlog>=26.1.0",
     "typer>=0.26.7",
+    "tzdata>=2024.1",
     "uvicorn>=0.49.0",
 ]
 
