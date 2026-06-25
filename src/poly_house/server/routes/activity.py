@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query
 
 from poly_house.models import Activity
-from poly_house.models.activity import build_market_activities
+from poly_house.models.activity import build_event_activities, build_market_activities
 from poly_house.models.market import load_resolved_outcomes
 from poly_house.server.deps import Db, Page
 
@@ -90,4 +90,22 @@ async def list_market_activity(
     market_activities = build_market_activities(activities, resolved_outcomes)
     market_activities.sort(key=lambda ma: ma.timestamp, reverse=True)
     page_items = market_activities[page.offset : page.offset + page.limit]
-    return {"items": [ma.model_dump() for ma in page_items]}
+    return {"items": [ma.model_dump() for ma in page_items], "total": len(market_activities)}
+
+
+@router.get("/by-event")
+async def list_event_activity(
+    db: Db,
+    page: Page,
+    user: str,
+    event_slug: str | None = None,
+) -> dict[str, Any]:
+    query: dict[str, Any] = {"proxy_wallet": user}
+    if event_slug:
+        query["event_slug"] = event_slug
+    docs = await db.activities.find(query).to_list(length=None)
+    activities = [Activity.model_validate(doc) for doc in docs]
+    event_activities = build_event_activities(activities)
+    event_activities.sort(key=lambda ea: ea.timestamp, reverse=True)
+    page_items = event_activities[page.offset : page.offset + page.limit]
+    return {"items": [ea.model_dump() for ea in page_items], "total": len(event_activities)}
