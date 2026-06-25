@@ -25,17 +25,17 @@ class Event(BaseModel):
     @classmethod
     def _parse_id(cls, v: Any) -> int:
         return parse_id(v)
-    slug: str | None = None
-    title: str | None = None
+    slug: str
+    title: str
     description: str | None = None
-    closed: bool | None = None
+    closed: bool
     active: bool | None = None
     neg_risk: bool = False
     start_date: str | None = None
     end_date: str | None = None
     closed_time: str | None = None
-    updated_at: str | None = None
-    created_at: str | None = None
+    updated_at: str
+    created_at: str
     volume: float | None = None
     liquidity: float | None = None
     open_interest: float | None = None
