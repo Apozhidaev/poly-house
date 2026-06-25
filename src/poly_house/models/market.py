@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
+from poly_house.db import Database
 from poly_house.models.event import Event
 from poly_house.models.tag import Tag, parse_id
 
@@ -119,3 +120,23 @@ class Market(BaseModel):
         doc["tag_ids"] = [t.id for t in self.tags]
         doc["synced_at"] = synced_at
         return doc
+
+
+async def load_resolved_outcomes(
+    db: Database, condition_ids: list[str]
+) -> dict[str, int]:
+    if not condition_ids:
+        return {}
+    cursor = db.markets.find(
+        {
+            "condition_id": {"$in": condition_ids},
+            "resolved_outcome_index": {"$ne": None},
+        },
+        projection={"condition_id": 1, "resolved_outcome_index": 1},
+    )
+    docs = await cursor.to_list(length=None)
+    return {
+        doc["condition_id"]: doc["resolved_outcome_index"]
+        for doc in docs
+        if doc.get("resolved_outcome_index") is not None
+    }

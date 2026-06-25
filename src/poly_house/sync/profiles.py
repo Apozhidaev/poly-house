@@ -25,9 +25,9 @@ from poly_house.models import (
 )
 from poly_house.models.activity import (
     build_market_activities,
-    load_resolved_outcomes,
     metrics_from_market_activities,
 )
+from poly_house.models.market import load_resolved_outcomes
 from poly_house.utils.metrics import fit_trend_by_days
 
 logger = structlog.get_logger()

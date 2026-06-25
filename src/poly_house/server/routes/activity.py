@@ -5,7 +5,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query
 
 from poly_house.models import Activity
-from poly_house.models.activity import build_market_activities, load_resolved_outcomes
+from poly_house.models.activity import build_market_activities
+from poly_house.models.market import load_resolved_outcomes
 from poly_house.server.deps import Db, Page
 
 router = APIRouter(prefix="/activity", tags=["activity"])
