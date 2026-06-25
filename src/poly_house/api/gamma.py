@@ -13,30 +13,32 @@ class GammaClient:
     def __init__(self, http: RateLimitedClient) -> None:
         self._http = http
 
-    async def markets_page(
+    async def events_page(
         self,
         *,
         limit: int,
         cursor: str | None = None,
         tag_ids: list[int] | None = None,
+        exclude_tag_ids: list[int] | None = None,
         closed: bool | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
-        """Страница /markets/keyset по убыванию updatedAt: (markets, next_cursor)."""
+        """Страница /events/keyset по убыванию updatedAt: (events, next_cursor)."""
         params: dict[str, Any] = {
-            "include_tag": "true",
             "order": "updatedAt",
             "ascending": "false",
             "limit": limit,
         }
         if tag_ids:
-            params["tag_id"] = tag_ids  # httpx развернёт в tag_id=1&tag_id=2
+            params["tag_id"] = tag_ids
+        if exclude_tag_ids:
+            params["exclude_tag_id"] = exclude_tag_ids
         if closed is not None:
             params["closed"] = "true" if closed else "false"
         if cursor:
             params["after_cursor"] = cursor
         payload = await self._http.get(
-            f"{BASE_URL}/markets/keyset", params=params, rate_limiter=rate_limiter
+            f"{BASE_URL}/events/keyset", params=params, rate_limiter=rate_limiter
         )
-        markets = payload.get("markets") or []
+        events = payload.get("events") or []
         next_cursor = payload.get("next_cursor") or None
-        return markets, next_cursor
+        return events, next_cursor

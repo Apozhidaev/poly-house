@@ -16,7 +16,7 @@ from poly_house.api.pnl import PnlClient
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
-from poly_house.sync.markets import sync_markets
+from poly_house.sync.events import sync_events
 from poly_house.sync.profiles import sync_home_profiles, sync_profiles
 from poly_house.sync.holder_snapshots import sync_holder_snapshots
 from poly_house.sync.tag_profiles import update_tag_profiles
@@ -29,8 +29,8 @@ DbRunOnce = Callable[[Database, asyncio.Event | None], Awaitable[None]]
 
 
 @dataclass
-class MarketSyncOptions:
-    closed: bool
+class EventSyncOptions:
+    open_only: bool = False
     page_limit: int | None = None
     max_pages: int | None = None
 
@@ -97,27 +97,28 @@ async def _watch_loop(once: RunOnce, settings: Settings) -> None:
         logger.info("watch_stopped")
 
 
-async def run_sync_markets(
-    settings: Settings, options: MarketSyncOptions, *, watch: bool = False
+async def run_sync_events(
+    settings: Settings, options: EventSyncOptions, *, watch: bool = False
 ) -> None:
     def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
         gamma = GammaClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            markets = await sync_markets(
+            entries = await sync_events(
                 db,
                 gamma,
                 settings,
                 page_limit=options.page_limit,
                 max_pages=options.max_pages,
-                closed=options.closed,
+                open_only=options.open_only,
                 stop=stop,
             )
             logger.info(
-                "market_sync_run_complete",
-                markets=len(markets),
-                closed=options.closed,
+                "event_sync_run_complete",
+                events=len(entries),
+                markets=sum(len(e.markets) for e in entries),
+                open_only=options.open_only,
                 seconds=round(time.monotonic() - started, 1),
             )
 

@@ -97,7 +97,7 @@ poly-house/
     ├── sync/
     │   ├── __init__.py
     │   ├── runner.py       # оркестрация прогона + режим watch
-    │   ├── markets.py      # инкрементальный обход /markets/keyset по updatedAt до watermark (+events/tags)
+    │   ├── events.py       # инкрементальный обход /events/keyset по updatedAt до watermark (+nested markets/tags)
     │   └── trades.py       # выборка маркетов по synced_at > watermark + выгрузка trades по watermark timestamp + upsert users
     ├── server/
     │   ├── __init__.py
@@ -107,7 +107,7 @@ poly-house/
     │       ├── markets.py  # GET /markets, GET /markets/{id}
     │       ├── tags.py     # GET /tags, GET /tags/{id}
     │       └── trades.py   # GET /trades
-    └── cli.py              # entrypoints: `poly-house sync-market [--watch]`, `poly-house sync-trade [--watch]`, `poly-house serve`
+    └── cli.py              # entrypoints: `poly-house sync-event [--open] [--watch]`, `poly-house sync-trade [--watch]`, `poly-house serve`
 ```
 
 ## 4. Модель данных MongoDB
@@ -130,17 +130,19 @@ Markets/events/tags/users — upsert по стабильным `_id`; trades —
 
 Синхронизация разбита на две команды; обе поддерживают `--watch` — бесконечный цикл прогонов с интервалом из конфига (`WATCH_INTERVAL`, сек), до остановки Ctrl+C (обрабатываем SIGINT, корректно завершаем текущую операцию).
 
-### `poly-house sync-market` — маркеты + события + теги
+### `poly-house sync-event` — events + nested markets + tags
 
-Берём watermark из `sync_state` (`_id: markets_watermark`; нет документа → `now - updated_in_days`); качаем страницы `/markets/keyset?order=updatedAt&ascending=false`, пока не дойдём до watermark, затем пишем в базу **в порядке возрастания `updatedAt`**:
+Берём watermark из `sync_state` (`_id: events_watermark`; нет документа → `now - updated_in_days`); качаем страницы `/events/keyset?order=updatedAt&ascending=false`, пока не дойдём до watermark, затем пишем в базу **в порядке возрастания `event.updated_at`**:
 
-- маркет → upsert в `markets` (с его `tag_ids` и `synced_at` прогона);
-- вложенные `events` → upsert в `events` (с `tag_ids` — при их отсутствии берём `tag_ids` маркета — и `series_ids`);
-- объекты тегов из `markets[].tags` и `events[].tags` → upsert в `tags`.
+- tags из `event.tags` → upsert в `tags`;
+- event → upsert в `events` (`tag_ids`, `series_ids`, `$addToSet` `market_ids` из nested markets);
+- nested `markets` → upsert в `markets` (`event_id`, `condition_id`, `tag_ids`, `synced_at`).
 
-После успешного (не прерванного) прогона watermark в `sync_state` сдвигается на максимальный увиденный `updatedAt`.
+`--open` передаёт `closed=false` в API; watermark один — `events_watermark`. Фильтры: `EVENTS_TAG_IDS`, `EVENTS_EXCLUDE_TAG_IDS`, `EVENTS_NEG_RISK`, `MARKETS_YES_NO_ONLY`.
 
-CLI-опции: `--watch`, `--limit` (размер страницы), `--max-pages` (ограничить прогон для теста), `--skip-open` (только закрытые маркеты, `closed=true`).
+После успешного (не прерванного) прогона watermark в `sync_state` сдвигается на максимальный увиденный `event.updated_at`.
+
+CLI-опции: `--watch`, `--open`, `--limit` (размер страницы), `--max-pages` (ограничить прогон для теста).
 
 ### `poly-house sync-trade` — трейды + users
 

@@ -9,10 +9,10 @@ import uvicorn
 
 from poly_house.config import Settings
 from poly_house.sync.runner import (
-    MarketSyncOptions,
+    EventSyncOptions,
     SyncProfileOptions,
     TagProfileSyncOptions,
-    run_sync_markets,
+    run_sync_events,
     run_sync_profile,
     run_sync_home_profile,
     run_sync_holder_snapshots,
@@ -33,30 +33,18 @@ def _configure_logging() -> None:
     )
 
 
-@app.command("sync-open-market")
-def sync_open_market(
+@app.command("sync-event")
+def sync_event(
+    open_only: Annotated[bool, typer.Option("--open", help="Только открытые events (closed=false).")] = False,
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
-    limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /markets/keyset.")] = None,
-    max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц маркетов (для теста).")] = None,
+    limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /events/keyset.")] = None,
+    max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц events (для теста).")] = None,
 ) -> None:
-    """Синхронизация открытых маркетов (closed=false) + события + теги → MongoDB."""
+    """Синхронизация events + nested markets + tags из Gamma /events/keyset → MongoDB."""
     _configure_logging()
     settings = Settings()
-    options = MarketSyncOptions(closed=False, page_limit=limit, max_pages=max_pages)
-    asyncio.run(run_sync_markets(settings, options, watch=watch))
-
-
-@app.command("sync-close-market")
-def sync_close_market(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
-    limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /markets/keyset.")] = None,
-    max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц маркетов (для теста).")] = None,
-) -> None:
-    """Синхронизация закрытых маркетов (closed=true) + события + теги → MongoDB."""
-    _configure_logging()
-    settings = Settings()
-    options = MarketSyncOptions(closed=True, page_limit=limit, max_pages=max_pages)
-    asyncio.run(run_sync_markets(settings, options, watch=watch))
+    options = EventSyncOptions(open_only=open_only, page_limit=limit, max_pages=max_pages)
+    asyncio.run(run_sync_events(settings, options, watch=watch))
 
 
 @app.command("sync-trade")

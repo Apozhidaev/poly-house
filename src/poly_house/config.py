@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # watch-режим
     watch_interval: float = 60.0  # секунды между прогонами
 
-    # первый прогон: глубина загрузки маркетов по updatedAt
+    # первый прогон: глубина загрузки events по updatedAt
     updated_in_days: int = 30
 
     # первый прогон sync-home-profile: activity cache за последние N дней
@@ -24,20 +24,20 @@ class Settings(BaseSettings):
     # sync-home-profile: считать home profile свежим, если synced_at моложе N часов
     home_profile_sync_interval_hours: int = 6
 
-    # необязательный фильтр маркетов по тегам (tag_id=1&tag_id=2)
-    markets_tag_ids: list[int] = []
+    # необязательный фильтр events по тегам (tag_id=1&tag_id=2)
+    events_tag_ids: list[int] = []
 
-    # исключить маркеты с этими тегами (фильтруем на нашей стороне, в API параметра нет)
-    markets_exclude_tag_ids: list[int] = []
+    # исключить events с этими тегами (exclude_tag_id в API)
+    events_exclude_tag_ids: list[int] = []
 
-    # пропускать маркеты, у которых outcomes != ["Yes", "No"]
+    # пропускать event, если среди nested markets есть outcomes != ["Yes", "No"]
     markets_yes_no_only: bool = False
 
-    # оставлять только маркеты с neg_risk == значению (null/absent в API = false)
-    markets_neg_risk: bool | None = None
+    # оставлять только events с neg_risk == значению (null/absent в API = false)
+    events_neg_risk: bool | None = None
 
     # размеры страниц API
-    markets_page_limit: int = 100
+    events_page_limit: int = 500
     trades_page_limit: int = 1000  # максимум Data API
     trades_max_offset: int = 3000  # потолок offset в Data API
     snapshot_holders_limit: int = 500  # max Data API /holders
