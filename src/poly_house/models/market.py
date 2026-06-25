@@ -34,7 +34,6 @@ class Market(BaseModel):
     slug: str
     description: str | None = None
     icon: str | None = None
-    image: str | None = None
     group_item_title: str | None = None
     group_item_threshold: int | None = None
     outcomes: list[str] = []
@@ -100,8 +99,8 @@ class Market(BaseModel):
         doc["_id"] = self.id
         doc["event_id"] = event.id
         doc["event_slug"] = event.slug
-        doc["tag_ids"] = [t.id for t in event.tags]
         doc["resolved_outcome_index"] = self.resolved_outcome_index
+        doc["tag_ids"] = [t.id for t in event.tags]
         doc["synced_at"] = synced_at
         return doc
 

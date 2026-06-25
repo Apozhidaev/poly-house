@@ -28,6 +28,7 @@ class Event(BaseModel):
     slug: str
     title: str
     description: str | None = None
+    icon: str | None = None
     closed: bool
     active: bool | None = None
     neg_risk: bool = False
@@ -39,8 +40,6 @@ class Event(BaseModel):
     volume: float | None = None
     liquidity: float | None = None
     open_interest: float | None = None
-    icon: str | None = None
-    image: str | None = None
     tags: list[Tag] = []
     series: list[dict[str, Any]] = []
 
