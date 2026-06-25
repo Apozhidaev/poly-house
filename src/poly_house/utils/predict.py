@@ -36,6 +36,8 @@ def compute_win_votes(
 ) -> float:
     if agg is None:
         return 0.0
+    if agg.pnl is None or agg.pnl <= 0:
+        return 0.0
     if agg.win_holder_count is None or agg.markets_count is None:
         return 0.0
     if agg.win_holder_count == 0:
@@ -53,6 +55,8 @@ def compute_lose_votes(
     agg: TagProfileAggregate | None,
 ) -> float:
     if agg is None:
+        return 0.0
+    if agg.pnl is None or agg.pnl <= 0:
         return 0.0
     if agg.lose_holder_count is None or agg.markets_count is None:
         return 0.0
