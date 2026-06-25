@@ -134,14 +134,11 @@ async def _write_page(
         for tag in entry.event.tags:
             tag_ops[tag.id] = ReplaceOne({"_id": tag.id}, tag.to_doc(), upsert=True)
         market_ids = [market.id for market in entry.markets]
-        event_doc = entry.event.to_doc(synced_at=synced_at)
+        event_doc = entry.event.to_doc(synced_at=synced_at, market_ids=market_ids)
         event_ops.append(
             UpdateOne(
                 {"_id": entry.event.id},
-                {
-                    "$set": event_doc,
-                    "$addToSet": {"market_ids": {"$each": market_ids}},
-                },
+                {"$set": event_doc},
                 upsert=True,
             )
         )
