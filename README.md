@@ -15,6 +15,22 @@ uv sync
 cp .env.example .env  # при необходимости поправить настройки
 ```
 
+## Тесты
+
+Dev-зависимости (pytest, basedpyright):
+
+```bash
+uv sync --group dev
+```
+
+Запуск:
+
+```bash
+uv run pytest
+uv run pytest tests/test_deadline.py
+uv run basedpyright src/poly_house/
+```
+
 ## Использование
 
 ### Синхронизация
