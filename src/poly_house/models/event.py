@@ -59,7 +59,7 @@ class Event(BaseModel):
         """Документ события без вложенных tags/series."""
         doc = self.model_dump(exclude={"tags", "series", "id"})
         doc["_id"] = self.id
-        doc["tag_ids"] = [t.id for t in self.tags]
+        doc["tag_ids"] = sorted(t.id for t in self.tags)
         doc["market_ids"] = market_ids or []
         doc["series_ids"] = [
             parse_id(s["id"])
