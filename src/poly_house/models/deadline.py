@@ -14,7 +14,12 @@ from poly_house.models.contract_error import ContractError
 
 POLYMARKET_TZ = ZoneInfo("America/New_York")
 
-_GROUP_TITLE_RE = re.compile(r"^([A-Za-z]+) (\d{1,2})(?:,\s*(\d{4}))?$")
+_GROUP_TITLE_RE = re.compile(r"^([A-Za-z]+)\s+(\d{1,2})(?:,\s*(\d{4}))?$")
+
+_WEEKDAY_PREFIX_RE = re.compile(
+    r"^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+",
+    re.IGNORECASE,
+)
 
 _MONTH_FULL: dict[str, int] = {
     "January": 1,
@@ -30,6 +35,14 @@ _MONTH_FULL: dict[str, int] = {
     "November": 11,
     "December": 12,
 }
+
+
+def _normalize_group_item_title(title: str) -> str:
+    """Strip optional weekday prefix from calendar titles.
+
+    Supports ``June 15``, ``June 30, 2026``, ``Monday, June 16``, ``Monday June 16``.
+    """
+    return _WEEKDAY_PREFIX_RE.sub("", title.strip())
 
 
 def _to_polymarket_deadline(year: int, month: int, day: int) -> datetime:
@@ -63,14 +76,15 @@ class Deadline(BaseModel):
 
 def _deadline_from_group_item_title(market: Market) -> Deadline | None:
     market_id = market.id
-    title = market.group_item_title
+    original_title = market.group_item_title
     threshold = market.group_item_threshold
 
-    if not title:
+    if not original_title:
         return None
     if threshold is None:
         return None
 
+    title = _normalize_group_item_title(original_title)
     m = _GROUP_TITLE_RE.fullmatch(title)
     if not m:
         return None
@@ -83,7 +97,7 @@ def _deadline_from_group_item_title(market: Market) -> Deadline | None:
         return None
     return Deadline(
         market_id=market_id,
-        group_item_title=title,
+        group_item_title=original_title,
         group_item_threshold=threshold,
         month=month,
         day=day,
