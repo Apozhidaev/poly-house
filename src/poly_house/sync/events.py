@@ -32,12 +32,14 @@ def parse_event_with_markets(raw: dict[str, Any]) -> EventWithMarkets:
     markets = [
         Market.model_validate(m)
         for m in raw.get("markets") or []
-        if m.get("conditionId") and m.get("active") is not False
+        if m.get("conditionId")
     ]
     return EventWithMarkets(event=event, markets=markets)
 
 
 def _keep_event(entry: EventWithMarkets, settings: Settings) -> bool:
+    if not entry.markets:
+        return False
     if settings.events_neg_risk is not None:
         if entry.event.neg_risk != settings.events_neg_risk:
             return False

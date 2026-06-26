@@ -30,7 +30,8 @@ class Event(BaseModel):
     description: str | None = None
     icon: str | None = None
     closed: bool
-    active: bool | None = None
+    active: bool
+    archived: bool
     neg_risk: bool = False
     start_date: str | None = None
     end_date: str | None = None

@@ -29,9 +29,9 @@ class Market(BaseModel):
     def _parse_id(cls, v: Any) -> int:
         return parse_id(v)
 
-    question: str | None = None
     condition_id: str
     slug: str
+    question: str
     description: str | None = None
     icon: str | None = None
     group_item_title: str | None = None
@@ -41,6 +41,7 @@ class Market(BaseModel):
     clob_token_ids: list[str] = []
     closed: bool
     active: bool
+    archived: bool
     accepting_orders: bool | None = None
     neg_risk: bool = False
     enable_order_book: bool | None = None
@@ -49,8 +50,8 @@ class Market(BaseModel):
     start_date: str | None = None
     end_date: str | None = None
     closed_time: str | None = None
-    updated_at: str | None = None
-    created_at: str | None = None
+    updated_at: str
+    created_at: str
     uma_resolution_status: str | None = None
     uma_end_date: str | None = None
     uma_bond: str | None = None
