@@ -73,6 +73,28 @@ async def list_activity(
     return {"items": await cursor.to_list(page.limit)}
 
 
+@router.get("/not-relevant")
+async def list_not_relevant_activity(db: Db, page: Page) -> dict[str, Any]:
+    market_docs = await db.markets.find(
+        {"relevant": False},
+        projection={"condition_id": 1},
+    ).to_list(length=None)
+    condition_ids = [doc["condition_id"] for doc in market_docs]
+    if not condition_ids:
+        return {"items": []}
+
+    cursor = (
+        db.activities.find(
+            {"condition_id": {"$in": condition_ids}},
+            {"_id": 0},
+        )
+        .sort("timestamp", -1)
+        .skip(page.offset)
+        .limit(page.limit)
+    )
+    return {"items": await cursor.to_list(page.limit)}
+
+
 @router.get("/by-market")
 async def list_market_activity(
     db: Db,
