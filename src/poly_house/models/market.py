@@ -40,7 +40,7 @@ class Market(BaseModel):
     outcome_prices: list[float] = []
     clob_token_ids: list[str] = []
     closed: bool
-    active: bool | None = None
+    active: bool
     accepting_orders: bool | None = None
     neg_risk: bool = False
     enable_order_book: bool | None = None
