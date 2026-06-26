@@ -93,7 +93,7 @@ class Market(BaseModel):
 
     @property
     def relevant(self) -> bool:
-        return self.active is True or self.archived is True
+        return self.condition_id and self.active is True or self.archived is True
 
     @property
     def resolved_outcome_index(self) -> int | None:
