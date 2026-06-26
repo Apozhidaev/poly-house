@@ -9,10 +9,6 @@ EVENTS_WATERMARK_ID = "events_watermark"
 TRADES_WATERMARK_ID = "trades_watermark"
 
 
-def parse_iso(value: str) -> datetime:
-    return datetime.fromisoformat(value)
-
-
 def default_events_watermark(settings: Settings) -> str:
     dt = datetime.now(UTC) - timedelta(days=settings.updated_in_days)
     return dt.isoformat().replace("+00:00", "Z")

@@ -12,10 +12,9 @@ from poly_house.api.gamma import GammaClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
-from poly_house.models.deadline import deadline_map_from_markets
+from poly_house.models.deadline import get_deadline_map_for_markets
 from poly_house.sync.sync_state import (
     get_events_watermark,
-    parse_iso,
     set_events_watermark,
 )
 
@@ -88,7 +87,7 @@ async def _fetch_pages(
     """Качаем страницы по убыванию updatedAt, пока не дойдём до watermark."""
     pages: list[list[EventWithMarkets]] = []
     max_updated_at: str | None = None
-    watermark_dt = parse_iso(watermark)
+    watermark_dt = datetime.fromisoformat(watermark)
     cursor: str | None = None
     closed = False if open_only else None
     while True:
@@ -105,13 +104,15 @@ async def _fetch_pages(
             break
         page = [parse_event_with_markets(item) for item in raw]
         fresh = [
-            entry for entry in page if parse_iso(entry.event.updated_at) > watermark_dt
+            entry
+            for entry in page
+            if datetime.fromisoformat(entry.event.updated_at) > watermark_dt
         ]
         for entry in fresh:
             updated_at = entry.event.updated_at
-            if max_updated_at is None or parse_iso(updated_at) > parse_iso(
-                max_updated_at
-            ):
+            if max_updated_at is None or datetime.fromisoformat(
+                updated_at
+            ) > datetime.fromisoformat(max_updated_at):
                 max_updated_at = updated_at
         kept = [entry for entry in fresh if _keep_event(entry, settings)]
         pages.append(kept)
@@ -147,7 +148,7 @@ async def _write_page(
                 {"_id": tag.id}, tag.to_doc(synced_at=synced_at), upsert=True
             )
         relevant_markets = [market for market in entry.markets if market.relevant]
-        deadline_map, calendar = deadline_map_from_markets(
+        deadline_map, calendar_filled = get_deadline_map_for_markets(
             relevant_markets,
             entry.event.start_date or entry.event.created_at,
             entry.event.end_date,
@@ -159,7 +160,7 @@ async def _write_page(
             synced_at=synced_at,
             market_ids=market_ids,
             relevant_market_ids=relevant_market_ids,
-            calendar=calendar,
+            calendar=calendar_filled,
         )
         event_ops.append(ReplaceOne({"_id": entry.event.id}, event_doc, upsert=True))
         for market in entry.markets:

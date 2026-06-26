@@ -74,7 +74,7 @@ class Deadline(BaseModel):
             ) from exc
 
 
-def _deadline_from_group_item_title(market: Market) -> Deadline | None:
+def _deadline_from_group_item(market: Market) -> Deadline | None:
     market_id = market.id
     original_title = market.group_item_title
     threshold = market.group_item_threshold
@@ -117,13 +117,13 @@ def _is_deadlines_monotonic(
     return all(a - permissible_delta < b for a, b in pairwise(dates))
 
 
-def _title_deadlines_from_markets(
+def _calendar_from_group_items(
     markets: list[Market], event_start_date: str
 ) -> list[Deadline]:
     deadlines = []
 
     for market in markets:
-        deadline = _deadline_from_group_item_title(market)
+        deadline = _deadline_from_group_item(market)
         if deadline is None:
             continue
         deadlines.append(deadline)
@@ -162,24 +162,24 @@ def _title_deadlines_from_markets(
     return deadlines
 
 
-def deadline_map_from_markets(
+def get_deadline_map_for_markets(
     markets: list[Market], event_start_date: str, event_end_date: str | None
 ) -> tuple[dict[int, datetime], bool]:
     if not markets:
         return {}, False
 
-    deadline_map: dict[int, datetime] = {}
-    title_deadlines = _title_deadlines_from_markets(markets, event_start_date)
-    title_deadline_map = {
-        deadline.market_id: deadline.to_date() for deadline in title_deadlines
+    deadlines = _calendar_from_group_items(markets, event_start_date)
+    calendar_map = {
+        deadline.market_id: deadline.to_date() for deadline in deadlines
     }
+    deadline_map: dict[int, datetime] = {}
     for market in markets:
-        title_deadline = title_deadline_map.get(market.id)
-        if title_deadline is not None:
-            deadline_map[market.id] = title_deadline
+        deadline = calendar_map.get(market.id)
+        if deadline is not None:
+            deadline_map[market.id] = deadline
             continue
         end_date = market.end_date or event_end_date
         if end_date:
             deadline_map[market.id] = datetime.fromisoformat(end_date)
 
-    return deadline_map, len(markets) == len(title_deadlines)
+    return deadline_map, len(markets) == len(deadlines)
