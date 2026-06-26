@@ -39,7 +39,6 @@ OPEN_MARKETS_QUERY = {
     "accepting_orders": True,
     "clob_token_ids.0": {"$exists": True},
     "clob_token_ids.1": {"$exists": True},
-    "condition_id": {"$ne": None},
 }
 OPEN_MARKETS_PROJECTION = {
     "_id": 1,

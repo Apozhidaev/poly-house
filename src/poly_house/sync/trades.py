@@ -82,8 +82,8 @@ async def _write_trades(db: Database, raw_trades: list[dict[str, Any]]) -> int:
 async def _select_markets(
     db: Database, watermark: datetime | None
 ) -> list[dict[str, Any]]:
-    """Маркеты с condition_id, синхронизированные позже watermark'а трейдов."""
-    query: dict[str, Any] = {"condition_id": {"$ne": None}}
+    """Маркеты, синхронизированные позже watermark'а трейдов."""
+    query: dict[str, Any] = {}
     if watermark is not None:
         query["synced_at"] = {"$gt": watermark}
     cursor = db.markets.find(

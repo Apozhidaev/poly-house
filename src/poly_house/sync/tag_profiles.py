@@ -26,7 +26,6 @@ BULK_SIZE = 100
 async def load_condition_tag_ids(db: Database) -> dict[str, list[int]]:
     cursor = db.markets.find(
         {
-            "condition_id": {"$ne": None},
             "tag_ids.0": {"$exists": True},
             "closed": True,
         },

@@ -22,7 +22,7 @@ async def ensure_indexes(db: Database) -> None:
     await db.events.create_index("slug")
     await db.events.create_index("tag_ids")
 
-    await db.markets.create_index("condition_id", unique=True, sparse=True)
+    await db.markets.create_index("condition_id", unique=True)
     await db.markets.create_index("event_id")
     await db.markets.create_index("slug")
     await db.markets.create_index("tag_ids")

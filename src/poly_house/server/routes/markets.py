@@ -89,7 +89,7 @@ async def check_home_markets(body: CheckHomeMarketsRequest, db: Db) -> dict[str,
     docs = await db.markets.find(query, projection={"condition_id": 1}).to_list(
         length=None
     )
-    found = {doc["condition_id"] for doc in docs if doc.get("condition_id")}
+    found = {doc["condition_id"] for doc in docs}
     return {
         "condition_ids": [cid for cid in body.condition_ids if cid in found],
     }

@@ -342,7 +342,7 @@ async def upsert_home_profiles_for_wallets(
 
 async def load_closed_condition_ids(db: Database) -> list[str]:
     cursor = db.markets.find(
-        {"condition_id": {"$ne": None}, "closed": True},
+        {"closed": True},
         projection={"condition_id": 1},
     )
     docs = await cursor.to_list(length=None)
