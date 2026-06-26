@@ -61,10 +61,12 @@ class Event(BaseModel):
         synced_at: datetime,
         market_ids: list[int] | None = None,
         relevant_market_ids: list[int] | None = None,
+        calendar: bool = False,
     ) -> dict[str, Any]:
         """Документ события без вложенных tags/series."""
         doc = self.model_dump(exclude={"tags", "series", "id"})
         doc["_id"] = self.id
+        doc["calendar"] = calendar
         doc["tag_ids"] = sorted(t.id for t in self.tags)
         doc["market_ids"] = market_ids or []
         doc["relevant_market_ids"] = relevant_market_ids or []

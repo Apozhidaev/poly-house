@@ -147,9 +147,10 @@ async def _write_page(
                 {"_id": tag.id}, tag.to_doc(synced_at=synced_at), upsert=True
             )
         relevant_markets = [market for market in entry.markets if market.relevant]
-        deadline_map: dict[int, datetime] = deadline_map_from_markets(
+        deadline_map, calendar = deadline_map_from_markets(
             relevant_markets,
-            parse_iso(entry.event.start_date or entry.event.created_at),
+            entry.event.start_date or entry.event.created_at,
+            entry.event.end_date,
         )
 
         market_ids: list[int] = [market.id for market in entry.markets]
@@ -158,6 +159,7 @@ async def _write_page(
             synced_at=synced_at,
             market_ids=market_ids,
             relevant_market_ids=relevant_market_ids,
+            calendar=calendar,
         )
         event_ops.append(ReplaceOne({"_id": entry.event.id}, event_doc, upsert=True))
         for market in entry.markets:

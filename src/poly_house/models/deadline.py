@@ -118,7 +118,7 @@ def _is_deadlines_monotonic(
 
 
 def _title_deadlines_from_markets(
-    markets: list[Market], event_start: datetime
+    markets: list[Market], event_start_date: str
 ) -> list[Deadline]:
     deadlines = []
 
@@ -135,6 +135,8 @@ def _title_deadlines_from_markets(
 
     if _is_deadlines_filled(deadlines):
         return deadlines
+
+    event_start = datetime.fromisoformat(event_start_date)
 
     first_deadline = deadlines[0]
     if first_deadline.year is None:
@@ -161,10 +163,13 @@ def _title_deadlines_from_markets(
 
 
 def deadline_map_from_markets(
-    markets: list[Market], event_start: datetime
-) -> dict[int, datetime]:
+    markets: list[Market], event_start_date: str, event_end_date: str | None
+) -> tuple[dict[int, datetime], bool]:
+    if not markets:
+        return {}, False
+
     deadline_map: dict[int, datetime] = {}
-    title_deadlines = _title_deadlines_from_markets(markets, event_start)
+    title_deadlines = _title_deadlines_from_markets(markets, event_start_date)
     title_deadline_map = {
         deadline.market_id: deadline.to_date() for deadline in title_deadlines
     }
@@ -173,7 +178,8 @@ def deadline_map_from_markets(
         if title_deadline is not None:
             deadline_map[market.id] = title_deadline
             continue
-        if market.end_date:
-            deadline_map[market.id] = datetime.fromisoformat(market.end_date)
+        end_date = market.end_date or event_end_date
+        if end_date:
+            deadline_map[market.id] = datetime.fromisoformat(end_date)
 
-    return deadline_map
+    return deadline_map, len(markets) == len(title_deadlines)
