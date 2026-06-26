@@ -12,7 +12,11 @@ from poly_house.api.gamma import GammaClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
-from poly_house.sync.sync_state import get_events_watermark, parse_iso, set_events_watermark
+from poly_house.sync.sync_state import (
+    get_events_watermark,
+    parse_iso,
+    set_events_watermark,
+)
 
 logger = structlog.get_logger()
 
@@ -94,13 +98,13 @@ async def _fetch_pages(
             break
         page = [parse_event_with_markets(item) for item in raw]
         fresh = [
-            entry
-            for entry in page
-            if parse_iso(entry.event.updated_at) > watermark_dt
+            entry for entry in page if parse_iso(entry.event.updated_at) > watermark_dt
         ]
         for entry in fresh:
             updated_at = entry.event.updated_at
-            if max_updated_at is None or parse_iso(updated_at) > parse_iso(max_updated_at):
+            if max_updated_at is None or parse_iso(updated_at) > parse_iso(
+                max_updated_at
+            ):
                 max_updated_at = updated_at
         kept = [entry for entry in fresh if _keep_event(entry, settings)]
         pages.append(kept)
@@ -132,12 +136,12 @@ async def _write_page(
 
     for entry in entries:
         for tag in entry.event.tags:
-            tag_ops[tag.id] = ReplaceOne({"_id": tag.id}, tag.to_doc(), upsert=True)
+            tag_ops[tag.id] = ReplaceOne(
+                {"_id": tag.id}, tag.to_doc(synced_at=synced_at), upsert=True
+            )
         market_ids = [market.id for market in entry.markets]
         event_doc = entry.event.to_doc(synced_at=synced_at, market_ids=market_ids)
-        event_ops.append(
-            ReplaceOne({"_id": entry.event.id}, event_doc, upsert=True)
-        )
+        event_ops.append(ReplaceOne({"_id": entry.event.id}, event_doc, upsert=True))
         for market in entry.markets:
             market_ops.append(
                 ReplaceOne(

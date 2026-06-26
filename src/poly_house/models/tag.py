@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -26,7 +27,8 @@ class Tag(BaseModel):
     def weight(self) -> float:
         return 1 / self.events_count if self.events_count > 0 else 0.0
 
-    def to_doc(self) -> dict[str, Any]:
+    def to_doc(self, *, synced_at: datetime) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
+        doc["synced_at"] = synced_at
         return doc

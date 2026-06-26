@@ -14,7 +14,6 @@ class User(BaseModel):
 
     proxy_wallet: str
     name: str
-    pseudonym: str
     bio: str
     profile_image: str
     last_trade_time: datetime
