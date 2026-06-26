@@ -12,6 +12,7 @@ from poly_house.api.gamma import GammaClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
+from poly_house.models.deadline import deadline_map_from_markets
 from poly_house.sync.sync_state import (
     get_events_watermark,
     parse_iso,
@@ -145,7 +146,13 @@ async def _write_page(
             tag_ops[tag.id] = ReplaceOne(
                 {"_id": tag.id}, tag.to_doc(synced_at=synced_at), upsert=True
             )
-        market_ids = [market.id for market in entry.markets]
+        relevant_markets = [market for market in entry.markets if market.relevant]
+        deadline_map: dict[int, datetime] = deadline_map_from_markets(
+            relevant_markets,
+            parse_iso(entry.event.start_date or entry.event.created_at),
+        )
+
+        market_ids: list[int] = [market.id for market in entry.markets]
         relevant_market_ids = [market.id for market in entry.markets if market.relevant]
         event_doc = entry.event.to_doc(
             synced_at=synced_at,
@@ -157,7 +164,11 @@ async def _write_page(
             market_ops.append(
                 ReplaceOne(
                     {"_id": market.id},
-                    market.to_doc(synced_at=synced_at, event=entry.event),
+                    market.to_doc(
+                        synced_at=synced_at,
+                        event=entry.event,
+                        deadline=deadline_map.get(market.id),
+                    ),
                     upsert=True,
                 )
             )

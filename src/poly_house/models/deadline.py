@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from zoneinfo import ZoneInfo
 
+from poly_house.models import Market
 from poly_house.models.contract_error import ContractError
 
 POLYMARKET_TZ = ZoneInfo("America/New_York")
@@ -31,14 +32,7 @@ _MONTH_FULL: dict[str, int] = {
 }
 
 
-def deadline_from_end_date(raw: dict[str, Any]) -> datetime | None:
-    value = raw.get("end_date")
-    if not value:
-        return None
-    return datetime.fromisoformat(value)
-
-
-def to_polymarket_deadline(year: int, month: int, day: int) -> datetime:
+def _to_polymarket_deadline(year: int, month: int, day: int) -> datetime:
     """Convert a date to a deadline in Polymarket timezone (ET)."""
     return datetime(year, month, day, 23, 59, 59, 999_999, tzinfo=POLYMARKET_TZ)
 
@@ -60,17 +54,17 @@ class Deadline(BaseModel):
                 f"group_item_title {self.group_item_title!r}: year not set"
             )
         try:
-            return to_polymarket_deadline(self.year, self.month, self.day)
+            return _to_polymarket_deadline(self.year, self.month, self.day)
         except ValueError as exc:
             raise ContractError(
                 f"group_item_title {self.group_item_title!r}: invalid date"
             ) from exc
 
 
-def deadline_from_group_item_title(raw: dict[str, Any]) -> Deadline | None:
-    market_id = raw["_id"]
-    title = raw.get("group_item_title")
-    threshold = raw.get("group_item_threshold")
+def _deadline_from_group_item_title(market: Market) -> Deadline | None:
+    market_id = market.id
+    title = market.group_item_title
+    threshold = market.group_item_threshold
 
     if not title:
         return None
@@ -106,13 +100,13 @@ def _is_deadlines_monotonic(deadlines: list[Deadline]) -> bool:
     return all(a < b for a, b in pairwise(dates))
 
 
-def deadlines_from_market_raws(
-    raws: list[dict[str, Any]], event_start_date: datetime
+def _title_deadlines_from_markets(
+    markets: list[Market], event_start: datetime
 ) -> list[Deadline]:
     deadlines = []
 
-    for raw in raws:
-        deadline = deadline_from_group_item_title(raw)
+    for market in markets:
+        deadline = _deadline_from_group_item_title(market)
         if deadline is None:
             continue
         deadlines.append(deadline)
@@ -127,10 +121,10 @@ def deadlines_from_market_raws(
 
     first_deadline = deadlines[0]
     if first_deadline.year is None:
-        if first_deadline.month >= event_start_date.month:
-            first_deadline.year = event_start_date.year
+        if first_deadline.month >= event_start.month:
+            first_deadline.year = event_start.year
         else:
-            first_deadline.year = event_start_date.year + 1
+            first_deadline.year = event_start.year + 1
 
     n = len(deadlines)
 
@@ -147,3 +141,22 @@ def deadlines_from_market_raws(
         raise ContractError("deadlines are not monotonically increasing")
 
     return deadlines
+
+
+def deadline_map_from_markets(
+    markets: list[Market], event_start: datetime
+) -> dict[int, datetime]:
+    deadline_map: dict[int, datetime] = {}
+    title_deadlines = _title_deadlines_from_markets(markets, event_start)
+    title_deadline_map = {
+        deadline.market_id: deadline.to_date() for deadline in title_deadlines
+    }
+    for market in markets:
+        title_deadline = title_deadline_map.get(market.id)
+        if title_deadline is not None:
+            deadline_map[market.id] = title_deadline
+            continue
+        if market.end_date:
+            deadline_map[market.id] = datetime.fromisoformat(market.end_date)
+
+    return deadline_map

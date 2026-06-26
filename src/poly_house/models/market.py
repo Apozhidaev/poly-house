@@ -110,13 +110,14 @@ class Market(BaseModel):
             else None
         )
 
-    def to_doc(self, *, synced_at: datetime, event: Event) -> dict[str, Any]:
+    def to_doc(self, *, synced_at: datetime, event: Event, deadline: datetime | None) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
-        doc["event_id"] = event.id
-        doc["event_slug"] = event.slug
+        doc["deadline"] = deadline
         doc["relevant"] = self.relevant
         doc["resolved_outcome_index"] = self.resolved_outcome_index
+        doc["event_id"] = event.id
+        doc["event_slug"] = event.slug
         doc["tag_ids"] = sorted(t.id for t in event.tags)
         doc["synced_at"] = synced_at
         return doc
