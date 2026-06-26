@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -54,6 +55,7 @@ def build_tag_profile(
     name: str,
     tag_id: int,
     market_activities: list[MarketActivity],
+    synced_at: datetime,
 ) -> TagProfile:
     metrics = metrics_from_market_activities(market_activities)
 
@@ -69,6 +71,7 @@ def build_tag_profile(
         pnl_growth=metrics.pnl_growth,
         pnl_stability=metrics.pnl_stability,
         win_rate=metrics.win_rate,
+        synced_at=synced_at,
     )
 
 
@@ -108,12 +111,14 @@ async def update_tag_profiles_for_wallets(
         market_activities = build_market_activities(activities, resolved_outcomes)
 
         by_tag = group_market_activities_by_tag(market_activities, condition_tags)
+        synced_at = datetime.now(UTC)
         for tag_id, tag_market_activities in by_tag.items():
             profile = build_tag_profile(
                 proxy_wallet,
                 name,
                 tag_id,
                 tag_market_activities,
+                synced_at,
             )
             ops.append(
                 UpdateOne(

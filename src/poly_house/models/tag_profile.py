@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
@@ -18,6 +19,7 @@ class TagProfile(BaseModel):
     markets_count: int
     win_holder_count: int
     lose_holder_count: int
+    synced_at: datetime
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
