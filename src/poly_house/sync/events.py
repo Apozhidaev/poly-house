@@ -29,7 +29,11 @@ class EventWithMarkets:
 
 def parse_event_with_markets(raw: dict[str, Any]) -> EventWithMarkets:
     event = Event.model_validate(raw)
-    markets = [Market.model_validate(m) for m in raw.get("markets") or []]
+    markets = [
+        Market.model_validate(m)
+        for m in raw.get("markets") or []
+        if m.get("conditionId")
+    ]
     return EventWithMarkets(event=event, markets=markets)
 
 
