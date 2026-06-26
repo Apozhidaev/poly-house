@@ -10,7 +10,7 @@ TRADES_WATERMARK_ID = "trades_watermark"
 
 
 def parse_iso(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return datetime.fromisoformat(value)
 
 
 def default_events_watermark(settings: Settings) -> str:

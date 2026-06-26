@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
-
 import pytest
 
 from poly_house.models import Market
@@ -99,7 +96,7 @@ def test_title_deadlines_from_markets_weekday_series() -> None:
         )
         for i, title in enumerate(titles)
     ]
-    event_start = datetime(2026, 6, 1, tzinfo=ZoneInfo("UTC"))
+    event_start = "2026-06-01T00:00:00Z"
 
     deadlines = _title_deadlines_from_markets(markets, event_start)
 
