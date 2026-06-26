@@ -30,6 +30,7 @@ class GammaClient:
         }
         if tag_ids:
             params["tag_id"] = tag_ids
+            params["related_tags"] = "true"
         if exclude_tag_ids:
             params["exclude_tag_id"] = exclude_tag_ids
         if closed is not None:
