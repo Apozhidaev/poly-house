@@ -39,6 +39,7 @@ class Market(BaseModel):
     outcomes: list[str] = []
     outcome_prices: list[float] = []
     clob_token_ids: list[str] = []
+    uma_resolution_statuses: list[str] = []
     closed: bool
     active: bool
     archived: bool
@@ -52,6 +53,7 @@ class Market(BaseModel):
     closed_time: str | None = None
     updated_at: str
     created_at: str
+    combo_status: str | None = None
     uma_resolution_status: str | None = None
     uma_end_date: str | None = None
     uma_bond: str | None = None
@@ -70,7 +72,7 @@ class Market(BaseModel):
     def _null_neg_risk_to_false(cls, v: Any) -> bool:
         return False if v is None else v
 
-    @field_validator("outcomes", "clob_token_ids", mode="before")
+    @field_validator("outcomes", "clob_token_ids", "uma_resolution_statuses", mode="before")
     @classmethod
     def _parse_outcomes(cls, v: Any) -> Any:
         # Gamma отдаёт списки строками: '["Yes", "No"]'
@@ -88,10 +90,14 @@ class Market(BaseModel):
         return [float(x) for x in v]
 
     @property
+    def relevant(self) -> bool:
+        return self.active is True or self.archived is True
+
+    @property
     def resolved_outcome_index(self) -> int | None:
         return (
             self.outcome_prices.index(max(self.outcome_prices))
-            if self.closed and self.outcome_prices
+            if self.closed and self.relevant and self.outcome_prices
             else None
         )
 
@@ -100,6 +106,7 @@ class Market(BaseModel):
         doc["_id"] = self.id
         doc["event_id"] = event.id
         doc["event_slug"] = event.slug
+        doc["relevant"] = self.relevant
         doc["resolved_outcome_index"] = self.resolved_outcome_index
         doc["tag_ids"] = sorted(t.id for t in event.tags)
         doc["synced_at"] = synced_at
