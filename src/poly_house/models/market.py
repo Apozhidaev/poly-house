@@ -72,7 +72,9 @@ class Market(BaseModel):
     def _null_neg_risk_to_false(cls, v: Any) -> bool:
         return False if v is None else v
 
-    @field_validator("outcomes", "clob_token_ids", "uma_resolution_statuses", mode="before")
+    @field_validator(
+        "outcomes", "clob_token_ids", "uma_resolution_statuses", mode="before"
+    )
     @classmethod
     def _parse_outcomes(cls, v: Any) -> Any:
         # Gamma отдаёт списки строками: '["Yes", "No"]'
@@ -97,7 +99,8 @@ class Market(BaseModel):
     def resolved_outcome_index(self) -> int | None:
         return (
             self.outcome_prices.index(max(self.outcome_prices))
-            if self.closed and self.relevant and self.outcome_prices
+            if (self.closed or self.uma_resolution_status == "resolved")
+            and self.outcome_prices
             else None
         )
 
