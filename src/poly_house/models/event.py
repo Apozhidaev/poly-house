@@ -25,6 +25,7 @@ class Event(BaseModel):
     @classmethod
     def _parse_id(cls, v: Any) -> int:
         return parse_id(v)
+
     slug: str
     title: str
     description: str | None = None
@@ -55,13 +56,18 @@ class Event(BaseModel):
         return v if v is not None else []
 
     def to_doc(
-        self, *, synced_at: datetime, market_ids: list[int] | None = None
+        self,
+        *,
+        synced_at: datetime,
+        market_ids: list[int] | None = None,
+        relevant_market_ids: list[int] | None = None,
     ) -> dict[str, Any]:
         """Документ события без вложенных tags/series."""
         doc = self.model_dump(exclude={"tags", "series", "id"})
         doc["_id"] = self.id
         doc["tag_ids"] = sorted(t.id for t in self.tags)
         doc["market_ids"] = market_ids or []
+        doc["relevant_market_ids"] = relevant_market_ids or []
         doc["series_ids"] = [
             parse_id(s["id"])
             for s in self.series

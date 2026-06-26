@@ -146,7 +146,12 @@ async def _write_page(
                 {"_id": tag.id}, tag.to_doc(synced_at=synced_at), upsert=True
             )
         market_ids = [market.id for market in entry.markets]
-        event_doc = entry.event.to_doc(synced_at=synced_at, market_ids=market_ids)
+        relevant_market_ids = [market.id for market in entry.markets if market.relevant]
+        event_doc = entry.event.to_doc(
+            synced_at=synced_at,
+            market_ids=market_ids,
+            relevant_market_ids=relevant_market_ids,
+        )
         event_ops.append(ReplaceOne({"_id": entry.event.id}, event_doc, upsert=True))
         for market in entry.markets:
             market_ops.append(
