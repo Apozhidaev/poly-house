@@ -27,7 +27,7 @@ from poly_house.models.activity import (
     build_market_activities,
     metrics_from_market_activities,
 )
-from poly_house.models.market import load_resolved_outcomes
+from poly_house.models.market import load_resolved_outcomes, relevant_market_query
 from poly_house.utils.metrics import fit_trend_by_days
 
 logger = structlog.get_logger()
@@ -342,7 +342,7 @@ async def upsert_home_profiles_for_wallets(
 
 async def load_closed_condition_ids(db: Database) -> list[str]:
     cursor = db.markets.find(
-        {"closed": True},
+        relevant_market_query(closed=True),
         projection={"condition_id": 1},
     )
     docs = await cursor.to_list(length=None)

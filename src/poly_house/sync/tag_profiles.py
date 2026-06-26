@@ -16,7 +16,7 @@ from poly_house.models.activity import (
     build_market_activities,
     metrics_from_market_activities,
 )
-from poly_house.models.market import load_resolved_outcomes
+from poly_house.models.market import RELEVANT_MARKET_FILTER, load_resolved_outcomes
 
 logger = structlog.get_logger()
 
@@ -26,6 +26,7 @@ BULK_SIZE = 100
 async def load_condition_tag_ids(db: Database) -> dict[str, list[int]]:
     cursor = db.markets.find(
         {
+            **RELEVANT_MARKET_FILTER,
             "tag_ids.0": {"$exists": True},
             "closed": True,
         },

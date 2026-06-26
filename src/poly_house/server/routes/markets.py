@@ -11,6 +11,7 @@ from poly_house.models.deadline import (
     deadline_from_group_item_title,
     deadlines_from_market_raws,
 )
+from poly_house.models.market import relevant_market_query
 from poly_house.server.deps import Db, Page
 from poly_house.sync.sync_state import parse_iso
 
@@ -37,9 +38,9 @@ async def _resolve_market_deadline(db: Db, market: dict[str, Any]) -> datetime |
                 raise HTTPException(
                     status_code=500, detail=f"Event {event_id} has no start_date"
                 )
-            event_markets = await db.markets.find({"event_id": event_id}).to_list(
-                length=None
-            )
+            event_markets = await db.markets.find(
+                relevant_market_query(event_id=event_id)
+            ).to_list(length=None)
             deadlines = deadlines_from_market_raws(
                 event_markets, parse_iso(start_date)
             )
@@ -60,7 +61,7 @@ async def list_markets(
     slug: str | None = None,
     condition_id: str | None = None,
 ) -> dict[str, Any]:
-    query: dict[str, Any] = {}
+    query = relevant_market_query()
     if closed is not None:
         query["closed"] = closed
     if neg_risk is not None:
@@ -82,7 +83,7 @@ async def check_home_markets(body: CheckHomeMarketsRequest, db: Db) -> dict[str,
     if not body.condition_ids:
         return {"condition_ids": []}
 
-    query: dict[str, Any] = {"condition_id": {"$in": body.condition_ids}}
+    query = relevant_market_query(condition_id={"$in": body.condition_ids})
     if body.tag_ids:
         query["tag_ids"] = {"$in": body.tag_ids}
 
@@ -97,7 +98,7 @@ async def check_home_markets(body: CheckHomeMarketsRequest, db: Db) -> dict[str,
 
 @router.get("/deadline/{market_id}")
 async def get_market_deadline(market_id: int, db: Db) -> datetime | None:
-    market = await db.markets.find_one({"_id": market_id})
+    market = await db.markets.find_one(relevant_market_query(_id=market_id))
     if market is None:
         raise HTTPException(status_code=404, detail="Market not found")
     return await _resolve_market_deadline(db, market)
@@ -105,7 +106,7 @@ async def get_market_deadline(market_id: int, db: Db) -> datetime | None:
 
 @router.get("/{market_id}")
 async def get_market(market_id: int, db: Db) -> dict[str, Any]:
-    doc = await db.markets.find_one({"_id": market_id})
+    doc = await db.markets.find_one(relevant_market_query(_id=market_id))
     if doc is None:
         raise HTTPException(status_code=404, detail="Market not found")
     return doc

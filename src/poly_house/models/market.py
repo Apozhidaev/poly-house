@@ -11,6 +11,12 @@ from poly_house.db import Database
 from poly_house.models.event import Event
 from poly_house.models.tag import parse_id
 
+RELEVANT_MARKET_FILTER: dict[str, Any] = {"relevant": True}
+
+
+def relevant_market_query(**filters: Any) -> dict[str, Any]:
+    return {**RELEVANT_MARKET_FILTER, **filters}
+
 
 class Market(BaseModel):
     """Маркет; camelCase-ключи payload'а маппятся на snake_case-поля через алиасы.
@@ -122,10 +128,10 @@ async def load_resolved_outcomes(
     if not condition_ids:
         return {}
     cursor = db.markets.find(
-        {
-            "condition_id": {"$in": condition_ids},
-            "resolved_outcome_index": {"$ne": None},
-        },
+        relevant_market_query(
+            condition_id={"$in": condition_ids},
+            resolved_outcome_index={"$ne": None},
+        ),
         projection={"condition_id": 1, "resolved_outcome_index": 1},
     )
     docs = await cursor.to_list(length=None)

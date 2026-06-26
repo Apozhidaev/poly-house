@@ -12,6 +12,7 @@ from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import HolderSnapshot, SnapshotHolder
+from poly_house.models.market import RELEVANT_MARKET_FILTER
 from poly_house.sync.profiles import (
     WalletIdentity,
     sync_home_profiles_for_wallets,
@@ -35,6 +36,7 @@ from poly_house.utils.tag_metrics import (
 logger = structlog.get_logger()
 
 OPEN_MARKETS_QUERY = {
+    **RELEVANT_MARKET_FILTER,
     "closed": False,
     "accepting_orders": True,
     "clob_token_ids.0": {"$exists": True},
