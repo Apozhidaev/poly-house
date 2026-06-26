@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     events_neg_risk: bool | None = None
 
     # размеры страниц API
-    events_page_limit: int = 500
+    events_page_limit: int = 100  # /events/keyset max 100 (в доке Gamma указано иначе)
     trades_page_limit: int = 1000  # максимум Data API
     trades_max_offset: int = 3000  # потолок offset в Data API
     snapshot_holders_limit: int = 500  # max Data API /holders
