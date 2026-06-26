@@ -99,7 +99,7 @@ class Market(BaseModel):
 
     @property
     def relevant(self) -> bool:
-        return self.condition_id and self.active is True or self.archived is True
+        return self.active is True or (self.archived is True and self.closed is True)
 
     @property
     def resolved_outcome_index(self) -> int | None:
@@ -110,7 +110,9 @@ class Market(BaseModel):
             else None
         )
 
-    def to_doc(self, *, synced_at: datetime, event: Event, deadline: datetime | None) -> dict[str, Any]:
+    def to_doc(
+        self, *, synced_at: datetime, event: Event, deadline: datetime | None
+    ) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
         doc["deadline"] = deadline

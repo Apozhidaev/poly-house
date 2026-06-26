@@ -1,7 +1,7 @@
 """Generic time series models."""
 
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import pairwise
 from typing import Any
 
@@ -95,9 +95,12 @@ def _is_deadlines_filled(deadlines: list[Deadline]) -> bool:
     return all(deadline.year is not None for deadline in deadlines)
 
 
-def _is_deadlines_monotonic(deadlines: list[Deadline]) -> bool:
+def _is_deadlines_monotonic(
+    deadlines: list[Deadline], *, permissible_deviation_days: int = 100
+) -> bool:
     dates = (d.to_date() for d in deadlines)
-    return all(a < b for a, b in pairwise(dates))
+    permissible_delta = timedelta(days=permissible_deviation_days)
+    return all(a - permissible_delta < b for a, b in pairwise(dates))
 
 
 def _title_deadlines_from_markets(
