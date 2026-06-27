@@ -5,8 +5,8 @@ import pytest
 from poly_house.models import Market
 from poly_house.models.deadline import (
     POLYMARKET_TZ,
-    _deadline_from_group_item_title,
-    _title_deadlines_from_markets,
+    _calendar_from_group_items,
+    _deadline_from_group_item,
 )
 
 
@@ -50,7 +50,7 @@ def test_deadline_from_group_item_title_parses_calendar_titles(
     day: int,
     year: int | None,
 ) -> None:
-    deadline = _deadline_from_group_item_title(
+    deadline = _deadline_from_group_item(
         _market(
             market_id=1,
             group_item_title=title,
@@ -67,7 +67,7 @@ def test_deadline_from_group_item_title_parses_calendar_titles(
 
 def test_deadline_from_group_item_title_returns_none_for_invalid_title() -> None:
     assert (
-        _deadline_from_group_item_title(
+        _deadline_from_group_item(
             _market(
                 market_id=1,
                 group_item_title="Not a date",
@@ -98,7 +98,7 @@ def test_title_deadlines_from_markets_weekday_series() -> None:
     ]
     event_start = "2026-06-01T00:00:00Z"
 
-    deadlines = _title_deadlines_from_markets(markets, event_start)
+    deadlines = _calendar_from_group_items(markets, event_start)
 
     assert len(deadlines) == 7
     dates = [deadline.to_date() for deadline in deadlines]
