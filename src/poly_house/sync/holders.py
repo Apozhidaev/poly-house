@@ -13,7 +13,6 @@ from poly_house.db import Database
 from poly_house.models import User
 from poly_house.models.market import RELEVANT_MARKET_FILTER
 from poly_house.sync.profiles import (
-    WalletIdentity,
     sync_home_profiles_for_wallets,
     sync_profiles_for_wallets,
     wallets_needing_home_profile_sync,
@@ -39,38 +38,25 @@ OPEN_MARKETS_PROJECTION = {
 }
 
 
-def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, WalletIdentity]:
-    holders: dict[str, WalletIdentity] = {}
+def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, User]:
+    holders: dict[str, User] = {}
     for entry in holders_raw:
         for raw in entry.get("holders") or []:
             if not raw.get("displayUsernamePublic"):
                 continue
-            holders[raw["proxyWallet"]] = WalletIdentity(
-                name=raw["name"],
-                bio=raw.get("bio") or "",
-                profile_image=raw.get("profileImage") or "",
-            )
+            holders[raw["proxyWallet"]] = User.from_payload(raw)
     return holders
 
 
-async def _upsert_users(db: Database, holders: dict[str, WalletIdentity]) -> None:
-    if not holders:
-        return
+async def _upsert_users(db: Database, holders: dict[str, User]) -> None:
     await db.users.bulk_write(
         [
             UpdateOne(
-                {"_id": wallet},
-                {
-                    "$set": User(
-                        proxy_wallet=wallet,
-                        name=identity.name,
-                        bio=identity.bio,
-                        profile_image=identity.profile_image,
-                    ).to_update()
-                },
+                {"_id": u.proxy_wallet},
+                {"$set": u.to_update()},
                 upsert=True,
             )
-            for wallet, identity in holders.items()
+            for u in holders.values()
         ]
     )
 
@@ -102,8 +88,8 @@ async def sync_holder_profiles(
             skipped += 1
             continue
         holders = collect_holders(holders_raw)
-        await _upsert_users(db, holders)
         if holders:
+            await _upsert_users(db, holders)
             wallet_list = list(holders.keys())
             profile_stale = await wallets_needing_profile_sync(
                 db, settings, wallet_list

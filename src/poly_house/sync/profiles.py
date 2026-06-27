@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -33,13 +32,6 @@ from poly_house.utils.metrics import fit_trend_by_days
 logger = structlog.get_logger()
 
 BULK_SIZE = 100
-
-
-@dataclass(frozen=True)
-class WalletIdentity:
-    name: str
-    bio: str = ""
-    profile_image: str = ""
 
 
 async def wallets_needing_profile_sync(
