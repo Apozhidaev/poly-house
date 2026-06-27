@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
@@ -16,16 +15,10 @@ class User(BaseModel):
     name: str
     bio: str
     profile_image: str
-    last_trade_time: datetime
 
     @classmethod
     def from_payload(cls, raw: dict[str, Any]) -> User:
-        return cls.model_validate(
-            {
-                **raw,
-                "last_trade_time": datetime.fromtimestamp(raw["timestamp"], tz=UTC),
-            }
-        )
+        return cls.model_validate(raw)
 
     def to_update(self) -> dict[str, Any]:
         return self.model_dump(exclude={"proxy_wallet"})

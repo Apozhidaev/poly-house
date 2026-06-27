@@ -63,14 +63,7 @@ async def _write_trades(db: Database, raw_trades: list[dict[str, Any]]) -> int:
             [
                 UpdateOne(
                     {"_id": u.proxy_wallet},
-                    {
-                        "$set": {
-                            k: v
-                            for k, v in u.to_update().items()
-                            if k != "last_trade_time"
-                        },
-                        "$max": {"last_trade_time": u.last_trade_time},
-                    },
+                    {"$set": u.to_update()},
                     upsert=True,
                 )
                 for u in users.values()
