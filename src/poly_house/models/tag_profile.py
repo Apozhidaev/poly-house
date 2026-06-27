@@ -9,7 +9,6 @@ from pydantic.alias_generators import to_camel
 
 class TagProfile(BaseModel):
     proxy_wallet: str
-    name: str
     tag_id: int
     pnl: float | None = None
     volume: float | None = None

@@ -103,7 +103,7 @@ async def sync_holder_profiles(
             if condition_tags and home_stale:
                 await update_tag_profiles_for_wallets(
                     db,
-                    {w: holders[w].name for w in home_stale},
+                    list(home_stale),
                     condition_tags,
                     stop=stop,
                 )
