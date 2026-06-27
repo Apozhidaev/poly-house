@@ -96,9 +96,9 @@ async def sync_holder_profiles(
             home_stale = await wallets_needing_home_profile_sync(
                 db, settings, wallet_list
             )
-            if home_wallets := {w: holders[w].name for w in home_stale}:
+            if home_stale:
                 await sync_home_profiles_for_wallets(
-                    db, data, settings, home_wallets, stop=stop
+                    db, data, settings, home_stale, stop=stop
                 )
             if condition_tags and home_stale:
                 await update_tag_profiles_for_wallets(

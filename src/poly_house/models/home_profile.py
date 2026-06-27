@@ -10,7 +10,6 @@ class HomeProfile(BaseModel):
     """User profile metrics computed from synced activities."""
 
     proxy_wallet: str
-    name: str
     pnl: float | None = None
     volume: float | None = None
     pnl_growth: float | None = None

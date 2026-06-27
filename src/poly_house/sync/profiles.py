@@ -130,7 +130,7 @@ async def _load_home_profiles_needing_sync(
     *,
     wallet: str | None = None,
     limit: int | None = None,
-) -> dict[str, str]:
+) -> list[str]:
     cutoff = datetime.now(UTC) - timedelta(
         hours=settings.home_profile_sync_interval_hours
     )
@@ -142,11 +142,11 @@ async def _load_home_profiles_needing_sync(
     }
     if wallet is not None:
         query = {"_id": wallet, **query}
-    cursor = db.home_profiles.find(query, projection={"_id": 1, "name": 1})
+    cursor = db.home_profiles.find(query, projection={"_id": 1})
     if limit is not None:
         cursor = cursor.limit(limit)
     docs = await cursor.to_list(length=None)
-    return {doc["_id"]: doc.get("name") or "" for doc in docs}
+    return [doc["_id"] for doc in docs]
 
 
 def build_profile(
@@ -199,13 +199,11 @@ def build_profile(
 def build_home_profile(
     *,
     wallet: str,
-    name: str,
     metrics: ActivityMetrics | None,
     synced_at: datetime,
 ) -> HomeProfile:
     return HomeProfile(
         proxy_wallet=wallet,
-        name=name,
         pnl=metrics.pnl if metrics else None,
         volume=metrics.volume if metrics else None,
         pnl_growth=metrics.pnl_growth if metrics else None,
@@ -298,7 +296,7 @@ async def upsert_profiles_for_wallets(
 
 async def upsert_home_profiles_for_wallets(
     db: Database,
-    wallets: dict[str, str],
+    wallets: list[str],
     *,
     stop: asyncio.Event | None = None,
 ) -> int:
@@ -308,16 +306,15 @@ async def upsert_home_profiles_for_wallets(
 
     ops: list[UpdateOne] = []
     processed = 0
-    home_metrics = await load_home_metrics(db, list(wallets.keys()))
+    home_metrics = await load_home_metrics(db, wallets)
 
-    for wallet, name in wallets.items():
+    for wallet in wallets:
         if stop is not None and stop.is_set():
             break
 
         metrics = home_metrics.get(wallet)
         home_profile = build_home_profile(
             wallet=wallet,
-            name=name,
             metrics=metrics,
             synced_at=datetime.now(UTC),
         )
@@ -616,7 +613,7 @@ async def sync_home_profiles_for_wallets(
     db: Database,
     data: DataClient,
     settings: Settings,
-    wallets: dict[str, str],
+    wallets: list[str],
     *,
     stop: asyncio.Event | None = None,
 ) -> None:
@@ -630,13 +627,11 @@ async def sync_home_profiles_for_wallets(
     activities = 0
     home_profiles = 0
 
-    wallet_list = list(wallets.keys())
-
     activity_cache = await sync_activity_cache_for_wallets(
-        db, data, settings, wallet_list, stop=stop
+        db, data, settings, wallets, stop=stop
     )
     activities = await sync_activities_for_wallets(
-        db, data, settings, wallet_list, stop=stop
+        db, data, settings, wallets, stop=stop
     )
     home_profiles = await upsert_home_profiles_for_wallets(
         db, wallets, stop=stop
