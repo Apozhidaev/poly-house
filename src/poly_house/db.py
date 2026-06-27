@@ -35,9 +35,6 @@ async def ensure_indexes(db: Database) -> None:
     await db.trades.create_index("proxy_wallet")
     await db.trades.create_index("timestamp")
 
-    await db.holder_snapshots.create_index([("market_id", 1), ("captured_at", -1)])
-    await db.holder_snapshots.create_index("condition_id")
-
     await db.activities.create_index([("proxy_wallet", 1), ("timestamp", -1)])
     await db.activities.create_index("condition_id")
     await db.activities.create_index([("proxy_wallet", 1), ("event_slug", 1)])

@@ -9,7 +9,6 @@ from dataclasses import dataclass
 
 import structlog
 
-from poly_house.api.clob import ClobClient
 from poly_house.api.data import DataClient
 from poly_house.api.gamma import GammaClient
 from poly_house.api.pnl import PnlClient
@@ -18,7 +17,7 @@ from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.events import sync_events
 from poly_house.sync.profiles import sync_home_profiles, sync_profiles
-from poly_house.sync.holder_snapshots import sync_holder_snapshots
+from poly_house.sync.holders import sync_holder_profiles
 from poly_house.sync.tag_profiles import update_tag_profiles
 from poly_house.sync.trades import sync_trades
 
@@ -212,20 +211,19 @@ async def run_sync_home_profile(
     await _run(settings, make_once, watch=watch)
 
 
-async def run_sync_holder_snapshots(settings: Settings, *, watch: bool = False) -> None:
+async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
     def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
         data = DataClient(http)
-        clob = ClobClient(http)
         pnl = PnlClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            written, skipped = await sync_holder_snapshots(
-                db, data, clob, pnl, settings, stop=stop
+            processed, skipped = await sync_holder_profiles(
+                db, data, pnl, settings, stop=stop
             )
             logger.info(
-                "holder_snapshots_sync_run_complete",
-                written=written,
+                "holder_sync_run_complete",
+                processed=processed,
                 skipped=skipped,
                 seconds=round(time.monotonic() - started, 1),
             )

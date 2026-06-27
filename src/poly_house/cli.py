@@ -15,7 +15,7 @@ from poly_house.sync.runner import (
     run_sync_events,
     run_sync_profile,
     run_sync_home_profile,
-    run_sync_holder_snapshots,
+    run_sync_holder,
     run_sync_trades,
     run_update_tag_profiles,
 )
@@ -61,10 +61,10 @@ def sync_trade(
 def sync_holder(
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
 ) -> None:
-    """Holder snapshots: ордербук и top holders для открытых маркетов."""
+    """Holders открытых маркетов → sync profiles, home_profiles, tag_profiles."""
     _configure_logging()
     settings = Settings()
-    asyncio.run(run_sync_holder_snapshots(settings, watch=watch))
+    asyncio.run(run_sync_holder(settings, watch=watch))
 
 
 @app.command("sync-profile")
