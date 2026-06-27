@@ -20,4 +20,4 @@ class Profile(BaseModel):
     synced_at: datetime
 
     def to_doc(self) -> dict[str, Any]:
-        return self.model_dump(exclude={"proxy_wallet"})
+        return self.model_dump(exclude={"proxy_wallet"}, exclude_none=True)
