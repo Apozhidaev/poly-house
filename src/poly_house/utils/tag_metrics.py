@@ -120,13 +120,13 @@ async def load_tag_weights(db: Database, tag_ids: list[int]) -> dict[int, float]
         return {}
     cursor = db.tags.find(
         {"_id": {"$in": tag_ids}},
-        projection={"_id": 1, "markets_count": 1},
+        projection={"_id": 1, "events_count": 1},
     )
     docs = await cursor.to_list(length=None)
     weights: dict[int, float] = {}
     for doc in docs:
-        markets_count = doc.get("markets_count", 0)
-        weights[doc["_id"]] = 1 / markets_count if markets_count > 0 else 0.0
+        events_count = doc.get("events_count", 0)
+        weights[doc["_id"]] = 1 / events_count if events_count > 0 else 0.0
     return weights
 
 
