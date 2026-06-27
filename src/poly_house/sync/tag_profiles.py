@@ -149,7 +149,7 @@ async def update_tag_profiles(
     limit: int | None = None,
     stop: asyncio.Event | None = None,
 ) -> tuple[int, int]:
-    """Upsert tag profiles for profiles; returns (wallets, tag_profiles written)."""
+    """Upsert tag profiles for home_profiles; returns (wallets, tag_profiles written)."""
     condition_tags = await load_condition_tag_ids(db)
     if not condition_tags:
         logger.info("tag_profiles_sync_skip", reason="no_markets_with_tags")
@@ -159,27 +159,27 @@ async def update_tag_profiles(
     if wallet is not None:
         query["_id"] = wallet
 
-    cursor = db.profiles.find(query, projection={"_id": 1})
+    cursor = db.home_profiles.find(query, projection={"_id": 1})
     if limit is not None:
         cursor = cursor.limit(limit)
-    profiles = await cursor.to_list(length=None)
+    home_profiles = await cursor.to_list(length=None)
 
     logger.info(
         "tag_profiles_sync_start",
-        profiles=len(profiles),
+        home_profiles=len(home_profiles),
         wallet=wallet,
         limit=limit,
     )
 
     started = time.monotonic()
-    wallets = [profile["_id"] for profile in profiles]
+    wallets = [doc["_id"] for doc in home_profiles]
     total_profiles, total_tag_profiles = await update_tag_profiles_for_wallets(
         db, wallets, condition_tags, stop=stop
     )
 
     logger.info(
         "tag_profiles_sync_done",
-        profiles=total_profiles,
+        home_profiles=total_profiles,
         tag_profiles=total_tag_profiles,
         interrupted=stop is not None and stop.is_set(),
         seconds=round(time.monotonic() - started, 1),
