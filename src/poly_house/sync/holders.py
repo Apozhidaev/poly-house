@@ -4,11 +4,13 @@ import asyncio
 from typing import Any
 
 import structlog
+from pymongo import UpdateOne
 
 from poly_house.api.data import DataClient
 from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
+from poly_house.models import User
 from poly_house.models.market import RELEVANT_MARKET_FILTER
 from poly_house.sync.profiles import (
     WalletIdentity,
@@ -51,6 +53,28 @@ def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, WalletIdenti
     return holders
 
 
+async def _upsert_users(db: Database, holders: dict[str, WalletIdentity]) -> None:
+    if not holders:
+        return
+    await db.users.bulk_write(
+        [
+            UpdateOne(
+                {"_id": wallet},
+                {
+                    "$set": User(
+                        proxy_wallet=wallet,
+                        name=identity.name,
+                        bio=identity.bio,
+                        profile_image=identity.profile_image,
+                    ).to_update()
+                },
+                upsert=True,
+            )
+            for wallet, identity in holders.items()
+        ]
+    )
+
+
 async def sync_holder_profiles(
     db: Database,
     data: DataClient,
@@ -78,6 +102,7 @@ async def sync_holder_profiles(
             skipped += 1
             continue
         holders = collect_holders(holders_raw)
+        await _upsert_users(db, holders)
         if holders:
             wallet_list = list(holders.keys())
             profile_stale = await wallets_needing_profile_sync(
