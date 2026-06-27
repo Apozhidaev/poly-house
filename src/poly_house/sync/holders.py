@@ -108,14 +108,13 @@ async def sync_holder_profiles(
             profile_stale = await wallets_needing_profile_sync(
                 db, settings, wallet_list
             )
-            if profile_wallets := {w: holders[w].name for w in profile_stale}:
+            if profile_stale:
                 await sync_profiles_for_wallets(
                     db,
                     data,
                     pnl,
                     settings,
-                    profile_wallets,
-                    identities={w: holders[w] for w in profile_stale},
+                    profile_stale,
                     stop=stop,
                 )
             home_stale = await wallets_needing_home_profile_sync(

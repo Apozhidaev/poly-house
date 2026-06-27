@@ -10,9 +10,6 @@ class Profile(BaseModel):
     """User profile metrics materialized from Polymarket API."""
 
     proxy_wallet: str
-    name: str
-    bio: str
-    profile_image: str
     pnl: float | None = None
     volume: float | None = None
     pnl_growth: float | None = None

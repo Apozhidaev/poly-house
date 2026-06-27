@@ -42,35 +42,6 @@ class WalletIdentity:
     profile_image: str = ""
 
 
-async def _load_stored_identities(
-    db: Database, wallets: list[str]
-) -> dict[str, WalletIdentity]:
-    if not wallets:
-        return {}
-    identities: dict[str, WalletIdentity] = {}
-    profile_docs = await db.profiles.find(
-        {"_id": {"$in": wallets}},
-        projection={"bio": 1, "profile_image": 1},
-    ).to_list(length=None)
-    for doc in profile_docs:
-        identities[doc["_id"]] = WalletIdentity(
-            bio=doc.get("bio") or "",
-            profile_image=doc.get("profile_image") or "",
-            name="",
-        )
-    user_docs = await db.users.find(
-        {"_id": {"$in": wallets}},
-        projection={"bio": 1, "profile_image": 1},
-    ).to_list(length=None)
-    for doc in user_docs:
-        identities[doc["_id"]] = WalletIdentity(
-            bio=doc.get("bio") or "",
-            profile_image=doc.get("profile_image") or "",
-            name="",
-        )
-    return identities
-
-
 async def wallets_needing_profile_sync(
     db: Database, settings: Settings, wallets: list[str]
 ) -> list[str]:
@@ -107,7 +78,7 @@ async def _load_profiles_needing_sync(
     *,
     wallet: str | None = None,
     limit: int | None = None,
-) -> dict[str, str]:
+) -> list[str]:
     cutoff = datetime.now(UTC) - timedelta(days=settings.profile_sync_interval_days)
     query: dict[str, Any] = {
         "$or": [
@@ -117,11 +88,11 @@ async def _load_profiles_needing_sync(
     }
     if wallet is not None:
         query = {"_id": wallet, **query}
-    cursor = db.profiles.find(query, projection={"_id": 1, "name": 1})
+    cursor = db.profiles.find(query, projection={"_id": 1})
     if limit is not None:
         cursor = cursor.limit(limit)
     docs = await cursor.to_list(length=None)
-    return {doc["_id"]: doc.get("name") or "" for doc in docs}
+    return [doc["_id"] for doc in docs]
 
 
 async def _load_home_profiles_needing_sync(
@@ -151,14 +122,10 @@ async def _load_home_profiles_needing_sync(
 
 def build_profile(
     wallet: str,
-    name: str,
     stats: LeaderboardStats | None,
     equity: EquitySnapshot | None,
     ts: PnlTimeSeries | None,
     synced_at: datetime,
-    *,
-    bio: str = "",
-    profile_image: str = "",
 ) -> Profile:
     pnl = stats.pnl if stats else None
     volume = stats.vol if stats else None
@@ -182,9 +149,6 @@ def build_profile(
 
     return Profile(
         proxy_wallet=wallet,
-        name=name,
-        bio=bio,
-        profile_image=profile_image,
         pnl=pnl,
         volume=volume,
         pnl_growth=pnl_growth,
@@ -246,34 +210,25 @@ async def upsert_profiles_for_wallets(
     db: Database,
     data: DataClient,
     pnl: PnlClient,
-    wallets: dict[str, str],
+    wallets: list[str],
     *,
-    identities: dict[str, WalletIdentity] | None = None,
     stop: asyncio.Event | None = None,
 ) -> int:
     """Upsert Polymarket profiles; returns number of profiles written."""
     ops: list[UpdateOne] = []
     processed = 0
-    stored_identities = await _load_stored_identities(db, list(wallets.keys()))
 
-    for wallet, name in wallets.items():
+    for wallet in wallets:
         if stop is not None and stop.is_set():
             break
-
-        identity = (identities or {}).get(wallet) or stored_identities.get(wallet)
-        bio = identity.bio if identity else ""
-        profile_image = identity.profile_image if identity else ""
 
         stats, equity, ts = await _fetch_user_metrics(data, pnl, wallet)
         profile = build_profile(
             wallet=wallet,
-            name=name,
             stats=stats,
             equity=equity,
             ts=ts,
             synced_at=datetime.now(UTC),
-            bio=bio,
-            profile_image=profile_image,
         )
         ops.append(
             UpdateOne(
@@ -652,9 +607,8 @@ async def sync_profiles_for_wallets(
     data: DataClient,
     pnl: PnlClient,
     settings: Settings,
-    wallets: dict[str, str],
+    wallets: list[str],
     *,
-    identities: dict[str, WalletIdentity] | None = None,
     stop: asyncio.Event | None = None,
 ) -> None:
     """Sync Polymarket profiles for given wallets."""
@@ -664,7 +618,7 @@ async def sync_profiles_for_wallets(
         return
 
     profiles = await upsert_profiles_for_wallets(
-        db, data, pnl, wallets, identities=identities, stop=stop
+        db, data, pnl, wallets, stop=stop
     )
 
     logger.info(
