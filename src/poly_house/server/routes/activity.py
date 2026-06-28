@@ -107,20 +107,13 @@ async def list_activity(
     return {"items": await cursor.to_list(page.limit)}
 
 
-@router.get("/user")
-async def list_user_activity(
-    db: Db,
-    page: Page,
-    user: str,
+@router.get("/user-event")
+async def list_user_event_activity(
+    db: Db, user: str, event_slug: str
 ) -> dict[str, Any]:
-    query: dict[str, Any] = {"proxy_wallet": user}
-    cursor = (
-        db.activities.find(query, {"_id": 0})
-        .sort("timestamp", -1)
-        .skip(page.offset)
-        .limit(page.limit)
-    )
-    docs = await cursor.to_list(page.limit)
+    query: dict[str, Any] = {"proxy_wallet": user, "event_slug": event_slug}
+    cursor = db.activities.find(query, {"_id": 0}).sort("timestamp", -1)
+    docs = await cursor.to_list(None)
     activities = [Activity.model_validate(doc) for doc in docs]
     condition_ids = list({activity.condition_id for activity in activities})
     markets = await _load_markets_by_condition_id(db, condition_ids)
