@@ -18,6 +18,7 @@ from poly_house.sync.runner import (
     run_sync_holder,
     run_sync_trades,
     run_update_tag_profiles,
+    run_add_user,
 )
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
@@ -104,6 +105,20 @@ def update_tag_profile(
     settings = Settings()
     options = TagProfileSyncOptions(wallet=wallet, limit=limit)
     asyncio.run(run_update_tag_profiles(settings, options, watch=watch))
+
+
+@app.command("add-user")
+def add_user_cmd(
+    wallet: Annotated[str, typer.Argument(help="proxy_wallet (0x...)")],
+) -> None:
+    """Gamma public-profile → users; принудительный sync profiles/home_profiles/tag_profiles."""
+    _configure_logging()
+    settings = Settings()
+    try:
+        asyncio.run(run_add_user(settings, wallet))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
 
 
 @app.command()

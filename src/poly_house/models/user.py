@@ -20,5 +20,14 @@ class User(BaseModel):
     def from_payload(cls, raw: dict[str, Any]) -> User:
         return cls.model_validate(raw)
 
+    @classmethod
+    def from_public_profile(cls, raw: dict[str, Any]) -> User:
+        return cls(
+            proxy_wallet=raw["proxyWallet"],
+            name=raw.get("name") or "",
+            bio="",
+            profile_image=raw.get("profileImage") or "",
+        )
+
     def to_update(self) -> dict[str, Any]:
         return self.model_dump(exclude={"proxy_wallet"})

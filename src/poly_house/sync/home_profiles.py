@@ -357,6 +357,9 @@ async def _add_new_activities_by_condition_id(
             break
         offset += settings.activity_page_limit
 
+    if offset > settings.activity_max_offset:
+        raise RuntimeError("Max offset reached")
+
 
 async def _fetch_new_activities_fallback(
     db: Database,
@@ -386,7 +389,6 @@ async def _fetch_new_activities_fallback(
         if len(raw) < settings.activity_page_limit:
             break
         offset += settings.activity_page_limit
-
 
     condition_ids = await _load_relevant_condition_ids_for_event(db, event_id)
     for condition_id in condition_ids:
@@ -428,6 +430,7 @@ async def _fetch_new_activities(
         offset += settings.activity_page_limit
 
     if offset > settings.activity_max_offset:
+        logger.warning("Max offset reached for event", event_id=event_id)
         return await _fetch_new_activities_fallback(
             db, data, settings, user, event_id, min_timestamp
         )

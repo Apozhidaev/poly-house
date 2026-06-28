@@ -43,3 +43,10 @@ class GammaClient:
         events = payload.get("events") or []
         next_cursor = payload.get("next_cursor") or None
         return events, next_cursor
+
+    async def public_profile(self, *, address: str) -> dict[str, Any] | None:
+        return await self._http.get_or_none(
+            f"{BASE_URL}/public-profile",
+            params={"address": address},
+            rate_limiter=rate_limiter,
+        )

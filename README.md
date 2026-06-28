@@ -57,6 +57,9 @@ uv run poly-house sync-home-profile
 # tag profiles holders (activities × market tags) → коллекция tag_profiles
 uv run poly-house update-tag-profile
 
+# один пользователь: Gamma public-profile → users + profiles/home_profiles/tag_profiles
+uv run poly-house add-user 0x...
+
 # бесконечный цикл с интервалом WATCH_INTERVAL из конфига (остановка — Ctrl+C)
 uv run poly-house sync-event --watch
 uv run poly-house sync-event --open --watch
