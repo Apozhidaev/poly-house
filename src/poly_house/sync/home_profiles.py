@@ -280,6 +280,25 @@ async def _load_event_slug_to_id(db: Database) -> dict[str, int]:
     return {doc["slug"]: doc["_id"] for doc in docs}
 
 
+async def _load_relevant_condition_ids_for_event(
+    db: Database, event_id: int
+) -> list[str]:
+    event = await db.events.find_one(
+        {"_id": event_id},
+        projection={"relevant_market_ids": 1},
+    )
+    if event is None:
+        return []
+    market_ids = event.get("relevant_market_ids") or []
+    if not market_ids:
+        return []
+    docs = await db.markets.find(
+        {"_id": {"$in": market_ids}},
+        projection={"condition_id": 1},
+    ).to_list(length=None)
+    return [doc["condition_id"] for doc in docs]
+
+
 async def _load_activity_cache_pending_sync(
     db: Database, wallets: list[str]
 ) -> list[ActivityCache]:
@@ -369,7 +388,7 @@ async def _fetch_new_activities_fallback(
         offset += settings.activity_page_limit
 
 
-    condition_ids = []
+    condition_ids = await _load_relevant_condition_ids_for_event(db, event_id)
     for condition_id in condition_ids:
         await _add_new_activities_by_condition_id(
             data, settings, user, condition_id, pages, min_timestamp
