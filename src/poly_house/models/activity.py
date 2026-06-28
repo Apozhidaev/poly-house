@@ -33,25 +33,26 @@ class Activity(BaseModel):
 
 
 class UserActivityItem(Activity):
-    question: str | None = None
+    title: str | None = None
     group_item_title: str | None = None
     asset: str | None = None
+    outcome: str | None = None
 
 
 def build_user_activity_item(
     activity: Activity, market: dict[str, Any] | None
 ) -> UserActivityItem:
-    item = UserActivityItem.model_validate(activity)
-    if market is None:
-        return item
-    clob_token_ids = market.get("clob_token_ids") or []
-    return item.model_copy(
-        update={
-            "question": market["question"],
-            "group_item_title": market.get("group_item_title"),
-            "asset": clob_token_ids[activity.outcome_index],
-        }
-    )
+    kwargs = activity.model_dump()
+    if market is not None:
+        clob_token_ids = market.get("clob_token_ids") or []
+        outcomes = market.get("outcomes") or []
+        kwargs.update(
+            title=market["question"],
+            group_item_title=market.get("group_item_title"),
+            asset=clob_token_ids[activity.outcome_index],
+            outcome=outcomes[activity.outcome_index],
+        )
+    return UserActivityItem(**kwargs)
 
 
 class MarketActivity(BaseModel):

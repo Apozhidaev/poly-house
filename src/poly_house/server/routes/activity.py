@@ -29,6 +29,7 @@ async def _load_markets_by_condition_id(
             "question": 1,
             "group_item_title": 1,
             "clob_token_ids": 1,
+            "outcomes": 1,
         },
     ).to_list(length=None)
     return {doc["condition_id"]: doc for doc in docs}
@@ -40,7 +41,7 @@ async def _load_events_by_slug(
     if not event_slugs:
         return {}
     docs: list[Doc] = await db.events.find(
-        {"slug": {"$in": event_slugs}},
+        {"slug": {"$in": event_slugs}, "closed": True},
         projection={"slug": 1, "title": 1, "icon": 1},
     ).to_list(length=None)
     return {doc["slug"]: doc for doc in docs}
@@ -195,7 +196,7 @@ async def list_event_activity(
         {
             **ea.model_dump(),
             "title": event_map[ea.slug]["title"],
-            "icon": event_map[ea.slug]["icon"],
+            "icon": event_map[ea.slug].get("icon"),
         }
         for ea in page_event_activities
     ]
