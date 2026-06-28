@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
@@ -8,6 +9,26 @@ from pydantic.alias_generators import to_camel
 
 from poly_house.models.ts import TimeSeriesPoint
 from poly_house.utils.metrics import fit_trend_by_days
+
+
+class ActivityType(StrEnum):
+    TRADE = "TRADE"
+    SPLIT = "SPLIT"
+    MERGE = "MERGE"
+    REDEEM = "REDEEM"
+    CONVERSION = "CONVERSION"
+
+
+MARKET_ACTIVITY_TYPES: tuple[ActivityType, ...] = (
+    ActivityType.TRADE,
+    ActivityType.SPLIT,
+    ActivityType.MERGE,
+    ActivityType.REDEEM,
+)
+
+ALL_ACTIVITY_TYPES: tuple[ActivityType, ...] = MARKET_ACTIVITY_TYPES + (
+    ActivityType.CONVERSION,
+)
 
 
 class Activity(BaseModel):

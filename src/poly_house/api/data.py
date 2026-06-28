@@ -3,12 +3,14 @@ from __future__ import annotations
 import csv
 import io
 import zipfile
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.api.rate_limiter import RateLimiter
 from poly_house.models import EquitySnapshot, LeaderboardStats
+from poly_house.models.activity import ActivityType
 
 BASE_URL = "https://data-api.polymarket.com"
 rate_limiter = RateLimiter(interval=1, count=5)
@@ -132,7 +134,7 @@ class DataClient:
         offset: int,
         market: str | None = None,
         event_id: int | None = None,
-        activity_type: str | None = None,
+        activity_types: Sequence[ActivityType] | None = None,
     ) -> list[dict[str, Any]]:
         """Страница /activity по пользователю, новые первыми."""
         params: dict[str, Any] = {
@@ -146,8 +148,8 @@ class DataClient:
             params["eventId"] = event_id
         elif market is not None:
             params["market"] = market
-        if activity_type is not None:
-            params["type"] = activity_type
+        if activity_types is not None:
+            params["type"] = ",".join(t.value for t in activity_types)
         return (
             await self._http.get(
                 f"{BASE_URL}/activity",

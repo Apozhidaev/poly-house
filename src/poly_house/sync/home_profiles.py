@@ -13,6 +13,9 @@ from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Activity, ActivityCache, ActivityMetrics, HomeProfile
 from poly_house.models.activity import (
+    ALL_ACTIVITY_TYPES,
+    ActivityType,
+    MARKET_ACTIVITY_TYPES,
     build_market_activities,
     metrics_from_market_activities,
 )
@@ -346,7 +349,7 @@ async def _add_new_activities_by_condition_id(
             limit=settings.activity_page_limit,
             offset=offset,
             market=condition_id,
-            activity_type="TRADE,SPLIT,MERGE,REDEEM",
+            activity_types=MARKET_ACTIVITY_TYPES,
         )
         if not raw:
             break
@@ -379,7 +382,7 @@ async def _fetch_new_activities_fallback(
             limit=settings.activity_page_limit,
             offset=offset,
             event_id=event_id,
-            activity_type="CONVERSION",
+            activity_types=(ActivityType.CONVERSION,),
         )
         if not raw:
             break
@@ -419,7 +422,7 @@ async def _fetch_new_activities(
             limit=settings.activity_page_limit,
             offset=offset,
             event_id=event_id,
-            activity_type="TRADE,SPLIT,MERGE,REDEEM,CONVERSION",
+            activity_types=ALL_ACTIVITY_TYPES,
         )
         if not raw:
             break
