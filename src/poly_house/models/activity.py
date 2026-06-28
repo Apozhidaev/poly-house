@@ -43,7 +43,7 @@ class MarketActivity(BaseModel):
 
 
 class EventActivity(BaseModel):
-    event_slug: str
+    slug: str
     proxy_wallet: str
     pnl: float
     volume: float
@@ -194,7 +194,7 @@ def build_event_activity(activities: list[Activity]) -> EventActivity | None:
 
     first_activity = activities[0]
     return EventActivity(
-        event_slug=first_activity.event_slug,
+        slug=first_activity.event_slug,
         proxy_wallet=first_activity.proxy_wallet,
         pnl=compute_pnl(market_activities),
         volume=compute_volume(market_activities),

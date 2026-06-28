@@ -73,6 +73,22 @@ async def list_activity(
     return {"items": await cursor.to_list(page.limit)}
 
 
+@router.get("/user")
+async def list_user_activity(
+    db: Db,
+    page: Page,
+    user: str,
+) -> dict[str, Any]:
+    query: dict[str, Any] = {"proxy_wallet": user}
+    cursor = (
+        db.activities.find(query, {"_id": 0})
+        .sort("timestamp", -1)
+        .skip(page.offset)
+        .limit(page.limit)
+    )
+    return {"items": await cursor.to_list(page.limit)}
+
+
 @router.get("/not-relevant")
 async def list_not_relevant_activity(db: Db, page: Page) -> dict[str, Any]:
     market_docs = await db.markets.find(
@@ -112,7 +128,10 @@ async def list_market_activity(
     market_activities = build_market_activities(activities, resolved_outcomes)
     market_activities.sort(key=lambda ma: ma.timestamp, reverse=True)
     page_items = market_activities[page.offset : page.offset + page.limit]
-    return {"items": [ma.model_dump() for ma in page_items], "total": len(market_activities)}
+    return {
+        "items": [ma.model_dump() for ma in page_items],
+        "total": len(market_activities),
+    }
 
 
 @router.get("/by-event")
@@ -128,6 +147,26 @@ async def list_event_activity(
     docs = await db.activities.find(query).to_list(length=None)
     activities = [Activity.model_validate(doc) for doc in docs]
     event_activities = build_event_activities(activities)
-    event_activities.sort(key=lambda ea: ea.timestamp, reverse=True)
-    page_items = event_activities[page.offset : page.offset + page.limit]
-    return {"items": [ea.model_dump() for ea in page_items], "total": len(event_activities)}
+    event_slugs = list({ea.slug for ea in event_activities})
+    event_docs = await db.events.find(
+        {"slug": {"$in": event_slugs}},
+        projection={"slug": 1, "title": 1, "icon": 1},
+    ).to_list(length=None)
+    event_map = {doc["slug"]: doc for doc in event_docs}
+    home_event_activities = [
+        ea for ea in event_activities if event_map.get(ea.slug) is not None
+    ]
+    home_event_activities.sort(key=lambda ea: ea.timestamp, reverse=True)
+    page_event_activities = home_event_activities[
+        page.offset : page.offset + page.limit
+    ]
+    page_items = [
+        {
+            **ea.model_dump(),
+            "title": event_map[ea.slug]["title"],
+            "icon": event_map[ea.slug]["icon"],
+        }
+        for ea in page_event_activities
+    ]
+
+    return {"items": page_items, "total": len(home_event_activities)}
