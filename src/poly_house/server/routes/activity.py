@@ -4,12 +4,46 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Query
 
-from poly_house.models import Activity
-from poly_house.models.activity import build_event_activities, build_market_activities
+from poly_house.db import Doc
+from poly_house.models.activity import (
+    Activity,
+    build_event_activities,
+    build_market_activities,
+    build_user_activity_item,
+)
 from poly_house.models.market import load_resolved_outcomes
 from poly_house.server.deps import Db, Page
 
 router = APIRouter(prefix="/activity", tags=["activity"])
+
+
+async def _load_markets_by_condition_id(
+    db: Db, condition_ids: list[str]
+) -> dict[str, dict[str, Any]]:
+    if not condition_ids:
+        return {}
+    docs = await db.markets.find(
+        {"condition_id": {"$in": condition_ids}},
+        projection={
+            "condition_id": 1,
+            "question": 1,
+            "group_item_title": 1,
+            "clob_token_ids": 1,
+        },
+    ).to_list(length=None)
+    return {doc["condition_id"]: doc for doc in docs}
+
+
+async def _load_events_by_slug(
+    db: Db, event_slugs: list[str]
+) -> dict[str, dict[str, Any]]:
+    if not event_slugs:
+        return {}
+    docs: list[Doc] = await db.events.find(
+        {"slug": {"$in": event_slugs}},
+        projection={"slug": 1, "title": 1, "icon": 1},
+    ).to_list(length=None)
+    return {doc["slug"]: doc for doc in docs}
 
 
 def _build_activity_query(
@@ -86,7 +120,15 @@ async def list_user_activity(
         .skip(page.offset)
         .limit(page.limit)
     )
-    return {"items": await cursor.to_list(page.limit)}
+    docs = await cursor.to_list(page.limit)
+    activities = [Activity.model_validate(doc) for doc in docs]
+    condition_ids = list({activity.condition_id for activity in activities})
+    markets = await _load_markets_by_condition_id(db, condition_ids)
+    items = [
+        build_user_activity_item(activity, markets.get(activity.condition_id))
+        for activity in activities
+    ]
+    return {"items": [item.model_dump() for item in items]}
 
 
 @router.get("/not-relevant")
@@ -148,11 +190,7 @@ async def list_event_activity(
     activities = [Activity.model_validate(doc) for doc in docs]
     event_activities = build_event_activities(activities)
     event_slugs = list({ea.slug for ea in event_activities})
-    event_docs = await db.events.find(
-        {"slug": {"$in": event_slugs}},
-        projection={"slug": 1, "title": 1, "icon": 1},
-    ).to_list(length=None)
-    event_map = {doc["slug"]: doc for doc in event_docs}
+    event_map = await _load_events_by_slug(db, event_slugs)
     home_event_activities = [
         ea for ea in event_activities if event_map.get(ea.slug) is not None
     ]

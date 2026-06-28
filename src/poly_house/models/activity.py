@@ -32,6 +32,28 @@ class Activity(BaseModel):
         return self.model_dump()
 
 
+class UserActivityItem(Activity):
+    question: str | None = None
+    group_item_title: str | None = None
+    asset: str | None = None
+
+
+def build_user_activity_item(
+    activity: Activity, market: dict[str, Any] | None
+) -> UserActivityItem:
+    item = UserActivityItem.model_validate(activity)
+    if market is None:
+        return item
+    clob_token_ids = market.get("clob_token_ids") or []
+    return item.model_copy(
+        update={
+            "question": market["question"],
+            "group_item_title": market.get("group_item_title"),
+            "asset": clob_token_ids[activity.outcome_index],
+        }
+    )
+
+
 class MarketActivity(BaseModel):
     condition_id: str
     proxy_wallet: str
