@@ -132,7 +132,7 @@ class DataClient:
         offset: int,
         market: str | None = None,
         event_id: int | None = None,
-        activity_type: str = "TRADE,SPLIT,MERGE,REDEEM,CONVERSION",
+        activity_type: str | None = None,
     ) -> list[dict[str, Any]]:
         """Страница /activity по пользователю, новые первыми."""
         params: dict[str, Any] = {
@@ -141,12 +141,13 @@ class DataClient:
             "offset": offset,
             "sortBy": "TIMESTAMP",
             "sortDirection": "DESC",
-            "type": activity_type,
         }
         if event_id is not None:
             params["eventId"] = event_id
         elif market is not None:
             params["market"] = market
+        if activity_type is not None:
+            params["type"] = activity_type
         return (
             await self._http.get(
                 f"{BASE_URL}/activity",

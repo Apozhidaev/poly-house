@@ -333,9 +333,9 @@ async def _get_activity_watermark(
 async def _add_new_activities_by_condition_id(
     data: DataClient,
     settings: Settings,
+    pages: list[list[dict[str, Any]]],
     user: str,
     condition_id: str,
-    pages: list[list[dict[str, Any]]],
     min_timestamp: int,
 ) -> None:
     """Пагинация /activity по condition_id (новые первыми) до min_timestamp или max_offset."""
@@ -346,6 +346,7 @@ async def _add_new_activities_by_condition_id(
             limit=settings.activity_page_limit,
             offset=offset,
             market=condition_id,
+            activity_type="TRADE,SPLIT,MERGE,REDEEM",
         )
         if not raw:
             break
@@ -393,7 +394,7 @@ async def _fetch_new_activities_fallback(
     condition_ids = await _load_relevant_condition_ids_for_event(db, event_id)
     for condition_id in condition_ids:
         await _add_new_activities_by_condition_id(
-            data, settings, user, condition_id, pages, min_timestamp
+            data, settings, pages, user, condition_id, min_timestamp
         )
 
     activities = [p for page in reversed(pages) for p in reversed(page)]
@@ -418,6 +419,7 @@ async def _fetch_new_activities(
             limit=settings.activity_page_limit,
             offset=offset,
             event_id=event_id,
+            activity_type="TRADE,SPLIT,MERGE,REDEEM,CONVERSION",
         )
         if not raw:
             break
