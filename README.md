@@ -63,6 +63,9 @@ uv run poly-house update-tag-profile
 # один пользователь: Gamma public-profile → users + profiles/home_profiles/tag_profiles
 uv run poly-house add-user 0x...
 
+# диагностика: wallet+event_slug с >= 3500 activities (TSV + total)
+uv run poly-house data-fix
+
 # бесконечный цикл с интервалом WATCH_INTERVAL из конфига (остановка — Ctrl+C)
 uv run poly-house sync-event --watch
 uv run poly-house sync-event --open --watch
@@ -96,6 +99,7 @@ uv run poly-house update-tag-profile --wallet 0x...
 - **sync-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> 24h) — Polymarket API (leaderboard, equity, pnl time series) → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `sync-holder`.
 - **sync-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> 6h) — activity cache из `/closed-positions` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/activity?eventId=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `sync-holder`.
 - **update-tag-profile**: для каждого wallet из `profiles` — activities из `activities`, у которых `condition_id` есть в `markets`; агрегирует в `market_activities` (по `condition_id`: `volume` = sum `usdc_size`, `pnl` = signed sum TRADE BUY/SELL); по `tag_ids` маркета группирует метрики и upsert в `tag_profiles` (уникальность `(proxy_wallet, tag_id)`, `_id` — MongoDB ObjectId). Поля: `markets_count`, `pnl` (sum per-market `pnl`), `volume` (sum per-market `volume`), `win_rate` (доля market_activities с `pnl > 0`), `pnl_growth` / `pnl_stability` (линейная регрессия по per-market `pnl` с `use_cumulative=True`; `null` при одном маркете). Маркет с несколькими тегами учитывается в каждом теге. Нужны `sync-event`, `profiles` и `activities`.
+- **data-fix**: aggregate по `activities` — группы `(proxy_wallet, event_slug)` с count >= 3500; stdout TSV `count`, `proxy_wallet`, `event_slug`, последняя строка `total`.
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
 ### REST API

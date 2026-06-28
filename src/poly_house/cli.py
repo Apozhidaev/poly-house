@@ -20,6 +20,7 @@ from poly_house.sync.runner import (
     run_update_tag_profiles,
     run_add_user,
     run_add_event,
+    run_data_fix,
 )
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
@@ -134,6 +135,14 @@ def add_event_cmd(
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
+
+
+@app.command("data-fix")
+def data_fix_cmd() -> None:
+    """Список wallet+event_slug с >= 3500 activities (TSV + total)."""
+    _configure_logging()
+    settings = Settings()
+    asyncio.run(run_data_fix(settings))
 
 
 @app.command()
