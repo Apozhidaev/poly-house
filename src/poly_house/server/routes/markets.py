@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from poly_house.models.market import relevant_market_query
+from poly_house.models.market import deadline_soon_market_query, relevant_market_query
 from poly_house.server.deps import Db, Page
 
 router = APIRouter(prefix="/markets", tags=["markets"])
@@ -60,6 +60,25 @@ async def check_home_markets(body: CheckHomeMarketsRequest, db: Db) -> dict[str,
     return {
         "condition_ids": [cid for cid in body.condition_ids if cid in found],
     }
+
+
+@router.get("/deadline-soon")
+async def list_deadline_soon_markets(
+    db: Db,
+    page: Page,
+    neg_risk: bool | None = None,
+    tag_ids: list[int] | None = None,
+    q: str | None = None,
+) -> dict[str, Any]:
+    query = deadline_soon_market_query(tag_ids=tag_ids, neg_risk=neg_risk, q=q)
+    total = await db.markets.count_documents(query)
+    cursor = (
+        db.markets.find(query)
+        .sort("deadline", 1)
+        .skip(page.offset)
+        .limit(page.limit)
+    )
+    return {"items": await cursor.to_list(page.limit), "total": total}
 
 
 @router.get("/{market_id}")

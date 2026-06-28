@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from typing import Any
 
@@ -16,6 +17,22 @@ RELEVANT_MARKET_FILTER: dict[str, Any] = {"relevant": True}
 
 def relevant_market_query(**filters: Any) -> dict[str, Any]:
     return {**RELEVANT_MARKET_FILTER, **filters}
+
+
+def deadline_soon_market_query(
+    *,
+    tag_ids: list[int] | None = None,
+    neg_risk: bool | None = None,
+    q: str | None = None,
+) -> dict[str, Any]:
+    query = relevant_market_query(closed=False, deadline={"$ne": None})
+    if neg_risk is not None:
+        query["neg_risk"] = neg_risk
+    if tag_ids:
+        query["tag_ids"] = {"$in": tag_ids}
+    if q:
+        query["question"] = {"$regex": re.escape(q), "$options": "i"}
+    return query
 
 
 class Market(BaseModel):
