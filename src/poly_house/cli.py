@@ -138,11 +138,16 @@ def add_event_cmd(
 
 
 @app.command("data-fix")
-def data_fix_cmd() -> None:
+def data_fix_cmd(
+    apply: Annotated[
+        bool,
+        typer.Option("--apply", help="Удалить activities и activity_caches."),
+    ] = False,
+) -> None:
     """Список wallet+event_slug с >= 3500 activities (TSV + total)."""
     _configure_logging()
     settings = Settings()
-    asyncio.run(run_data_fix(settings))
+    asyncio.run(run_data_fix(settings, apply=apply))
 
 
 @app.command()

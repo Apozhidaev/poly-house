@@ -16,7 +16,7 @@ from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.add_user import add_user
-from poly_house.sync.data_fix import list_activity_overflows, print_activity_overflows
+from poly_house.sync.data_fix import run_data_fix as execute_data_fix
 from poly_house.sync.events import add_event_by_slug, sync_events
 from poly_house.sync.home_profiles import sync_home_profiles
 from poly_house.sync.profiles import sync_profiles
@@ -306,14 +306,16 @@ async def run_add_event(settings: Settings, slug: str) -> None:
     await _run(settings, make_once, watch=False)
 
 
-async def run_data_fix(settings: Settings) -> None:
+async def run_data_fix(settings: Settings, *, apply: bool = False) -> None:
     async def once(db: Database, _stop: asyncio.Event | None) -> None:
         started = time.monotonic()
-        rows = await list_activity_overflows(db)
-        print_activity_overflows(rows)
+        result = await execute_data_fix(db, apply=apply)
         logger.info(
             "data_fix_run_complete",
-            rows=len(rows),
+            rows=len(result.rows),
+            apply=apply,
+            activities_deleted=result.activities_deleted,
+            activity_caches_deleted=result.activity_caches_deleted,
             seconds=round(time.monotonic() - started, 1),
         )
 
