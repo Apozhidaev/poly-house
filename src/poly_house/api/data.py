@@ -132,6 +132,7 @@ class DataClient:
         offset: int,
         market: str | None = None,
         event_id: int | None = None,
+        activity_type: str = "TRADE,SPLIT,MERGE,REDEEM,CONVERSION",
     ) -> list[dict[str, Any]]:
         """Страница /activity по пользователю, новые первыми."""
         params: dict[str, Any] = {
@@ -140,7 +141,7 @@ class DataClient:
             "offset": offset,
             "sortBy": "TIMESTAMP",
             "sortDirection": "DESC",
-            "type": "TRADE,SPLIT,MERGE,REDEEM,CONVERSION",
+            "type": activity_type,
         }
         if event_id is not None:
             params["eventId"] = event_id

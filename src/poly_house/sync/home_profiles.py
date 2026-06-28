@@ -218,9 +218,7 @@ async def _fetch_activity_cache_entries(
     return [p for page in reversed(pages) for p in reversed(page)]
 
 
-async def _write_activity_cache(
-    db: Database, raw_entries: list[dict[str, Any]]
-) -> int:
+async def _write_activity_cache(db: Database, raw_entries: list[dict[str, Any]]) -> int:
     if not raw_entries:
         return 0
     ops = [
@@ -313,7 +311,76 @@ async def _get_activity_watermark(
     return doc["timestamp"] if doc else None
 
 
+async def _add_new_activities_by_condition_id(
+    data: DataClient,
+    settings: Settings,
+    user: str,
+    condition_id: str,
+    pages: list[list[dict[str, Any]]],
+    min_timestamp: int,
+) -> None:
+    """Пагинация /activity по condition_id (новые первыми) до min_timestamp или max_offset."""
+    offset = 0
+    while offset <= settings.activity_max_offset:
+        raw = await data.activity_page(
+            user=user,
+            limit=settings.activity_page_limit,
+            offset=offset,
+            market=condition_id,
+        )
+        if not raw:
+            break
+        fresh = [p for p in raw if p["timestamp"] > min_timestamp]
+        pages.append(fresh)
+        if any(p["timestamp"] <= min_timestamp for p in raw):
+            break
+        if len(raw) < settings.activity_page_limit:
+            break
+        offset += settings.activity_page_limit
+
+
+async def _fetch_new_activities_fallback(
+    db: Database,
+    data: DataClient,
+    settings: Settings,
+    user: str,
+    event_id: int,
+    min_timestamp: int,
+) -> list[dict[str, Any]]:
+    """Пагинация /activity по event (новые первыми) до min_timestamp или max_offset."""
+    pages: list[list[dict[str, Any]]] = []
+    offset = 0
+    while offset <= settings.activity_max_offset:
+        raw = await data.activity_page(
+            user=user,
+            limit=settings.activity_page_limit,
+            offset=offset,
+            event_id=event_id,
+            activity_type="CONVERSION",
+        )
+        if not raw:
+            break
+        fresh = [p for p in raw if p["timestamp"] > min_timestamp]
+        pages.append(fresh)
+        if any(p["timestamp"] <= min_timestamp for p in raw):
+            break
+        if len(raw) < settings.activity_page_limit:
+            break
+        offset += settings.activity_page_limit
+
+
+    condition_ids = []
+    for condition_id in condition_ids:
+        await _add_new_activities_by_condition_id(
+            data, settings, user, condition_id, pages, min_timestamp
+        )
+
+    activities = [p for page in reversed(pages) for p in reversed(page)]
+    return sorted(activities, key=lambda a: a["timestamp"])
+
+
 async def _fetch_new_activities(
+    db: Database,
     data: DataClient,
     settings: Settings,
     user: str,
@@ -340,6 +407,12 @@ async def _fetch_new_activities(
         if len(raw) < settings.activity_page_limit:
             break
         offset += settings.activity_page_limit
+
+    if offset > settings.activity_max_offset:
+        return await _fetch_new_activities_fallback(
+            db, data, settings, user, event_id, min_timestamp
+        )
+
     return [p for page in reversed(pages) for p in reversed(page)]
 
 
@@ -382,6 +455,7 @@ async def _sync_activities_for_wallets(
             db, entry.proxy_wallet, entry.event_slug
         )
         activities = await _fetch_new_activities(
+            db,
             data,
             settings,
             entry.proxy_wallet,
@@ -390,9 +464,7 @@ async def _sync_activities_for_wallets(
         )
         if activities:
             total_activities += await _write_activities(db, activities)
-        await _mark_activity_cache_synced(
-            db, entry.proxy_wallet, entry.event_slug
-        )
+        await _mark_activity_cache_synced(db, entry.proxy_wallet, entry.event_slug)
         logger.info(
             "activities_synced",
             wallet=entry.proxy_wallet,
@@ -428,9 +500,7 @@ async def sync_home_profiles_for_wallets(
     activities = await _sync_activities_for_wallets(
         db, data, settings, wallets, stop=stop
     )
-    home_profiles = await _upsert_home_profiles_for_wallets(
-        db, wallets, stop=stop
-    )
+    home_profiles = await _upsert_home_profiles_for_wallets(db, wallets, stop=stop)
 
     logger.info(
         "home_profiles_sync_complete",
@@ -463,6 +533,4 @@ async def sync_home_profiles(
         limit=limit,
     )
 
-    await sync_home_profiles_for_wallets(
-        db, data, settings, wallets_to_sync, stop=stop
-    )
+    await sync_home_profiles_for_wallets(db, data, settings, wallets_to_sync, stop=stop)
