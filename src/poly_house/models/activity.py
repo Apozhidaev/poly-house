@@ -30,6 +30,38 @@ ALL_ACTIVITY_TYPES: tuple[ActivityType, ...] = MARKET_ACTIVITY_TYPES + (
     ActivityType.CONVERSION,
 )
 
+ACTIVITY_OVERFLOW_TYPE = "ACTIVITY_OVERFLOW"
+ACTIVITY_OVERFLOW_TIMESTAMP = 4102444800  # 2100-01-01 UTC — watermark sentinel
+ACTIVITY_OVERFLOW_CONDITION_ID = "0x0000000000000000000000000000000000000000"
+ACTIVITY_OVERFLOW_OUTCOME_INDEX = 999
+
+
+def activity_overflow_marker(*, proxy_wallet: str, event_slug: str) -> dict[str, Any]:
+    """Synthetic activity when event activity cannot be fully fetched."""
+    return {
+        "proxyWallet": proxy_wallet,
+        "timestamp": ACTIVITY_OVERFLOW_TIMESTAMP,
+        "conditionId": ACTIVITY_OVERFLOW_CONDITION_ID,
+        "type": ACTIVITY_OVERFLOW_TYPE,
+        "size": 0,
+        "usdcSize": 0,
+        "transactionHash": "",
+        "price": 0,
+        "asset": "",
+        "side": "",
+        "outcomeIndex": ACTIVITY_OVERFLOW_OUTCOME_INDEX,
+        "title": "",
+        "slug": "",
+        "icon": "",
+        "eventSlug": event_slug,
+        "outcome": "",
+        "name": "",
+        "pseudonym": "",
+        "bio": "",
+        "profileImage": "",
+        "profileImageOptimized": "",
+    }
+
 
 class Activity(BaseModel):
     model_config = ConfigDict(
