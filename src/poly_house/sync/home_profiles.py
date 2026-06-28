@@ -285,21 +285,21 @@ async def _load_event_slug_to_id(db: Database) -> dict[str, int]:
 
 async def _load_relevant_condition_ids_for_event(
     db: Database, event_id: int
-) -> list[str]:
+) -> tuple[list[str], str]:
     event = await db.events.find_one(
         {"_id": event_id},
-        projection={"relevant_market_ids": 1},
+        projection={"relevant_market_ids": 1, "slug": 1},
     )
     if event is None:
-        return []
+        return [], ""
     market_ids = event.get("relevant_market_ids") or []
     if not market_ids:
-        return []
+        return [], ""
     docs = await db.markets.find(
         {"_id": {"$in": market_ids}},
         projection={"condition_id": 1},
     ).to_list(length=None)
-    return [doc["condition_id"] for doc in docs]
+    return [doc["condition_id"] for doc in docs], event["slug"]
 
 
 async def _load_activity_cache_pending_sync(
@@ -340,7 +340,7 @@ async def _add_new_activities_by_condition_id(
     user: str,
     condition_id: str,
     min_timestamp: int,
-) -> None:
+) -> bool:
     """Пагинация /activity по condition_id (новые первыми) до min_timestamp или max_offset."""
     offset = 0
     while offset <= settings.activity_max_offset:
@@ -362,7 +362,9 @@ async def _add_new_activities_by_condition_id(
         offset += settings.activity_page_limit
 
     if offset > settings.activity_max_offset:
-        raise RuntimeError("Max offset reached")
+        return False
+
+    return True
 
 
 async def _fetch_new_activities_fallback(
@@ -394,11 +396,37 @@ async def _fetch_new_activities_fallback(
             break
         offset += settings.activity_page_limit
 
-    condition_ids = await _load_relevant_condition_ids_for_event(db, event_id)
+    condition_ids, event_slug = await _load_relevant_condition_ids_for_event(db, event_id)
     for condition_id in condition_ids:
-        await _add_new_activities_by_condition_id(
+        success = await _add_new_activities_by_condition_id(
             data, settings, pages, user, condition_id, min_timestamp
         )
+        if not success:
+            return [
+                {
+                    "proxyWallet": user,
+                    "timestamp": 1782656540,
+                    "conditionId": "0x180a6723d150af39a5c40e0761321942e5728c61",
+                    "type": "TOO_MANY_ACTIVITIES",
+                    "size": 0,
+                    "usdcSize": 0,
+                    "transactionHash": "",
+                    "price": 0,
+                    "asset": "",
+                    "side": "",
+                    "outcomeIndex": 999,
+                    "title": "",
+                    "slug": "",
+                    "icon": "",
+                    "eventSlug": event_slug,
+                    "outcome": "",
+                    "name": "",
+                    "pseudonym": "",
+                    "bio": "",
+                    "profileImage": "",
+                    "profileImageOptimized": "",
+                }
+            ]
 
     activities = [p for page in reversed(pages) for p in reversed(page)]
     return sorted(activities, key=lambda a: a["timestamp"])
