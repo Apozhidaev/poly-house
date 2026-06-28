@@ -46,11 +46,16 @@ def build_user_activity_item(
     if market is not None:
         clob_token_ids = market.get("clob_token_ids") or []
         outcomes = market.get("outcomes") or []
+        outcome_index = activity.outcome_index
         kwargs.update(
             title=market["question"],
             group_item_title=market.get("group_item_title"),
-            asset=clob_token_ids[activity.outcome_index],
-            outcome=outcomes[activity.outcome_index],
+            asset=clob_token_ids[outcome_index]
+            if outcome_index < len(clob_token_ids)
+            else None,
+            outcome=outcomes[outcome_index]
+            if outcome_index < len(outcomes)
+            else None,
         )
     return UserActivityItem(**kwargs)
 
