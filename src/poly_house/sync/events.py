@@ -231,3 +231,33 @@ async def sync_events(
         open_only=open_only,
     )
     return written
+
+
+@dataclass
+class AddEventResult:
+    event_id: int
+    markets: int
+    tags: int
+
+
+async def add_event_by_slug(
+    db: Database,
+    gamma: GammaClient,
+    settings: Settings,
+    slug: str,
+) -> AddEventResult:
+    raw = await gamma.event_by_slug(slug=slug)
+    if raw is None:
+        raise ValueError(f"event not found: {slug}")
+
+    entry = parse_event_with_markets(raw)
+    synced_at = datetime.now(UTC)
+    await _write_page(db, [entry], synced_at)
+
+    result = AddEventResult(
+        event_id=entry.event.id,
+        markets=len(entry.markets),
+        tags=len(entry.event.tags),
+    )
+    logger.info("add_event_complete", slug=slug, **result.__dict__)
+    return result

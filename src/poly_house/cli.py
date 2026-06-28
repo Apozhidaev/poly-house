@@ -19,6 +19,7 @@ from poly_house.sync.runner import (
     run_sync_trades,
     run_update_tag_profiles,
     run_add_user,
+    run_add_event,
 )
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
@@ -116,6 +117,20 @@ def add_user_cmd(
     settings = Settings()
     try:
         asyncio.run(run_add_user(settings, wallet))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@app.command("add-event")
+def add_event_cmd(
+    slug: Annotated[str, typer.Argument(help="Event slug.")],
+) -> None:
+    """Gamma /events/slug → tags, event, nested markets."""
+    _configure_logging()
+    settings = Settings()
+    try:
+        asyncio.run(run_add_event(settings, slug))
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc

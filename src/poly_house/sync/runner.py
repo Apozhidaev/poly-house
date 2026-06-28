@@ -16,7 +16,7 @@ from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.add_user import add_user
-from poly_house.sync.events import sync_events
+from poly_house.sync.events import add_event_by_slug, sync_events
 from poly_house.sync.home_profiles import sync_home_profiles
 from poly_house.sync.profiles import sync_profiles
 from poly_house.sync.holders import sync_holder_profiles
@@ -277,6 +277,25 @@ async def run_add_user(settings: Settings, wallet: str) -> None:
             logger.info(
                 "add_user_run_complete",
                 wallet=wallet,
+                **result.__dict__,
+                seconds=round(time.monotonic() - started, 1),
+            )
+
+        return once
+
+    await _run(settings, make_once, watch=False)
+
+
+async def run_add_event(settings: Settings, slug: str) -> None:
+    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
+        gamma = GammaClient(http)
+
+        async def once(_stop: asyncio.Event | None) -> None:
+            started = time.monotonic()
+            result = await add_event_by_slug(db, gamma, settings, slug)
+            logger.info(
+                "add_event_run_complete",
+                slug=slug,
                 **result.__dict__,
                 seconds=round(time.monotonic() - started, 1),
             )

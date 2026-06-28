@@ -50,3 +50,9 @@ class GammaClient:
             params={"address": address},
             rate_limiter=rate_limiter,
         )
+
+    async def event_by_slug(self, *, slug: str) -> dict[str, Any] | None:
+        return await self._http.get_or_none(
+            f"{BASE_URL}/events/slug/{slug}",
+            rate_limiter=rate_limiter,
+        )
