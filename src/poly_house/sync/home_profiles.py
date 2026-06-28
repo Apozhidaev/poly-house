@@ -64,7 +64,7 @@ async def _load_home_profiles_needing_sync(
     return [doc["_id"] for doc in docs]
 
 
-def build_home_profile(
+def _build_home_profile(
     *,
     wallet: str,
     metrics: ActivityMetrics | None,
@@ -89,7 +89,7 @@ async def _flush_home_profile_writes(db: Database, ops: list[UpdateOne]) -> None
         await db.home_profiles.bulk_write(ops)
 
 
-async def upsert_home_profiles_for_wallets(
+async def _upsert_home_profiles_for_wallets(
     db: Database,
     wallets: list[str],
     *,
@@ -101,14 +101,14 @@ async def upsert_home_profiles_for_wallets(
 
     ops: list[UpdateOne] = []
     processed = 0
-    home_metrics = await load_home_metrics(db, wallets)
+    home_metrics = await _load_home_metrics(db, wallets)
 
     for wallet in wallets:
         if stop is not None and stop.is_set():
             break
 
         metrics = home_metrics.get(wallet)
-        home_profile = build_home_profile(
+        home_profile = _build_home_profile(
             wallet=wallet,
             metrics=metrics,
             synced_at=datetime.now(UTC),
@@ -132,7 +132,7 @@ async def upsert_home_profiles_for_wallets(
     return processed
 
 
-async def load_closed_condition_ids(db: Database) -> list[str]:
+async def _load_closed_condition_ids(db: Database) -> list[str]:
     cursor = db.markets.find(
         relevant_market_query(closed=True),
         projection={"condition_id": 1},
@@ -141,12 +141,12 @@ async def load_closed_condition_ids(db: Database) -> list[str]:
     return [doc["condition_id"] for doc in docs]
 
 
-async def load_home_metrics(
+async def _load_home_metrics(
     db: Database, wallets: list[str]
 ) -> dict[str, ActivityMetrics]:
     if not wallets:
         return {}
-    condition_ids = await load_closed_condition_ids(db)
+    condition_ids = await _load_closed_condition_ids(db)
     if not condition_ids:
         return {}
     resolved_outcomes = await load_resolved_outcomes(db, condition_ids)
@@ -238,7 +238,7 @@ async def _write_activity_cache(
     return len(ops)
 
 
-async def sync_activity_cache_for_wallets(
+async def _sync_activity_cache_for_wallets(
     db: Database,
     data: DataClient,
     settings: Settings,
@@ -258,7 +258,7 @@ async def sync_activity_cache_for_wallets(
             )
         except RuntimeError as exc:
             logger.warning(
-                "profile_activity_cache_sync_failed",
+                "activity_cache_sync_failed",
                 wallet=proxy_wallet,
                 error=str(exc),
             )
@@ -266,7 +266,7 @@ async def sync_activity_cache_for_wallets(
         if entries:
             total_entries += await _write_activity_cache(db, entries)
         logger.info(
-            "profile_activity_cache_synced",
+            "activity_cache_synced",
             wallet=proxy_wallet,
             activity_cache=len(entries),
             watermark=watermark,
@@ -360,7 +360,7 @@ async def _mark_activity_cache_synced(
     )
 
 
-async def sync_activities_for_wallets(
+async def _sync_activities_for_wallets(
     db: Database,
     data: DataClient,
     settings: Settings,
@@ -394,7 +394,7 @@ async def sync_activities_for_wallets(
             db, entry.proxy_wallet, entry.event_slug
         )
         logger.info(
-            "activity_cache_activities_synced",
+            "activities_synced",
             wallet=entry.proxy_wallet,
             event_slug=entry.event_slug,
             event_id=event_id,
@@ -422,13 +422,13 @@ async def sync_home_profiles_for_wallets(
     activities = 0
     home_profiles = 0
 
-    activity_cache = await sync_activity_cache_for_wallets(
+    activity_cache = await _sync_activity_cache_for_wallets(
         db, data, settings, wallets, stop=stop
     )
-    activities = await sync_activities_for_wallets(
+    activities = await _sync_activities_for_wallets(
         db, data, settings, wallets, stop=stop
     )
-    home_profiles = await upsert_home_profiles_for_wallets(
+    home_profiles = await _upsert_home_profiles_for_wallets(
         db, wallets, stop=stop
     )
 
