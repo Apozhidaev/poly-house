@@ -33,10 +33,10 @@ class Activity(BaseModel):
 
 
 class UserActivityItem(Activity):
-    title: str | None = None
-    group_item_title: str | None = None
-    asset: str | None = None
-    outcome: str | None = None
+    title: str = ""
+    group_item_title: str = ""
+    asset: str = ""
+    outcome: str = ""
 
 
 def build_user_activity_item(
@@ -49,13 +49,13 @@ def build_user_activity_item(
         outcome_index = activity.outcome_index
         kwargs.update(
             title=market["question"],
-            group_item_title=market.get("group_item_title"),
+            group_item_title=market.get("group_item_title", ""),
             asset=clob_token_ids[outcome_index]
             if outcome_index < len(clob_token_ids)
-            else None,
+            else "",
             outcome=outcomes[outcome_index]
             if outcome_index < len(outcomes)
-            else None,
+            else "",
         )
     return UserActivityItem(**kwargs)
 
