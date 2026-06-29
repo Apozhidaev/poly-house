@@ -36,37 +36,19 @@ def compute_win_votes(
 ) -> float:
     if agg is None:
         return 0.0
-    if agg.pnl is None or agg.pnl <= 0:
+    if agg.win_holder_count is None or agg.markets_count is None or agg.pnl is None:
         return 0.0
-    if agg.win_holder_count is None or agg.markets_count is None:
+
+    markets_count = int(agg.markets_count)
+
+    if markets_count < 5:
+        return 0.0
+    if agg.pnl <= 0:
         return 0.0
     if agg.win_holder_count == 0:
         return 0.0
-    markets_count = int(agg.markets_count)
-    if markets_count == 0:
-        return 0.0
 
     p = agg.win_holder_count / agg.markets_count
-    ci = wilson_ci(p, markets_count, confidence=0.99999)
-    return ci[0]
-
-
-def compute_lose_votes(
-    agg: TagProfileAggregate | None,
-) -> float:
-    if agg is None:
-        return 0.0
-    if agg.pnl is None or agg.pnl <= 0:
-        return 0.0
-    if agg.lose_holder_count is None or agg.markets_count is None:
-        return 0.0
-    if agg.lose_holder_count == 0:
-        return 0.0
-    markets_count = int(agg.markets_count)
-    if markets_count == 0:
-        return 0.0
-
-    p = agg.lose_holder_count / agg.markets_count
     ci = wilson_ci(p, markets_count, confidence=0.99999)
     return ci[0]
 
