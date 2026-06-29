@@ -162,16 +162,30 @@ def _calendar_from_group_items(
     return deadlines
 
 
+def _same_deadline(
+    deadline_map: dict[int, datetime], markets_count: int
+) -> datetime | None:
+    if not deadline_map:
+        return None
+    if markets_count != len(deadline_map):
+        return None
+
+    deadlines = list(deadline_map.values())
+    max_deadline = max(deadlines)
+    min_deadline = min(deadlines)
+    if max_deadline - min_deadline > timedelta(hours=1):
+        return None
+    return max_deadline
+
+
 def get_deadline_map_for_markets(
     markets: list[Market], event_start_date: str, event_end_date: str | None
-) -> tuple[dict[int, datetime], bool]:
+) -> tuple[dict[int, datetime], bool, datetime | None]:
     if not markets:
-        return {}, False
+        return {}, False, None
 
     deadlines = _calendar_from_group_items(markets, event_start_date)
-    calendar_map = {
-        deadline.market_id: deadline.to_date() for deadline in deadlines
-    }
+    calendar_map = {deadline.market_id: deadline.to_date() for deadline in deadlines}
     deadline_map: dict[int, datetime] = {}
     for market in markets:
         deadline = calendar_map.get(market.id)
@@ -182,4 +196,9 @@ def get_deadline_map_for_markets(
         if end_date:
             deadline_map[market.id] = datetime.fromisoformat(end_date)
 
-    return deadline_map, len(markets) == len(deadlines)
+    markets_count = len(markets)
+    return (
+        deadline_map,
+        markets_count == len(deadlines),
+        _same_deadline(deadline_map, markets_count),
+    )
