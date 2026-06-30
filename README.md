@@ -120,6 +120,8 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /markets/{id}` | — |
 | `GET /tags` | `slug` |
 | `GET /tags/{id}` | — |
+| `GET /users` | пагинация `limit`, `offset` |
+| `GET /users/{proxy_wallet}` | — |
 | `GET /profile` | пагинация `limit`, `offset` |
 | `GET /profile/{proxy_wallet}` | — |
 | `POST /profile/batch` | body: `{ "proxy_wallets": [...] }` |
