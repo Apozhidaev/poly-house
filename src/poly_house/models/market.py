@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -24,8 +24,12 @@ def deadline_soon_market_query(
     tag_ids: list[int] | None = None,
     neg_risk: bool | None = None,
     q: str | None = None,
+    future_only: bool = False,
 ) -> dict[str, Any]:
-    query = relevant_market_query(closed=False, deadline={"$ne": None})
+    deadline: dict[str, Any] = {"$ne": None}
+    if future_only:
+        deadline["$gte"] = datetime.now(UTC)
+    query = relevant_market_query(closed=False, deadline=deadline)
     if neg_risk is not None:
         query["neg_risk"] = neg_risk
     if tag_ids:

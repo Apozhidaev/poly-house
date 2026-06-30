@@ -69,8 +69,11 @@ async def list_deadline_soon_markets(
     neg_risk: bool | None = None,
     tag_ids: list[int] | None = None,
     q: str | None = None,
+    future_only: bool = False,
 ) -> dict[str, Any]:
-    query = deadline_soon_market_query(tag_ids=tag_ids, neg_risk=neg_risk, q=q)
+    query = deadline_soon_market_query(
+        tag_ids=tag_ids, neg_risk=neg_risk, q=q, future_only=future_only
+    )
     total = await db.markets.count_documents(query)
     cursor = (
         db.markets.find(query)
