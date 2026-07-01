@@ -10,7 +10,7 @@ import structlog
 from poly_house.api.rate_limiter import RateLimiter
 
 logger = structlog.get_logger()
-_MAX_ATTEMPTS = 5
+_MAX_ATTEMPTS = 7
 
 class RateLimitedClient:
     """Async HTTP client with rate limiting (semaphore) and retry with exponential backoff."""
