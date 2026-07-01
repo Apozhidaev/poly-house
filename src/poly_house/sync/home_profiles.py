@@ -483,14 +483,24 @@ async def _sync_activities_for_wallets(
         watermark = await _get_activity_watermark(
             db, entry.proxy_wallet, entry.event_slug
         )
-        activities = await _fetch_new_activities(
-            db,
-            data,
-            settings,
-            entry.proxy_wallet,
-            event_id,
-            watermark,
-        )
+        try:
+            activities = await _fetch_new_activities(
+                db,
+                data,
+                settings,
+                entry.proxy_wallet,
+                event_id,
+                watermark,
+            )
+        except RuntimeError as exc:
+            logger.warning(
+                "activities_sync_failed",
+                wallet=entry.proxy_wallet,
+                event_slug=entry.event_slug,
+                event_id=event_id,
+                error=str(exc),
+            )
+            continue
         if activities:
             total_activities += await _write_activities(db, activities)
         await _mark_activity_cache_synced(db, entry.proxy_wallet, entry.event_slug)
