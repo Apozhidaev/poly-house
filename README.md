@@ -42,7 +42,7 @@ uv run basedpyright src/poly_house/
 uv run poly-house sync-event
 uv run poly-house sync-event --open
 
-# один event по slug: Gamma /events/slug → tags, event, markets
+# один event по slug: Gateway /gamma/events/slug → tags, event, markets
 uv run poly-house add-event <slug>
 
 # трейды + пользователи (для маркетов, обновлённых после прошлого прогона)
@@ -60,7 +60,7 @@ uv run poly-house sync-home-profile
 # tag profiles holders (activities × market tags) → коллекция tag_profiles
 uv run poly-house update-tag-profile
 
-# один пользователь: Gamma public-profile → users + profiles/home_profiles/tag_profiles
+# один пользователь: Gateway /gamma/public-profile → users + profiles/home_profiles/tag_profiles
 uv run poly-house add-user 0x...
 
 # диагностика: wallet+event_slug с >= 3500 activities (TSV + total)
@@ -91,9 +91,9 @@ uv run poly-house update-tag-profile --wallet 0x...
 
 Как это работает:
 
-- **sync-event**: events из Gamma API (`/events/keyset?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: `EVENTS_TAG_IDS`, `EVENTS_EXCLUDE_TAG_IDS` (API), `EVENTS_NEG_RISK`, `MARKETS_YES_NO_ONLY` (пропуск event, если среди nested markets есть не Yes/No).
+- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: `EVENTS_TAG_IDS`, `EVENTS_EXCLUDE_TAG_IDS` (API), `EVENTS_NEG_RISK`, `MARKETS_YES_NO_ONLY` (пропуск event, если среди nested markets есть не Yes/No).
 - **sync-event --open**: то же, с `closed=false` в API; watermark общий — `events_watermark`.
-- **add-event**: один event по slug из Gamma `/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`.
+- **add-event**: один event по slug из Gateway `/gamma/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`.
 - Первый прогон загружает events, обновлявшиеся за последние `UPDATED_IN_DAYS` дней (по умолчанию 30).
 - **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды из Data API (`/trades?takerOnly=true`) по watermark `timestamp` для каждого маркета (потолок API: `limit=1000`, `offset<=3000`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов.
 - **sync-holder**: для открытых relevant-маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — Data API `/holders`; для публичных holders (`displayUsernamePublic=true`) inline sync: `sync_profiles_for_wallets` (stale > `PROFILE_SYNC_INTERVAL_DAYS`), `sync_home_profiles_for_wallets` (stale > `HOME_PROFILE_SYNC_INTERVAL_HOURS`: activity cache → activities → upsert); `tag_profiles` обновляются только после home sync. Маркет пропускается, если `/holders` недоступен. Нужны `sync-event` и закрытые маркеты с тегами для `tag_profiles`.

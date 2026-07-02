@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import structlog
 
 from poly_house.api.data import DataClient
-from poly_house.api.gamma import GammaClient
+from poly_house.api.gateway import GatewayClient
 from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
@@ -30,13 +30,13 @@ class AddUserResult:
 
 async def add_user(
     db: Database,
-    gamma: GammaClient,
+    gateway: GatewayClient,
     data: DataClient,
     pnl: PnlClient,
     settings: Settings,
     wallet: str,
 ) -> AddUserResult:
-    raw = await gamma.public_profile(address=wallet)
+    raw = await gateway.public_profile(address=wallet)
     if raw is None:
         raise ValueError(f"public profile not found for {wallet}")
 

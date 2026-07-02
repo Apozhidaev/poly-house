@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db: str = "poly_house"
 
+    gateway_url: str = "http://localhost:8080"
+
     # watch-режим
     watch_interval: float = 60.0  # секунды между прогонами
 
@@ -37,7 +39,7 @@ class Settings(BaseSettings):
     events_neg_risk: bool | None = None
 
     # размеры страниц API
-    events_page_limit: int = 100  # /events/keyset max 100 (в доке Gamma указано иначе)
+    events_page_limit: int = 100  # /gamma/events max 100
     trades_page_limit: int = 1000  # максимум Data API
     trades_max_offset: int = 3000  # потолок offset в Data API
     holders_limit: int = 500  # max Data API /holders

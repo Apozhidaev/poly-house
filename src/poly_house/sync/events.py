@@ -8,7 +8,7 @@ from typing import Any
 import structlog
 from pymongo import ReplaceOne, UpdateOne
 
-from poly_house.api.gamma import GammaClient
+from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
@@ -75,7 +75,7 @@ async def _refresh_tag_events_count(db: Database) -> None:
 
 
 async def _fetch_pages(
-    gamma: GammaClient,
+    gateway: GatewayClient,
     watermark: str,
     settings: Settings,
     *,
@@ -93,7 +93,7 @@ async def _fetch_pages(
     while True:
         if stop is not None and stop.is_set():
             break
-        raw, next_cursor = await gamma.events_page(
+        raw, next_cursor = await gateway.events_page(
             limit=page_limit,
             cursor=cursor,
             tag_ids=settings.events_tag_ids,
@@ -188,7 +188,7 @@ async def _write_page(
 
 async def sync_events(
     db: Database,
-    gamma: GammaClient,
+    gateway: GatewayClient,
     settings: Settings,
     *,
     page_limit: int | None = None,
@@ -201,7 +201,7 @@ async def sync_events(
     logger.info("events_sync_start", watermark=watermark, open_only=open_only)
 
     pages, max_updated_at = await _fetch_pages(
-        gamma,
+        gateway,
         watermark,
         settings,
         page_limit=page_limit or settings.events_page_limit,
@@ -243,11 +243,11 @@ class AddEventResult:
 
 async def add_event_by_slug(
     db: Database,
-    gamma: GammaClient,
+    gateway: GatewayClient,
     settings: Settings,
     slug: str,
 ) -> AddEventResult:
-    raw = await gamma.event_by_slug(slug=slug)
+    raw = await gateway.event_by_slug(slug=slug)
     if raw is None:
         raise ValueError(f"event not found: {slug}")
 

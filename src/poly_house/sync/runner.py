@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import structlog
 
 from poly_house.api.data import DataClient
-from poly_house.api.gamma import GammaClient
+from poly_house.api.gateway import GatewayClient
 from poly_house.api.pnl import PnlClient
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
@@ -28,6 +28,7 @@ logger = structlog.get_logger()
 
 RunOnce = Callable[[asyncio.Event | None], Awaitable[None]]
 DbRunOnce = Callable[[Database, asyncio.Event | None], Awaitable[None]]
+GatewayRunOnce = Callable[[Database, RateLimitedClient, GatewayClient], RunOnce]
 
 
 @dataclass
@@ -55,6 +56,29 @@ async def _run(
                 await _watch_loop(once, settings)
             else:
                 await once(None)
+    finally:
+        await client.close()
+
+
+async def _run_with_gateway(
+    settings: Settings,
+    run_once: GatewayRunOnce,
+    *,
+    watch: bool,
+) -> None:
+    """Обвязка для команд с Gateway (gamma) + Data API."""
+    client = create_client(settings)
+    db = client[settings.mongo_db]
+    await ensure_indexes(db)
+
+    try:
+        async with RateLimitedClient() as http:
+            async with GatewayClient(settings) as gateway:
+                once = run_once(db, http, gateway)
+                if watch:
+                    await _watch_loop(once, settings)
+                else:
+                    await once(None)
     finally:
         await client.close()
 
@@ -102,14 +126,14 @@ async def _watch_loop(once: RunOnce, settings: Settings) -> None:
 async def run_sync_events(
     settings: Settings, options: EventSyncOptions, *, watch: bool = False
 ) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        gamma = GammaClient(http)
-
+    def make_once(
+        db: Database, _http: RateLimitedClient, gateway: GatewayClient
+    ) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             entries = await sync_events(
                 db,
-                gamma,
+                gateway,
                 settings,
                 page_limit=options.page_limit,
                 max_pages=options.max_pages,
@@ -126,7 +150,7 @@ async def run_sync_events(
 
         return once
 
-    await _run(settings, make_once, watch=watch)
+    await _run_with_gateway(settings, make_once, watch=watch)
 
 
 async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
@@ -267,14 +291,15 @@ async def run_update_tag_profiles(
 
 
 async def run_add_user(settings: Settings, wallet: str) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        gamma = GammaClient(http)
+    def make_once(
+        db: Database, http: RateLimitedClient, gateway: GatewayClient
+    ) -> RunOnce:
         data = DataClient(http)
         pnl = PnlClient(http)
 
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            result = await add_user(db, gamma, data, pnl, settings, wallet)
+            result = await add_user(db, gateway, data, pnl, settings, wallet)
             logger.info(
                 "add_user_run_complete",
                 wallet=wallet,
@@ -284,16 +309,16 @@ async def run_add_user(settings: Settings, wallet: str) -> None:
 
         return once
 
-    await _run(settings, make_once, watch=False)
+    await _run_with_gateway(settings, make_once, watch=False)
 
 
 async def run_add_event(settings: Settings, slug: str) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        gamma = GammaClient(http)
-
+    def make_once(
+        db: Database, _http: RateLimitedClient, gateway: GatewayClient
+    ) -> RunOnce:
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            result = await add_event_by_slug(db, gamma, settings, slug)
+            result = await add_event_by_slug(db, gateway, settings, slug)
             logger.info(
                 "add_event_run_complete",
                 slug=slug,
@@ -303,7 +328,7 @@ async def run_add_event(settings: Settings, slug: str) -> None:
 
         return once
 
-    await _run(settings, make_once, watch=False)
+    await _run_with_gateway(settings, make_once, watch=False)
 
 
 async def run_data_fix(settings: Settings, *, apply: bool = False) -> None:

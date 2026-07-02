@@ -40,10 +40,10 @@ def _configure_logging() -> None:
 def sync_event(
     open_only: Annotated[bool, typer.Option("--open", help="Только открытые events (closed=false).")] = False,
     watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
-    limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /events/keyset.")] = None,
+    limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /gamma/events.")] = None,
     max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц events (для теста).")] = None,
 ) -> None:
-    """Синхронизация events + nested markets + tags из Gamma /events/keyset → MongoDB."""
+    """Синхронизация events + nested markets + tags из Gateway /gamma/events → MongoDB."""
     _configure_logging()
     settings = Settings()
     options = EventSyncOptions(open_only=open_only, page_limit=limit, max_pages=max_pages)
@@ -113,7 +113,7 @@ def update_tag_profile(
 def add_user_cmd(
     wallet: Annotated[str, typer.Argument(help="proxy_wallet (0x...)")],
 ) -> None:
-    """Gamma public-profile → users; принудительный sync profiles/home_profiles/tag_profiles."""
+    """Gateway /gamma/public-profile → users; принудительный sync profiles/home_profiles/tag_profiles."""
     _configure_logging()
     settings = Settings()
     try:
@@ -127,7 +127,7 @@ def add_user_cmd(
 def add_event_cmd(
     slug: Annotated[str, typer.Argument(help="Event slug.")],
 ) -> None:
-    """Gamma /events/slug → tags, event, nested markets."""
+    """Gateway /gamma/events/slug → tags, event, nested markets."""
     _configure_logging()
     settings = Settings()
     try:
