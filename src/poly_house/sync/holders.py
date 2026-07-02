@@ -6,7 +6,6 @@ from typing import Any
 import structlog
 from pymongo import UpdateOne
 
-from poly_house.api.data import DataClient
 from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
@@ -65,7 +64,6 @@ async def _upsert_users(db: Database, holders: dict[str, User]) -> None:
 
 async def sync_holder_profiles(
     db: Database,
-    data: DataClient,
     gateway: GatewayClient,
     settings: Settings,
     *,
@@ -82,7 +80,7 @@ async def sync_holder_profiles(
     for market in markets:
         if stop is not None and stop.is_set():
             break
-        holders_raw = await data.top_holders(
+        holders_raw = await gateway.top_holders(
             condition_id=market["condition_id"],
             limit=settings.holders_limit,
         )
@@ -99,7 +97,6 @@ async def sync_holder_profiles(
             if profile_stale:
                 await sync_profiles_for_wallets(
                     db,
-                    data,
                     gateway,
                     settings,
                     profile_stale,
@@ -110,7 +107,7 @@ async def sync_holder_profiles(
             )
             if home_stale:
                 await sync_home_profiles_for_wallets(
-                    db, data, settings, home_stale, stop=stop
+                    db, gateway, settings, home_stale, stop=stop
                 )
             if condition_tags and home_stale:
                 await update_tag_profiles_for_wallets(

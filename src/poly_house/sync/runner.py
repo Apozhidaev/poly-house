@@ -9,9 +9,7 @@ from dataclasses import dataclass
 
 import structlog
 
-from poly_house.api.data import DataClient
 from poly_house.api.gateway import GatewayClient
-from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.add_user import add_user
@@ -27,7 +25,7 @@ logger = structlog.get_logger()
 
 RunOnce = Callable[[asyncio.Event | None], Awaitable[None]]
 DbRunOnce = Callable[[Database, asyncio.Event | None], Awaitable[None]]
-GatewayRunOnce = Callable[[Database, RateLimitedClient, GatewayClient], RunOnce]
+GatewayRunOnce = Callable[[Database, GatewayClient], RunOnce]
 
 
 @dataclass
@@ -37,47 +35,24 @@ class EventSyncOptions:
     max_pages: int | None = None
 
 
-async def _run(
-    settings: Settings,
-    run_once: Callable[[Database, RateLimitedClient], RunOnce],
-    *,
-    watch: bool,
-) -> None:
-    """Общая обвязка: клиенты, индексы, одиночный прогон или watch-цикл."""
-    client = create_client(settings)
-    db = client[settings.mongo_db]
-    await ensure_indexes(db)
-
-    try:
-        async with RateLimitedClient() as http:
-            once = run_once(db, http)
-            if watch:
-                await _watch_loop(once, settings)
-            else:
-                await once(None)
-    finally:
-        await client.close()
-
-
 async def _run_with_gateway(
     settings: Settings,
     run_once: GatewayRunOnce,
     *,
     watch: bool,
 ) -> None:
-    """Обвязка для команд с Gateway + Data API."""
+    """Обвязка для команд с Gateway."""
     client = create_client(settings)
     db = client[settings.mongo_db]
     await ensure_indexes(db)
 
     try:
-        async with RateLimitedClient() as http:
-            async with GatewayClient(settings) as gateway:
-                once = run_once(db, http, gateway)
-                if watch:
-                    await _watch_loop(once, settings)
-                else:
-                    await once(None)
+        async with GatewayClient(settings) as gateway:
+            once = run_once(db, gateway)
+            if watch:
+                await _watch_loop(once, settings)
+            else:
+                await once(None)
     finally:
         await client.close()
 
@@ -125,9 +100,7 @@ async def _watch_loop(once: RunOnce, settings: Settings) -> None:
 async def run_sync_events(
     settings: Settings, options: EventSyncOptions, *, watch: bool = False
 ) -> None:
-    def make_once(
-        db: Database, _http: RateLimitedClient, gateway: GatewayClient
-    ) -> RunOnce:
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             entries = await sync_events(
@@ -153,12 +126,10 @@ async def run_sync_events(
 
 
 async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        data = DataClient(http)
-
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            n_trades, n_users = await sync_trades(db, data, settings, stop=stop)
+            n_trades, n_users = await sync_trades(db, gateway, settings, stop=stop)
             logger.info(
                 "trade_sync_run_complete",
                 trades=n_trades,
@@ -168,7 +139,7 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
 
         return once
 
-    await _run(settings, make_once, watch=watch)
+    await _run_with_gateway(settings, make_once, watch=watch)
 
 
 @dataclass
@@ -183,16 +154,11 @@ async def run_sync_profile(
     *,
     watch: bool = False,
 ) -> None:
-    def make_once(
-        db: Database, http: RateLimitedClient, gateway: GatewayClient
-    ) -> RunOnce:
-        data = DataClient(http)
-
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             await sync_profiles(
                 db,
-                data,
                 gateway,
                 settings,
                 wallet=options.wallet,
@@ -215,14 +181,12 @@ async def run_sync_home_profile(
     *,
     watch: bool = False,
 ) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
-        data = DataClient(http)
-
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             await sync_home_profiles(
                 db,
-                data,
+                gateway,
                 settings,
                 wallet=options.wallet,
                 limit=options.limit,
@@ -235,19 +199,15 @@ async def run_sync_home_profile(
 
         return once
 
-    await _run(settings, make_once, watch=watch)
+    await _run_with_gateway(settings, make_once, watch=watch)
 
 
 async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
-    def make_once(
-        db: Database, http: RateLimitedClient, gateway: GatewayClient
-    ) -> RunOnce:
-        data = DataClient(http)
-
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             processed, skipped = await sync_holder_profiles(
-                db, data, gateway, settings, stop=stop
+                db, gateway, settings, stop=stop
             )
             logger.info(
                 "holder_sync_run_complete",
@@ -292,14 +252,10 @@ async def run_update_tag_profiles(
 
 
 async def run_add_user(settings: Settings, wallet: str) -> None:
-    def make_once(
-        db: Database, http: RateLimitedClient, gateway: GatewayClient
-    ) -> RunOnce:
-        data = DataClient(http)
-
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            result = await add_user(db, gateway, data, settings, wallet)
+            result = await add_user(db, gateway, settings, wallet)
             logger.info(
                 "add_user_run_complete",
                 wallet=wallet,
@@ -313,9 +269,7 @@ async def run_add_user(settings: Settings, wallet: str) -> None:
 
 
 async def run_add_event(settings: Settings, slug: str) -> None:
-    def make_once(
-        db: Database, _http: RateLimitedClient, gateway: GatewayClient
-    ) -> RunOnce:
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             result = await add_event_by_slug(db, gateway, settings, slug)

@@ -7,7 +7,7 @@ from typing import Any
 import structlog
 from pymongo import UpdateOne
 
-from poly_house.api.data import DataClient
+from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Trade, User
@@ -27,13 +27,13 @@ async def _get_market_watermark(db: Database, condition_id: str) -> int | None:
 
 
 async def _fetch_new_trades(
-    data: DataClient, settings: Settings, condition_id: str, watermark: int | None
+    gateway: GatewayClient, settings: Settings, condition_id: str, watermark: int | None
 ) -> list[dict[str, Any]]:
     """Качаем страницы (новые первыми) до watermark или потолка offset, возвращаем по возрастанию timestamp."""
     pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.trades_max_offset:
-        raw = await data.trades_page(
+        raw = await gateway.trades_page(
             condition_id=condition_id, limit=settings.trades_page_limit, offset=offset
         )
         if not raw:
@@ -88,7 +88,7 @@ async def _select_markets(
 
 async def sync_trades(
     db: Database,
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     *,
     stop: asyncio.Event | None = None,
@@ -110,7 +110,7 @@ async def sync_trades(
             break
         market_watermark = await _get_market_watermark(db, market["condition_id"])
         trades = await _fetch_new_trades(
-            data, settings, market["condition_id"], market_watermark
+            gateway, settings, market["condition_id"], market_watermark
         )
         if trades:
             n_users = await _write_trades(db, trades)

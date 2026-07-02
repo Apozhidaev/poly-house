@@ -8,7 +8,6 @@ from typing import Any
 import structlog
 from pymongo import UpdateOne
 
-from poly_house.api.data import DataClient
 from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
@@ -103,17 +102,13 @@ def build_profile(
 
 
 async def _fetch_user_metrics(
-    data: DataClient,
     gateway: GatewayClient,
     wallet: str,
 ) -> tuple[LeaderboardStats | None, EquitySnapshot | None, PnlTimeSeries | None]:
-    stats, equity_rows, ts = await asyncio.gather(
-        data.leaderboard_stats(user=wallet),
-        data.accounting_equity(user=wallet),
+    stats, equity, ts = await asyncio.gather(
+        gateway.leaderboard_stats(user=wallet),
+        gateway.accounting_equity(user=wallet),
         gateway.pnl_time_series(user=wallet),
-    )
-    equity = (
-        max(equity_rows, key=lambda row: row.valuation_time) if equity_rows else None
     )
     return stats, equity, ts
 
@@ -125,7 +120,6 @@ async def _flush_profile_writes(db: Database, ops: list[UpdateOne]) -> None:
 
 async def upsert_profiles_for_wallets(
     db: Database,
-    data: DataClient,
     gateway: GatewayClient,
     wallets: list[str],
     *,
@@ -139,7 +133,7 @@ async def upsert_profiles_for_wallets(
         if stop is not None and stop.is_set():
             break
 
-        stats, equity, ts = await _fetch_user_metrics(data, gateway, wallet)
+        stats, equity, ts = await _fetch_user_metrics(gateway, wallet)
         profile = build_profile(
             wallet=wallet,
             stats=stats,
@@ -168,7 +162,6 @@ async def upsert_profiles_for_wallets(
 
 async def sync_profiles_for_wallets(
     db: Database,
-    data: DataClient,
     gateway: GatewayClient,
     settings: Settings,
     wallets: list[str],
@@ -182,7 +175,7 @@ async def sync_profiles_for_wallets(
         return
 
     profiles = await upsert_profiles_for_wallets(
-        db, data, gateway, wallets, stop=stop
+        db, gateway, wallets, stop=stop
     )
 
     logger.info(
@@ -195,7 +188,6 @@ async def sync_profiles_for_wallets(
 
 async def sync_profiles(
     db: Database,
-    data: DataClient,
     gateway: GatewayClient,
     settings: Settings,
     *,
@@ -216,5 +208,5 @@ async def sync_profiles(
     )
 
     await sync_profiles_for_wallets(
-        db, data, gateway, settings, wallets_to_sync, stop=stop
+        db, gateway, settings, wallets_to_sync, stop=stop
     )

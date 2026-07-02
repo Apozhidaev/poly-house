@@ -5,10 +5,11 @@ import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
 import structlog
 from pymongo import ReplaceOne, UpdateOne
 
-from poly_house.api.data import DataClient
+from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Activity, ActivityCache, ActivityMetrics, HomeProfile
@@ -195,7 +196,7 @@ def _activity_cache_min_timestamp(settings: Settings, watermark: int | None) -> 
 
 
 async def _fetch_activity_cache_entries(
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     user: str,
     watermark: int | None,
@@ -205,7 +206,7 @@ async def _fetch_activity_cache_entries(
     pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.activity_cache_max_offset:
-        raw = await data.closed_positions_page(
+        raw = await gateway.closed_positions_page(
             user=user,
             limit=settings.activity_cache_page_limit,
             offset=offset,
@@ -242,7 +243,7 @@ async def _write_activity_cache(db: Database, raw_entries: list[dict[str, Any]])
 
 async def _sync_activity_cache_for_wallets(
     db: Database,
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     wallets: list[str],
     *,
@@ -256,9 +257,9 @@ async def _sync_activity_cache_for_wallets(
         watermark = await _get_activity_cache_watermark(db, proxy_wallet)
         try:
             entries = await _fetch_activity_cache_entries(
-                data, settings, proxy_wallet, watermark
+                gateway, settings, proxy_wallet, watermark
             )
-        except RuntimeError as exc:
+        except (RuntimeError, httpx.HTTPStatusError, httpx.RequestError) as exc:
             logger.warning(
                 "activity_cache_sync_failed",
                 wallet=proxy_wallet,
@@ -335,7 +336,7 @@ async def _get_activity_watermark(
 
 
 async def _add_new_activities_by_condition_id(
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     pages: list[list[dict[str, Any]]],
     user: str,
@@ -345,7 +346,7 @@ async def _add_new_activities_by_condition_id(
     """Пагинация /activity по condition_id (новые первыми) до min_timestamp или max_offset."""
     offset = 0
     while offset <= settings.activity_max_offset:
-        raw = await data.activity_page(
+        raw = await gateway.activity_page(
             user=user,
             limit=settings.activity_page_limit,
             offset=offset,
@@ -367,7 +368,7 @@ async def _add_new_activities_by_condition_id(
 
 async def _fetch_new_activities_fallback(
     db: Database,
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     user: str,
     event_id: int,
@@ -377,7 +378,7 @@ async def _fetch_new_activities_fallback(
     pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.activity_max_offset:
-        raw = await data.activity_page(
+        raw = await gateway.activity_page(
             user=user,
             limit=settings.activity_page_limit,
             offset=offset,
@@ -397,7 +398,7 @@ async def _fetch_new_activities_fallback(
     condition_ids, event_slug = await _load_relevant_condition_ids_for_event(db, event_id)
     for condition_id in condition_ids:
         success = await _add_new_activities_by_condition_id(
-            data, settings, pages, user, condition_id, min_timestamp
+            gateway, settings, pages, user, condition_id, min_timestamp
         )
         if not success:
             return [activity_overflow_marker(proxy_wallet=user, event_slug=event_slug)]
@@ -408,7 +409,7 @@ async def _fetch_new_activities_fallback(
 
 async def _fetch_new_activities(
     db: Database,
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     user: str,
     event_id: int,
@@ -419,7 +420,7 @@ async def _fetch_new_activities(
     pages: list[list[dict[str, Any]]] = []
     offset = 0
     while offset <= settings.activity_max_offset:
-        raw = await data.activity_page(
+        raw = await gateway.activity_page(
             user=user,
             limit=settings.activity_page_limit,
             offset=offset,
@@ -439,7 +440,7 @@ async def _fetch_new_activities(
     if offset > settings.activity_max_offset:
         logger.warning("Max offset reached for event", event_id=event_id)
         return await _fetch_new_activities_fallback(
-            db, data, settings, user, event_id, min_timestamp
+            db, gateway, settings, user, event_id, min_timestamp
         )
 
     return [p for page in reversed(pages) for p in reversed(page)]
@@ -464,7 +465,7 @@ async def _mark_activity_cache_synced(
 
 async def _sync_activities_for_wallets(
     db: Database,
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     wallets: list[str],
     *,
@@ -486,13 +487,13 @@ async def _sync_activities_for_wallets(
         try:
             activities = await _fetch_new_activities(
                 db,
-                data,
+                gateway,
                 settings,
                 entry.proxy_wallet,
                 event_id,
                 watermark,
             )
-        except RuntimeError as exc:
+        except (RuntimeError, httpx.HTTPStatusError, httpx.RequestError) as exc:
             logger.warning(
                 "activities_sync_failed",
                 wallet=entry.proxy_wallet,
@@ -517,7 +518,7 @@ async def _sync_activities_for_wallets(
 
 async def sync_home_profiles_for_wallets(
     db: Database,
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     wallets: list[str],
     *,
@@ -534,10 +535,10 @@ async def sync_home_profiles_for_wallets(
     home_profiles = 0
 
     activity_cache = await _sync_activity_cache_for_wallets(
-        db, data, settings, wallets, stop=stop
+        db, gateway, settings, wallets, stop=stop
     )
     activities = await _sync_activities_for_wallets(
-        db, data, settings, wallets, stop=stop
+        db, gateway, settings, wallets, stop=stop
     )
     home_profiles = await _upsert_home_profiles_for_wallets(db, wallets, stop=stop)
 
@@ -553,7 +554,7 @@ async def sync_home_profiles_for_wallets(
 
 async def sync_home_profiles(
     db: Database,
-    data: DataClient,
+    gateway: GatewayClient,
     settings: Settings,
     *,
     wallet: str | None = None,
@@ -572,4 +573,4 @@ async def sync_home_profiles(
         limit=limit,
     )
 
-    await sync_home_profiles_for_wallets(db, data, settings, wallets_to_sync, stop=stop)
+    await sync_home_profiles_for_wallets(db, gateway, settings, wallets_to_sync, stop=stop)

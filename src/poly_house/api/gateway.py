@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Self
 
@@ -7,9 +8,16 @@ import httpx
 import structlog
 
 from poly_house.config import Settings
-from poly_house.models import PnlTimeSeries, TimeSeriesPoint
+from poly_house.models import EquitySnapshot, LeaderboardStats, PnlTimeSeries, TimeSeriesPoint
+from poly_house.models.activity import ActivityType
 
 logger = structlog.get_logger()
+
+
+def _parse_valuation_time(raw: str) -> datetime:
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+    return datetime.fromisoformat(raw)
 
 
 class GatewayClient:
@@ -130,3 +138,127 @@ class GatewayClient:
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             logger.warning("gateway_order_books_failed", error=str(exc))
             return []
+
+    async def trades_page(
+        self, *, condition_id: str, limit: int, offset: int
+    ) -> list[dict[str, Any]]:
+        """Страница /data/trades по маркету, новые первыми, только taker-сделки."""
+        params: dict[str, Any] = {
+            "market": condition_id,
+            "takerOnly": "true",
+            "limit": limit,
+            "offset": offset,
+        }
+        resp = await self._client.get(f"{self._base}/data/trades", params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        return data if isinstance(data, list) else []
+
+    async def top_holders(
+        self, *, condition_id: str, limit: int = 500
+    ) -> list[dict[str, Any]] | None:
+        """Топ держателей по маркету (single request, no pagination)."""
+        try:
+            resp = await self._client.get(
+                f"{self._base}/data/holders",
+                params={"market": condition_id, "limit": limit},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data if isinstance(data, list) else None
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            logger.warning(
+                "gateway_top_holders_failed",
+                condition_id=condition_id,
+                error=str(exc),
+            )
+            return None
+
+    async def leaderboard_stats(self, *, user: str) -> LeaderboardStats | None:
+        """GET /data/leaderboard?timePeriod=ALL&user=... → PNL и vol за всё время или None."""
+        try:
+            resp = await self._client.get(
+                f"{self._base}/data/leaderboard",
+                params={"timePeriod": "ALL", "user": user},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            logger.warning("gateway_leaderboard_failed", user=user, error=str(exc))
+            return None
+        if isinstance(data, list) and len(data) > 0:
+            entry = data[0]
+            return LeaderboardStats(pnl=entry.get("pnl", 0), vol=entry.get("vol", 0))
+        return None
+
+    async def accounting_equity(self, *, user: str) -> EquitySnapshot | None:
+        """GET /data/accounting/snapshot → EquitySnapshot или None."""
+        try:
+            resp = await self._client.get(
+                f"{self._base}/data/accounting/snapshot",
+                params={"user": user},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            logger.warning("gateway_accounting_equity_failed", user=user, error=str(exc))
+            return None
+        if not isinstance(data, dict):
+            return None
+        try:
+            return EquitySnapshot(
+                cash_balance=float(data["cashBalance"]),
+                positions_value=float(data["positionsValue"]),
+                equity=float(data["equity"]),
+                valuation_time=_parse_valuation_time(str(data["valuationTime"])),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            logger.warning("gateway_accounting_equity_parse_failed", user=user, error=str(exc))
+            return None
+
+    async def activity_page(
+        self,
+        *,
+        user: str,
+        limit: int,
+        offset: int,
+        market: str | None = None,
+        event_id: int | None = None,
+        activity_types: Sequence[ActivityType] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Страница /data/activity по пользователю, новые первыми."""
+        params: dict[str, Any] = {
+            "user": user,
+            "limit": limit,
+            "offset": offset,
+            "sortBy": "TIMESTAMP",
+            "sortDirection": "DESC",
+        }
+        if event_id is not None:
+            params["eventId"] = event_id
+        elif market is not None:
+            params["market"] = market
+        if activity_types is not None:
+            params["type"] = ",".join(t.value for t in activity_types)
+        resp = await self._client.get(f"{self._base}/data/activity", params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        return data if isinstance(data, list) else []
+
+    async def closed_positions_page(
+        self, *, user: str, limit: int, offset: int
+    ) -> list[dict[str, Any]]:
+        """Страница /data/closed-positions по пользователю, новые первыми."""
+        params: dict[str, Any] = {
+            "user": user,
+            "limit": limit,
+            "offset": offset,
+            "sortBy": "TIMESTAMP",
+            "sortDirection": "DESC",
+        }
+        resp = await self._client.get(
+            f"{self._base}/data/closed-positions", params=params
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data if isinstance(data, list) else []
