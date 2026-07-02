@@ -11,7 +11,6 @@ import structlog
 
 from poly_house.api.data import DataClient
 from poly_house.api.gateway import GatewayClient
-from poly_house.api.pnl import PnlClient
 from poly_house.api.rate_limited_client import RateLimitedClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
@@ -66,7 +65,7 @@ async def _run_with_gateway(
     *,
     watch: bool,
 ) -> None:
-    """Обвязка для команд с Gateway (gamma) + Data API."""
+    """Обвязка для команд с Gateway + Data API."""
     client = create_client(settings)
     db = client[settings.mongo_db]
     await ensure_indexes(db)
@@ -184,16 +183,17 @@ async def run_sync_profile(
     *,
     watch: bool = False,
 ) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
+    def make_once(
+        db: Database, http: RateLimitedClient, gateway: GatewayClient
+    ) -> RunOnce:
         data = DataClient(http)
-        pnl = PnlClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             await sync_profiles(
                 db,
                 data,
-                pnl,
+                gateway,
                 settings,
                 wallet=options.wallet,
                 limit=options.limit,
@@ -206,7 +206,7 @@ async def run_sync_profile(
 
         return once
 
-    await _run(settings, make_once, watch=watch)
+    await _run_with_gateway(settings, make_once, watch=watch)
 
 
 async def run_sync_home_profile(
@@ -239,14 +239,15 @@ async def run_sync_home_profile(
 
 
 async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
-    def make_once(db: Database, http: RateLimitedClient) -> RunOnce:
+    def make_once(
+        db: Database, http: RateLimitedClient, gateway: GatewayClient
+    ) -> RunOnce:
         data = DataClient(http)
-        pnl = PnlClient(http)
 
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             processed, skipped = await sync_holder_profiles(
-                db, data, pnl, settings, stop=stop
+                db, data, gateway, settings, stop=stop
             )
             logger.info(
                 "holder_sync_run_complete",
@@ -257,7 +258,7 @@ async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
 
         return once
 
-    await _run(settings, make_once, watch=watch)
+    await _run_with_gateway(settings, make_once, watch=watch)
 
 
 @dataclass
@@ -295,11 +296,10 @@ async def run_add_user(settings: Settings, wallet: str) -> None:
         db: Database, http: RateLimitedClient, gateway: GatewayClient
     ) -> RunOnce:
         data = DataClient(http)
-        pnl = PnlClient(http)
 
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            result = await add_user(db, gateway, data, pnl, settings, wallet)
+            result = await add_user(db, gateway, data, settings, wallet)
             logger.info(
                 "add_user_run_complete",
                 wallet=wallet,

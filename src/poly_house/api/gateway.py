@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Self
 
 import httpx
 import structlog
 
 from poly_house.config import Settings
+from poly_house.models import PnlTimeSeries, TimeSeriesPoint
 
 logger = structlog.get_logger()
 
@@ -77,6 +79,41 @@ class GatewayClient:
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             logger.warning("gateway_event_by_slug_failed", slug=slug, error=str(exc))
             return None
+
+    async def pnl_time_series(self, *, user: str) -> PnlTimeSeries | None:
+        """GET /pnl/user-pnl?user_address&interval=all&fidelity=1d → PnlTimeSeries."""
+        try:
+            resp = await self._client.get(
+                f"{self._base}/pnl/user-pnl",
+                params={"user_address": user, "interval": "all", "fidelity": "1d"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            logger.warning("gateway_pnl_time_series_failed", user=user, error=str(exc))
+            return None
+
+        if not data or not isinstance(data, list):
+            return None
+
+        points: list[TimeSeriesPoint] = []
+        for item in data:
+            try:
+                t = item.get("t") or item.get("timestamp")
+                p = item.get("p") or item.get("pnl")
+                if t is not None and p is not None:
+                    if isinstance(t, (int, float)):
+                        ts = datetime.fromtimestamp(int(t))
+                    else:
+                        ts = datetime.fromisoformat(str(t))
+                    points.append(TimeSeriesPoint(timestamp=ts, value=float(p)))
+            except (ValueError, TypeError):
+                continue
+
+        if not points:
+            return None
+
+        return PnlTimeSeries(wallet_address=user, data=points)
 
     async def order_books(self, token_ids: list[str]) -> list[dict[str, Any]]:
         """POST /clob/order-books; [] при недоступности."""

@@ -6,7 +6,6 @@ import structlog
 
 from poly_house.api.data import DataClient
 from poly_house.api.gateway import GatewayClient
-from poly_house.api.pnl import PnlClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import User
@@ -32,7 +31,6 @@ async def add_user(
     db: Database,
     gateway: GatewayClient,
     data: DataClient,
-    pnl: PnlClient,
     settings: Settings,
     wallet: str,
 ) -> AddUserResult:
@@ -50,7 +48,7 @@ async def add_user(
 
     wallet_list = [user.proxy_wallet]
     await sync_profiles_for_wallets(
-        db, data, pnl, settings, wallet_list
+        db, data, gateway, settings, wallet_list
     )
     await sync_home_profiles_for_wallets(
         db, data, settings, wallet_list
