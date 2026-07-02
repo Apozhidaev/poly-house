@@ -23,7 +23,7 @@ def _parse_valuation_time(raw: str) -> datetime:
 class GatewayClient:
     def __init__(self, settings: Settings) -> None:
         self._base = settings.gateway_url.rstrip("/")
-        self._client = httpx.AsyncClient(timeout=60)
+        self._client = httpx.AsyncClient(timeout=None)
 
     async def close(self) -> None:
         await self._client.aclose()
