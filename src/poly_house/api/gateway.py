@@ -81,7 +81,7 @@ class GatewayClient:
 
     async def event_by_slug(self, *, slug: str) -> dict[str, Any] | None:
         try:
-            resp = await self._client.get(f"{self._base}/gamma/events/slug/{slug}")
+            resp = await self._client.post(f"{self._base}/gamma/events/slug/{slug}")
             resp.raise_for_status()
             return resp.json()
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
