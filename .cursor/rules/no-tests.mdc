@@ -1,0 +1,13 @@
+---
+description: Never add tests to this project
+alwaysApply: true
+---
+
+# No tests in this project
+
+- **Never** add tests: no new test files, no test directories, no pytest/unittest harness, no test fixtures or snapshots for this repo.
+- **Never** reintroduce pytest or other test runners into dependencies unless the user **explicitly** asks to restore testing.
+- **Do not** suggest adding tests as a follow-up or in reviews unless the user explicitly requests tests.
+- When changing behavior, verify with **basedpyright** and manual checks — not automated tests in this repo.
+
+If the user explicitly asks for tests, follow that request; otherwise treat this project as **test-free**.

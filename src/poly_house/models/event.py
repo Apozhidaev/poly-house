@@ -44,7 +44,7 @@ class Event(BaseModel):
     open_interest: float | None = None
     relevant: bool
     calendar: bool
-    deadline: str | None = None
+    deadline: datetime | None = None
     tags: list[Tag] = []
     series: list[dict[str, Any]] = []
 

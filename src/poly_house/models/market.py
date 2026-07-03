@@ -93,7 +93,7 @@ class Market(BaseModel):
     best_ask: float | None = None
     order_price_min_tick_size: float | None = None
     order_min_size: float | None = None
-    deadline: str | None
+    deadline: datetime | None = None
 
     @field_validator("neg_risk", mode="before")
     @classmethod

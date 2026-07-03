@@ -1,0 +1,24 @@
+---
+description: Do not rewrite ISO "Z" to "+00:00" before datetime.fromisoformat (Python 3.12+)
+alwaysApply: true
+---
+
+# No Z → +00:00 before fromisoformat
+
+Project requires **Python 3.12+**. `datetime.fromisoformat()` accepts `Z` (UTC) natively.
+
+- **Never** strip `Z` and append `+00:00` (or any equivalent rewrite) before `datetime.fromisoformat()`.
+- **Never** add this pattern in new code, refactors, or “for compatibility” — not even as a defensive fallback.
+- **Prefer** parsing ISO strings directly: `datetime.fromisoformat(iso_string)`.
+
+```python
+# Avoid — legacy workaround, forbidden in this repo
+if raw.endswith("Z"):
+    raw = f"{raw[:-1]}+00:00"
+return datetime.fromisoformat(raw)
+
+# Prefer
+return datetime.fromisoformat(iso_string)
+```
+
+When touching existing helpers that use the old pattern, remove the rewrite rather than preserving or duplicating it.
