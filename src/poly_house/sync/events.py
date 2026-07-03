@@ -12,7 +12,6 @@ from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
-from poly_house.models.deadline import get_deadline_map_for_markets
 from poly_house.sync.sync_state import (
     get_events_watermark,
     set_events_watermark,
@@ -147,21 +146,11 @@ async def _write_page(
             tag_ops[tag.id] = ReplaceOne(
                 {"_id": tag.id}, tag.to_doc(synced_at=synced_at), upsert=True
             )
-        relevant_markets = [market for market in entry.markets if market.relevant]
-        deadline_map, calendar_filled, same_deadline = get_deadline_map_for_markets(
-            relevant_markets,
-            entry.event.start_date or entry.event.created_at,
-            entry.event.end_date,
-        )
 
         market_ids: list[int] = [market.id for market in entry.markets]
-        relevant_market_ids = [market.id for market in entry.markets if market.relevant]
         event_doc = entry.event.to_doc(
             synced_at=synced_at,
             market_ids=market_ids,
-            relevant_market_ids=relevant_market_ids,
-            calendar=calendar_filled,
-            deadline=same_deadline,
         )
         event_ops.append(ReplaceOne({"_id": entry.event.id}, event_doc, upsert=True))
         for market in entry.markets:
@@ -171,7 +160,6 @@ async def _write_page(
                     market.to_doc(
                         synced_at=synced_at,
                         event=entry.event,
-                        deadline=deadline_map.get(market.id),
                     ),
                     upsert=True,
                 )

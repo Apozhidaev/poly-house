@@ -289,12 +289,12 @@ async def _load_relevant_condition_ids_for_event(
     db: Database, event_id: int
 ) -> tuple[list[str], str]:
     event = await db.events.find_one(
-        {"_id": event_id},
-        projection={"relevant_market_ids": 1, "slug": 1},
+        {"_id": event_id, "relevant": True},
+        projection={"market_ids": 1, "slug": 1},
     )
     if event is None:
         return [], ""
-    market_ids = event.get("relevant_market_ids") or []
+    market_ids = event.get("market_ids") or []
     if not market_ids:
         return [], ""
     docs = await db.markets.find(

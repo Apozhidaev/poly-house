@@ -58,7 +58,7 @@ class GatewayClient:
             params["closed"] = closed
         if cursor:
             params["after_cursor"] = cursor
-        resp = await self._client.get(f"{self._base}/gamma/events", params=params)
+        resp = await self._client.post(f"{self._base}/gamma/events", params=params)
         resp.raise_for_status()
         payload = resp.json()
         events = payload.get("events") or []

@@ -93,6 +93,7 @@ class Market(BaseModel):
     best_ask: float | None = None
     order_price_min_tick_size: float | None = None
     order_min_size: float | None = None
+    deadline: str | None
 
     @field_validator("neg_risk", mode="before")
     @classmethod
@@ -119,10 +120,6 @@ class Market(BaseModel):
         return [float(x) for x in v]
 
     @property
-    def relevant(self) -> bool:
-        return self.active is True or (self.archived is True and self.closed is True)
-
-    @property
     def resolved_outcome_index(self) -> int | None:
         return (
             self.outcome_prices.index(max(self.outcome_prices))
@@ -132,12 +129,11 @@ class Market(BaseModel):
         )
 
     def to_doc(
-        self, *, synced_at: datetime, event: Event, deadline: datetime | None
+        self, *, synced_at: datetime, event: Event
     ) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
-        doc["deadline"] = deadline
-        doc["relevant"] = self.relevant
+        doc["relevant"] = event.relevant
         doc["resolved_outcome_index"] = self.resolved_outcome_index
         doc["event_id"] = event.id
         doc["event_slug"] = event.slug

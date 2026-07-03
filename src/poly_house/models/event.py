@@ -42,6 +42,9 @@ class Event(BaseModel):
     volume: float | None = None
     liquidity: float | None = None
     open_interest: float | None = None
+    relevant: bool
+    calendar: bool
+    deadline: str | None = None
     tags: list[Tag] = []
     series: list[dict[str, Any]] = []
 
@@ -60,18 +63,12 @@ class Event(BaseModel):
         *,
         synced_at: datetime,
         market_ids: list[int] | None = None,
-        relevant_market_ids: list[int] | None = None,
-        calendar: bool = False,
-        deadline: datetime | None = None,
     ) -> dict[str, Any]:
         """Документ события без вложенных tags/series."""
         doc = self.model_dump(exclude={"tags", "series", "id"})
         doc["_id"] = self.id
-        doc["calendar"] = calendar
-        doc["deadline"] = deadline
         doc["tag_ids"] = sorted(t.id for t in self.tags)
         doc["market_ids"] = market_ids or []
-        doc["relevant_market_ids"] = relevant_market_ids or []
         doc["series_ids"] = [
             parse_id(s["id"])
             for s in self.series
