@@ -12,13 +12,6 @@ from poly_house.db import Database
 from poly_house.models.event import Event
 from poly_house.models.tag import parse_id
 
-RELEVANT_MARKET_FILTER: dict[str, Any] = {"relevant": True}
-
-
-def relevant_market_query(**filters: Any) -> dict[str, Any]:
-    return {**RELEVANT_MARKET_FILTER, **filters}
-
-
 def deadline_soon_market_query(
     *,
     tag_ids: list[int] | None = None,
@@ -29,7 +22,7 @@ def deadline_soon_market_query(
     deadline: dict[str, Any] = {"$ne": None}
     if future_only:
         deadline["$gte"] = datetime.now(UTC)
-    query = relevant_market_query(closed=False, deadline=deadline)
+    query: dict[str, Any] = {"closed": False, "deadline": deadline}
     if neg_risk is not None:
         query["neg_risk"] = neg_risk
     if tag_ids:
@@ -147,10 +140,10 @@ async def load_resolved_outcomes(
     if not condition_ids:
         return {}
     cursor = db.markets.find(
-        relevant_market_query(
-            condition_id={"$in": condition_ids},
-            resolved_outcome_index={"$ne": None},
-        ),
+        {
+            "condition_id": {"$in": condition_ids},
+            "resolved_outcome_index": {"$ne": None},
+        },
         projection={"condition_id": 1, "resolved_outcome_index": 1},
     )
     docs = await cursor.to_list(length=None)

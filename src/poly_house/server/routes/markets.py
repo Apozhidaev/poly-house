@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from poly_house.models.market import deadline_soon_market_query, relevant_market_query
+from poly_house.models.market import deadline_soon_market_query
 from poly_house.server.deps import Db, Page
 
 router = APIRouter(prefix="/markets", tags=["markets"])
@@ -27,7 +27,7 @@ async def list_markets(
     slug: str | None = None,
     condition_id: str | None = None,
 ) -> dict[str, Any]:
-    query = relevant_market_query()
+    query: dict[str, Any] = {}
     if closed is not None:
         query["closed"] = closed
     if neg_risk is not None:
@@ -49,7 +49,7 @@ async def check_home_markets(body: CheckHomeMarketsRequest, db: Db) -> dict[str,
     if not body.condition_ids:
         return {"condition_ids": []}
 
-    query = relevant_market_query(condition_id={"$in": body.condition_ids})
+    query: dict[str, Any] = {"condition_id": {"$in": body.condition_ids}}
     if body.tag_ids:
         query["tag_ids"] = {"$in": body.tag_ids}
 
@@ -86,7 +86,7 @@ async def list_deadline_soon_markets(
 
 @router.get("/{market_id}")
 async def get_market(market_id: int, db: Db) -> dict[str, Any]:
-    doc = await db.markets.find_one(relevant_market_query(_id=market_id))
+    doc = await db.markets.find_one({"_id": market_id})
     if doc is None:
         raise HTTPException(status_code=404, detail="Market not found")
     return doc

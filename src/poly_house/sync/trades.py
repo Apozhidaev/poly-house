@@ -11,7 +11,6 @@ from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Trade, User
-from poly_house.models.market import relevant_market_query
 from poly_house.sync.sync_state import get_trades_watermark, set_trades_watermark
 
 logger = structlog.get_logger()
@@ -77,7 +76,7 @@ async def _select_markets(
     db: Database, watermark: datetime | None
 ) -> list[dict[str, Any]]:
     """Маркеты, синхронизированные позже watermark'а трейдов."""
-    query = relevant_market_query()
+    query: dict[str, Any] = {}
     if watermark is not None:
         query["synced_at"] = {"$gt": watermark}
     cursor = db.markets.find(

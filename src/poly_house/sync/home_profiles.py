@@ -21,7 +21,7 @@ from poly_house.models.activity import (
     build_market_activities,
     metrics_from_market_activities,
 )
-from poly_house.models.market import load_resolved_outcomes, relevant_market_query
+from poly_house.models.market import load_resolved_outcomes
 
 logger = structlog.get_logger()
 
@@ -139,7 +139,7 @@ async def _upsert_home_profiles_for_wallets(
 
 async def _load_closed_condition_ids(db: Database) -> list[str]:
     cursor = db.markets.find(
-        relevant_market_query(closed=True),
+        {"closed": True},
         projection={"condition_id": 1},
     )
     docs = await cursor.to_list(length=None)
@@ -285,11 +285,11 @@ async def _load_event_slug_to_id(db: Database) -> dict[str, int]:
     return {doc["slug"]: doc["_id"] for doc in docs}
 
 
-async def _load_relevant_condition_ids_for_event(
+async def _load_condition_ids_for_event(
     db: Database, event_id: int
 ) -> tuple[list[str], str]:
     event = await db.events.find_one(
-        {"_id": event_id, "relevant": True},
+        {"_id": event_id},
         projection={"market_ids": 1, "slug": 1},
     )
     if event is None:
@@ -395,7 +395,7 @@ async def _fetch_new_activities_fallback(
             break
         offset += settings.activity_page_limit
 
-    condition_ids, event_slug = await _load_relevant_condition_ids_for_event(db, event_id)
+    condition_ids, event_slug = await _load_condition_ids_for_event(db, event_id)
     for condition_id in condition_ids:
         success = await _add_new_activities_by_condition_id(
             gateway, settings, pages, user, condition_id, min_timestamp
