@@ -37,6 +37,8 @@ def parse_event_with_markets(raw: dict[str, Any]) -> EventWithMarkets:
 
 
 def _keep_event(entry: EventWithMarkets, settings: Settings) -> bool:
+    if not entry.event.relevant:
+        return False
     if not entry.markets:
         return False
     if settings.events_neg_risk is not None:

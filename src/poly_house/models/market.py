@@ -133,7 +133,6 @@ class Market(BaseModel):
     ) -> dict[str, Any]:
         doc = self.model_dump(exclude={"id"})
         doc["_id"] = self.id
-        doc["relevant"] = event.relevant
         doc["resolved_outcome_index"] = self.resolved_outcome_index
         doc["event_id"] = event.id
         doc["event_slug"] = event.slug
