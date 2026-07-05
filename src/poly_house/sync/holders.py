@@ -26,6 +26,7 @@ from poly_house.sync.tag_profiles import (
 logger = structlog.get_logger()
 
 OPEN_MARKETS_QUERY = {
+    "active": True,
     "closed": False,
     "accepting_orders": True,
     "clob_token_ids.0": {"$exists": True},
