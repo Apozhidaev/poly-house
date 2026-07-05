@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -452,6 +453,53 @@ async def _write_activities(db: Database, raw_activities: list[dict[str, Any]]) 
     docs = [Activity.model_validate(raw).to_doc() for raw in raw_activities]
     await db.activities.insert_many(docs)
     return len(docs)
+
+
+@dataclass
+class SyncActivityResult:
+    event_id: int
+    event_slug: str
+    deleted: int
+    fetched: int
+
+
+async def sync_activity_for_wallet_event(
+    db: Database,
+    gateway: GatewayClient,
+    settings: Settings,
+    *,
+    wallet: str,
+    event_slug: str,
+) -> SyncActivityResult:
+    event = await db.events.find_one(
+        {"slug": event_slug}, projection={"_id": 1, "slug": 1}
+    )
+    if event is None:
+        raise ValueError(f"Event not found: {event_slug}")
+    slug = event["slug"]
+    deleted = (
+        await db.activities.delete_many(
+            {"proxy_wallet": wallet, "event_slug": slug}
+        )
+    ).deleted_count
+    activities = await _fetch_new_activities(
+        db, gateway, settings, wallet, event["_id"], watermark=None
+    )
+    fetched = await _write_activities(db, activities)
+    logger.info(
+        "sync_activity_complete",
+        wallet=wallet,
+        event_slug=slug,
+        event_id=event["_id"],
+        deleted=deleted,
+        fetched=fetched,
+    )
+    return SyncActivityResult(
+        event_id=event["_id"],
+        event_slug=slug,
+        deleted=deleted,
+        fetched=fetched,
+    )
 
 
 async def _mark_activity_cache_synced(

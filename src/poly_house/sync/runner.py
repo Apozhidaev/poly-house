@@ -15,7 +15,7 @@ from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.add_user import add_user
 from poly_house.sync.data_fix import run_data_fix as execute_data_fix
 from poly_house.sync.events import add_event_by_slug, sync_events
-from poly_house.sync.home_profiles import sync_home_profiles
+from poly_house.sync.home_profiles import sync_activity_for_wallet_event, sync_home_profiles
 from poly_house.sync.profiles import sync_profiles
 from poly_house.sync.holders import sync_holder_profiles
 from poly_house.sync.tag_profiles import update_tag_profiles
@@ -277,6 +277,30 @@ async def run_add_event(settings: Settings, slug: str) -> None:
                 "add_event_run_complete",
                 slug=slug,
                 **result.__dict__,
+                seconds=round(time.monotonic() - started, 1),
+            )
+
+        return once
+
+    await _run_with_gateway(settings, make_once, watch=False)
+
+
+async def run_sync_activity(
+    settings: Settings, wallet: str, event_slug: str
+) -> None:
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+        async def once(_stop: asyncio.Event | None) -> None:
+            started = time.monotonic()
+            result = await sync_activity_for_wallet_event(
+                db, gateway, settings, wallet=wallet, event_slug=event_slug
+            )
+            logger.info(
+                "sync_activity_run_complete",
+                wallet=wallet,
+                event_slug=result.event_slug,
+                event_id=result.event_id,
+                deleted=result.deleted,
+                fetched=result.fetched,
                 seconds=round(time.monotonic() - started, 1),
             )
 

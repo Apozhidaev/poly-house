@@ -56,6 +56,9 @@ uv run poly-house update-tag-profile
 # один пользователь: Gateway /gamma/public-profile → users + profiles/home_profiles/tag_profiles
 uv run poly-house add-user 0x...
 
+# перезагрузка activity для wallet+event (delete + full fetch по event из Gateway)
+uv run poly-house sync-activity --wallet 0x... --event some-event-slug
+
 # диагностика: wallet+event_slug с >= 3500 activities (TSV + total)
 uv run poly-house data-fix
 uv run poly-house data-fix --apply   # удалить activities (пары) + activity_caches (кошельки)

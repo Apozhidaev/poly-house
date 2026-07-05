@@ -21,6 +21,7 @@ from poly_house.sync.runner import (
     run_add_user,
     run_add_event,
     run_data_fix,
+    run_sync_activity,
 )
 
 app = typer.Typer(help="Polymarket warehouse: sync в MongoDB + REST API.", no_args_is_help=True)
@@ -132,6 +133,21 @@ def add_event_cmd(
     settings = Settings()
     try:
         asyncio.run(run_add_event(settings, slug))
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@app.command("sync-activity")
+def sync_activity_cmd(
+    wallet: Annotated[str, typer.Option("--wallet", help="proxy_wallet (0x...)")],
+    event: Annotated[str, typer.Option("--event", help="Event slug.")],
+) -> None:
+    """Удалить activities wallet+event и заново загрузить всю activity по event из Gateway."""
+    _configure_logging()
+    settings = Settings()
+    try:
+        asyncio.run(run_sync_activity(settings, wallet, event))
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
