@@ -226,18 +226,26 @@ async def sync_events(
 
 
 @dataclass
-class AddEventResult:
+class RefreshEventResult:
     event_id: int
     markets: int
     tags: int
 
 
-async def add_event_by_slug(
+@dataclass
+class RefreshEventsBulkResult:
+    total: int
+    ok: int
+    failed: int
+    results: list[RefreshEventResult]
+
+
+async def refresh_event_by_slug(
     db: Database,
     gateway: GatewayClient,
     settings: Settings,
     slug: str,
-) -> AddEventResult:
+) -> RefreshEventResult:
     raw = await gateway.event_by_slug(slug=slug)
     if raw is None:
         raise ValueError(f"event not found: {slug}")
@@ -245,12 +253,54 @@ async def add_event_by_slug(
     entry = parse_event_with_markets(raw)
     synced_at = datetime.now(UTC)
     await _write_page(db, [entry], synced_at)
-    await _refresh_tag_events_count(db)
 
-    result = AddEventResult(
+    result = RefreshEventResult(
         event_id=entry.event.id,
         markets=len(entry.markets),
         tags=len(entry.event.tags),
     )
-    logger.info("add_event_complete", slug=slug, **result.__dict__)
+    logger.info("refresh_event_complete", slug=slug, **result.__dict__)
     return result
+
+
+async def refresh_events(
+    db: Database,
+    gateway: GatewayClient,
+    settings: Settings,
+    slug: str | None = None,
+) -> RefreshEventResult | RefreshEventsBulkResult:
+    if slug is not None:
+        result = await refresh_event_by_slug(db, gateway, settings, slug)
+        await _refresh_tag_events_count(db)
+        return result
+
+    slugs = await db.events.distinct("slug")
+    results: list[RefreshEventResult] = []
+    failed = 0
+    for event_slug in slugs:
+        try:
+            results.append(
+                await refresh_event_by_slug(db, gateway, settings, event_slug)
+            )
+        except ValueError as exc:
+            failed += 1
+            logger.warning(
+                "refresh_event_skipped",
+                slug=event_slug,
+                error=str(exc),
+            )
+
+    await _refresh_tag_events_count(db)
+    bulk = RefreshEventsBulkResult(
+        total=len(slugs),
+        ok=len(results),
+        failed=failed,
+        results=results,
+    )
+    logger.info(
+        "refresh_events_complete",
+        total=bulk.total,
+        ok=bulk.ok,
+        failed=bulk.failed,
+    )
+    return bulk

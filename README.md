@@ -39,8 +39,9 @@ uv run poly-house sync-event --open --watch
 uv run poly-house sync-event --max-pages 2              # тест: 2 страницы
 uv run poly-house sync-event --open --max-pages 2
 
-# add-event — один event по slug
-uv run poly-house add-event <slug>
+# refresh-event — один event или все из базы
+uv run poly-house refresh-event --slug <slug>
+uv run poly-house refresh-event
 
 # sync-trade — трейды + пользователи
 uv run poly-house sync-trade
@@ -84,7 +85,7 @@ uv run poly-house data-fix --apply                       # удалить activi
 
 - **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: `EVENTS_TAG_IDS`, `EVENTS_EXCLUDE_TAG_IDS` (API), `EVENTS_NEG_RISK`, `MARKETS_YES_NO_ONLY` (пропуск event, если среди nested markets есть не Yes/No). `--watch`: цикл; период между стартами прогонов `SYNC_EVENT_WATCH_INTERVAL` (время работы вычитается из паузы).
 - **sync-event --open**: то же, с `closed=false` в API; watermark общий — `events_watermark`; `--watch` — тот же период.
-- **add-event**: один event по slug из Gateway `/gamma/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`.
+- **refresh-event**: один event по `--slug` или все events из базы — Gateway `/gamma/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`. В bulk-режиме ошибки по slug пропускаются с warning в логе.
 - Первый прогон загружает events, обновлявшиеся за последние `UPDATED_IN_DAYS` дней (по умолчанию 30).
 - **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды через Gateway `/data/trades?takerOnly=true` по watermark `timestamp` для каждого маркета (потолок API: `limit=1000`, `offset<=3000`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов. `--watch`: цикл; период между стартами `SYNC_TRADE_WATCH_INTERVAL` (время работы вычитается из паузы).
 - **sync-kline**: для open markets (`active`, `closed=false`, `accepting_orders`, непустые `clob_token_ids`) — Gateway orderbook → upsert hourly bid/ask в `klines`. `--watch`: период между стартами `SYNC_KLINE_WATCH_INTERVAL`.

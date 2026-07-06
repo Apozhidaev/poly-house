@@ -20,7 +20,7 @@ from poly_house.sync.runner import (
     run_sync_klines,
     run_update_tag_profiles,
     run_add_user,
-    run_add_event,
+    run_refresh_event,
     run_data_fix,
     run_sync_activity,
 )
@@ -138,15 +138,15 @@ def add_user_cmd(
         raise typer.Exit(code=1) from exc
 
 
-@app.command("add-event")
-def add_event_cmd(
-    slug: Annotated[str, typer.Argument(help="Event slug.")],
+@app.command("refresh-event")
+def refresh_event_cmd(
+    slug: Annotated[str | None, typer.Option("--slug", help="Event slug.")] = None,
 ) -> None:
-    """Gateway /gamma/events/slug → tags, event, nested markets."""
+    """Refresh one event from Gateway (--slug) or all events in DB."""
     _configure_logging()
     settings = Settings()
     try:
-        asyncio.run(run_add_event(settings, slug))
+        asyncio.run(run_refresh_event(settings, slug=slug))
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc

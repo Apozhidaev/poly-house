@@ -19,17 +19,17 @@ def create_client(settings: Settings) -> AsyncMongoClient[Doc]:
 
 
 async def ensure_indexes(db: Database) -> None:
-    await db.events.create_index("slug")
+    await db.events.create_index("slug", unique=True)
     await db.events.create_index("tag_ids")
 
     await db.markets.create_index("condition_id", unique=True)
     await db.markets.create_index("event_id")
-    await db.markets.create_index("slug")
+    await db.markets.create_index("slug", unique=True)
     await db.markets.create_index("tag_ids")
     await db.markets.create_index("synced_at")
     await db.markets.create_index([("closed", 1), ("deadline", 1)])
 
-    await db.tags.create_index("slug")
+    await db.tags.create_index("slug", unique=True)
 
     await db.trades.create_index([("condition_id", 1), ("timestamp", 1)])
     await db.trades.create_index("proxy_wallet")
