@@ -173,7 +173,6 @@ async def _write_page(
         await db.markets.bulk_write(market_ops)
     if event_ops:
         await db.events.bulk_write(event_ops)
-        await _refresh_tag_events_count(db)
 
 
 async def sync_events(
@@ -208,6 +207,8 @@ async def sync_events(
             continue
         await _write_page(db, entries, synced_at)
         written.extend(entries)
+
+    await _refresh_tag_events_count(db)
 
     interrupted = stop is not None and stop.is_set()
     if not interrupted and max_updated_at is not None:
@@ -244,6 +245,7 @@ async def add_event_by_slug(
     entry = parse_event_with_markets(raw)
     synced_at = datetime.now(UTC)
     await _write_page(db, [entry], synced_at)
+    await _refresh_tag_events_count(db)
 
     result = AddEventResult(
         event_id=entry.event.id,
