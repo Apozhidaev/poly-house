@@ -29,7 +29,7 @@ async def wallets_needing_profile_sync(
 ) -> list[str]:
     if not wallets:
         return []
-    cutoff = datetime.now(UTC) - timedelta(days=settings.profile_sync_interval_days)
+    cutoff = datetime.now(UTC) - timedelta(days=settings.profile_refresh_interval_days)
     cursor = db.profiles.find(
         {"_id": {"$in": wallets}, "synced_at": {"$gte": cutoff}},
         projection={"_id": 1},
@@ -45,7 +45,7 @@ async def _load_profiles_needing_sync(
     wallet: str | None = None,
     limit: int | None = None,
 ) -> list[str]:
-    cutoff = datetime.now(UTC) - timedelta(days=settings.profile_sync_interval_days)
+    cutoff = datetime.now(UTC) - timedelta(days=settings.profile_refresh_interval_days)
     query: dict[str, Any] = {
         "$or": [
             {"synced_at": {"$lt": cutoff}},

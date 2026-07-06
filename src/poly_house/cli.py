@@ -93,7 +93,7 @@ def sync_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число profiles (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один profile по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация устаревших profiles (Polymarket API, synced_at > 24h)."""
+    """Синхронизация устаревших profiles (Polymarket API, synced_at > PROFILE_REFRESH_INTERVAL_DAYS)."""
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)

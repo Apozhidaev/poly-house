@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     activity_cache_in_days: int = 365
 
     # sync-profile: считать profile свежим, если synced_at моложе N дней
-    profile_sync_interval_days: int = 1
+    profile_refresh_interval_days: int = 1
 
     # sync-home-profile: считать home profile свежим, если synced_at моложе N дней
     home_profile_refresh_interval_days: int = 1
