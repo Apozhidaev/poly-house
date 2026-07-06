@@ -53,7 +53,7 @@ async def _run_with_gateway(
             once = run_once(db, gateway)
             if watch:
                 await _watch_loop(
-                    once, watch_interval or settings.watch_interval
+                    once, interval=watch_interval or settings.watch_interval
                 )
             else:
                 await once(None)
@@ -77,7 +77,7 @@ async def _run_db_only(
         if watch:
             await _watch_loop(
                 lambda stop: run_once(db, stop),
-                watch_interval or settings.watch_interval,
+                interval=watch_interval or settings.watch_interval,
             )
         else:
             await run_once(db, None)
@@ -85,11 +85,18 @@ async def _run_db_only(
         await client.close()
 
 
-async def _watch_loop(once: RunOnce, interval: float) -> None:
+async def _watch_loop(once: RunOnce, *, interval: float) -> None:
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
+    # add_signal_handler не реализован на Windows — регистрируем best-effort,
+    # на Windows остановка идёт через KeyboardInterrupt (Ctrl+C).
+    registered: list[int] = []
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
+        try:
+            loop.add_signal_handler(sig, stop.set)
+            registered.append(sig)
+        except NotImplementedError:
+            pass
     logger.info("watch_started", interval=interval)
     try:
         while not stop.is_set():
@@ -99,8 +106,10 @@ async def _watch_loop(once: RunOnce, interval: float) -> None:
             logger.info("watch_sleep", seconds=interval)
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(stop.wait(), timeout=interval)
+    except KeyboardInterrupt:
+        pass
     finally:
-        for sig in (signal.SIGINT, signal.SIGTERM):
+        for sig in registered:
             loop.remove_signal_handler(sig)
         logger.info("watch_stopped")
 
