@@ -191,8 +191,6 @@ class SyncProfileOptions:
 async def run_sync_profile(
     settings: Settings,
     options: SyncProfileOptions,
-    *,
-    watch: bool = False,
 ) -> None:
     def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
@@ -212,14 +210,12 @@ async def run_sync_profile(
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=watch)
+    await _run_with_gateway(settings, make_once, watch=False)
 
 
 async def run_sync_home_profile(
     settings: Settings,
     options: SyncProfileOptions,
-    *,
-    watch: bool = False,
 ) -> None:
     def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
@@ -239,7 +235,7 @@ async def run_sync_home_profile(
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=watch)
+    await _run_with_gateway(settings, make_once, watch=False)
 
 
 async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:

@@ -90,7 +90,6 @@ def sync_holder(
 
 @app.command("sync-profile")
 def sync_profile(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число profiles (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один profile по proxy_wallet.")] = None,
 ) -> None:
@@ -98,12 +97,11 @@ def sync_profile(
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_sync_profile(settings, options, watch=watch))
+    asyncio.run(run_sync_profile(settings, options))
 
 
 @app.command("sync-home-profile")
 def sync_home_profile(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число home_profiles (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один home profile по proxy_wallet.")] = None,
 ) -> None:
@@ -111,7 +109,7 @@ def sync_home_profile(
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_sync_home_profile(settings, options, watch=watch))
+    asyncio.run(run_sync_home_profile(settings, options))
 
 
 @app.command("update-tag-profile")
