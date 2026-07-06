@@ -270,8 +270,6 @@ class TagProfileSyncOptions:
 async def run_update_tag_profiles(
     settings: Settings,
     options: TagProfileSyncOptions,
-    *,
-    watch: bool = False,
 ) -> None:
     async def once(db: Database, stop: asyncio.Event | None) -> None:
         started = time.monotonic()
@@ -288,7 +286,7 @@ async def run_update_tag_profiles(
             seconds=round(time.monotonic() - started, 1),
         )
 
-    await _run_db_only(settings, once, watch=watch)
+    await _run_db_only(settings, once, watch=False)
 
 
 async def run_add_user(settings: Settings, wallet: str) -> None:

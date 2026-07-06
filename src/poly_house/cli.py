@@ -116,7 +116,6 @@ def sync_home_profile(
 
 @app.command("update-tag-profile")
 def update_tag_profile(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число holders (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Обновить tag profiles одного holder по proxy_wallet.")] = None,
 ) -> None:
@@ -124,7 +123,7 @@ def update_tag_profile(
     _configure_logging()
     settings = Settings()
     options = TagProfileSyncOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_update_tag_profiles(settings, options, watch=watch))
+    asyncio.run(run_update_tag_profiles(settings, options))
 
 
 @app.command("add-user")

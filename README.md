@@ -75,7 +75,6 @@ uv run poly-house sync-kline --watch
 uv run poly-house sync-holder --watch
 uv run poly-house sync-profile --watch
 uv run poly-house sync-home-profile --watch
-uv run poly-house update-tag-profile --watch
 
 # тестовый прогон: 2 страницы events
 uv run poly-house sync-event --max-pages 2
