@@ -259,7 +259,12 @@ async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=watch)
+    await _run_with_gateway(
+        settings,
+        make_once,
+        watch=watch,
+        watch_interval=settings.sync_holder_watch_interval,
+    )
 
 
 @dataclass

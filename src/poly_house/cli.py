@@ -80,7 +80,7 @@ def sync_kline(
 
 @app.command("sync-holder")
 def sync_holder(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом SYNC_HOLDER_WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
 ) -> None:
     """Holders открытых маркетов → sync profiles, home_profiles, tag_profiles."""
     _configure_logging()
