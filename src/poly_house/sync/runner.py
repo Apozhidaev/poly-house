@@ -91,12 +91,21 @@ async def _watch_loop(once: RunOnce, *, interval: float) -> None:
     logger.info("watch_started", interval=interval)
     try:
         while not stop.is_set():
+            started = time.monotonic()
             await once(stop)
             if stop.is_set():
                 break
-            logger.info("watch_sleep", seconds=interval)
-            with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(stop.wait(), timeout=interval)
+            elapsed = time.monotonic() - started
+            sleep = max(0.0, interval - elapsed)
+            logger.info(
+                "watch_sleep",
+                interval=interval,
+                elapsed=round(elapsed, 1),
+                seconds=round(sleep, 1),
+            )
+            if sleep > 0:
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(stop.wait(), timeout=sleep)
     except KeyboardInterrupt:
         pass
     finally:

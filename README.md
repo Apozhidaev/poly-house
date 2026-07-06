@@ -34,7 +34,7 @@ uv run basedpyright src/poly_house/
 # sync-event — events + nested markets + tags
 uv run poly-house sync-event
 uv run poly-house sync-event --open
-uv run poly-house sync-event --watch                    # SYNC_EVENT_WATCH_INTERVAL
+uv run poly-house sync-event --watch                    # период SYNC_EVENT_WATCH_INTERVAL между стартами
 uv run poly-house sync-event --open --watch
 uv run poly-house sync-event --max-pages 2              # тест: 2 страницы
 uv run poly-house sync-event --open --max-pages 2
@@ -44,15 +44,15 @@ uv run poly-house add-event <slug>
 
 # sync-trade — трейды + пользователи
 uv run poly-house sync-trade
-uv run poly-house sync-trade --watch                    # SYNC_TRADE_WATCH_INTERVAL
+uv run poly-house sync-trade --watch                    # период SYNC_TRADE_WATCH_INTERVAL между стартами
 
 # sync-kline — orderbook open markets → hourly bid/ask klines
 uv run poly-house sync-kline
-uv run poly-house sync-kline --watch                    # SYNC_KLINE_WATCH_INTERVAL
+uv run poly-house sync-kline --watch                    # период SYNC_KLINE_WATCH_INTERVAL между стартами
 
 # sync-holder — holders → profiles / home_profiles / tag_profiles
 uv run poly-house sync-holder
-uv run poly-house sync-holder --watch                   # SYNC_HOLDER_WATCH_INTERVAL
+uv run poly-house sync-holder --watch                   # период SYNC_HOLDER_WATCH_INTERVAL между стартами
 
 # sync-profile — устаревшие profiles (synced_at > 24h)
 uv run poly-house sync-profile
@@ -82,13 +82,13 @@ uv run poly-house data-fix --apply                       # удалить activi
 
 Как это работает:
 
-- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: `EVENTS_TAG_IDS`, `EVENTS_EXCLUDE_TAG_IDS` (API), `EVENTS_NEG_RISK`, `MARKETS_YES_NO_ONLY` (пропуск event, если среди nested markets есть не Yes/No). `--watch`: цикл с интервалом `SYNC_EVENT_WATCH_INTERVAL`.
-- **sync-event --open**: то же, с `closed=false` в API; watermark общий — `events_watermark`; `--watch` — тот же `SYNC_EVENT_WATCH_INTERVAL`.
+- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: `EVENTS_TAG_IDS`, `EVENTS_EXCLUDE_TAG_IDS` (API), `EVENTS_NEG_RISK`, `MARKETS_YES_NO_ONLY` (пропуск event, если среди nested markets есть не Yes/No). `--watch`: цикл; период между стартами прогонов `SYNC_EVENT_WATCH_INTERVAL` (время работы вычитается из паузы).
+- **sync-event --open**: то же, с `closed=false` в API; watermark общий — `events_watermark`; `--watch` — тот же период.
 - **add-event**: один event по slug из Gateway `/gamma/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`.
 - Первый прогон загружает events, обновлявшиеся за последние `UPDATED_IN_DAYS` дней (по умолчанию 30).
-- **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды через Gateway `/data/trades?takerOnly=true` по watermark `timestamp` для каждого маркета (потолок API: `limit=1000`, `offset<=3000`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов. `--watch`: цикл с интервалом `SYNC_TRADE_WATCH_INTERVAL`.
-- **sync-kline**: для open markets (`active`, `closed=false`, `accepting_orders`, непустые `clob_token_ids`) — Gateway orderbook → upsert hourly bid/ask в `klines`. `--watch`: цикл с интервалом `SYNC_KLINE_WATCH_INTERVAL`.
-- **sync-holder**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — Gateway `/data/holders`; для публичных holders (`displayUsernamePublic=true`) inline sync: `sync_profiles_for_wallets` (stale > `PROFILE_SYNC_INTERVAL_DAYS`), `sync_home_profiles_for_wallets` (stale > `HOME_PROFILE_SYNC_INTERVAL_HOURS`: activity cache → activities → upsert); `tag_profiles` обновляются только после home sync. Маркет пропускается, если `/data/holders` недоступен. Нужны `sync-event` и закрытые маркеты с тегами для `tag_profiles`. `--watch`: цикл с интервалом `SYNC_HOLDER_WATCH_INTERVAL`.
+- **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды через Gateway `/data/trades?takerOnly=true` по watermark `timestamp` для каждого маркета (потолок API: `limit=1000`, `offset<=3000`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов. `--watch`: цикл; период между стартами `SYNC_TRADE_WATCH_INTERVAL` (время работы вычитается из паузы).
+- **sync-kline**: для open markets (`active`, `closed=false`, `accepting_orders`, непустые `clob_token_ids`) — Gateway orderbook → upsert hourly bid/ask в `klines`. `--watch`: период между стартами `SYNC_KLINE_WATCH_INTERVAL`.
+- **sync-holder**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — Gateway `/data/holders`; для публичных holders (`displayUsernamePublic=true`) inline sync: `sync_profiles_for_wallets` (stale > `PROFILE_SYNC_INTERVAL_DAYS`), `sync_home_profiles_for_wallets` (stale > `HOME_PROFILE_SYNC_INTERVAL_HOURS`: activity cache → activities → upsert); `tag_profiles` обновляются только после home sync. Маркет пропускается, если `/data/holders` недоступен. Нужны `sync-event` и закрытые маркеты с тегами для `tag_profiles`. `--watch`: период между стартами `SYNC_HOLDER_WATCH_INTERVAL`.
 - **sync-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> 24h) — Gateway `/data/leaderboard`, `/data/accounting/snapshot`, `/pnl/user-pnl` → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `sync-holder`.
 - **sync-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> 6h) — activity cache из Gateway `/data/closed-positions` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/data/activity?eventId=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `sync-holder`.
 - **update-tag-profile**: для каждого wallet из `profiles` — activities из `activities`, у которых `condition_id` есть в `markets`; агрегирует в `market_activities` (по `condition_id`: `volume` = sum `usdc_size`, `pnl` = signed sum TRADE BUY/SELL); по `tag_ids` маркета группирует метрики и upsert в `tag_profiles` (уникальность `(proxy_wallet, tag_id)`, `_id` — MongoDB ObjectId). Поля: `markets_count`, `pnl` (sum per-market `pnl`), `volume` (sum per-market `volume`), `win_rate` (доля market_activities с `pnl > 0`), `pnl_growth` / `pnl_stability` (линейная регрессия по per-market `pnl` с `use_cumulative=True`; `null` при одном маркете). Маркет с несколькими тегами учитывается в каждом теге. Нужны `sync-event`, `profiles` и `activities`.
