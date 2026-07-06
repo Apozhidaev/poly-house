@@ -139,7 +139,12 @@ async def run_sync_events(
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=watch)
+    await _run_with_gateway(
+        settings,
+        make_once,
+        watch=watch,
+        watch_interval=settings.sync_event_watch_interval,
+    )
 
 
 async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:

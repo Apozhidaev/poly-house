@@ -41,7 +41,7 @@ def _configure_logging() -> None:
 @app.command("sync-event")
 def sync_event(
     open_only: Annotated[bool, typer.Option("--open", help="Только открытые events (closed=false).")] = False,
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом SYNC_EVENT_WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /gamma/events.")] = None,
     max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц events (для теста).")] = None,
 ) -> None:
