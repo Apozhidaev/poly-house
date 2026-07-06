@@ -53,3 +53,8 @@ async def ensure_indexes(db: Database) -> None:
     await db.home_profiles.create_index("synced_at")
 
     await db.profiles.create_index("synced_at")
+
+    await db.klines.create_index(
+        [("condition_id", 1), ("outcome_index", 1), ("time", 1)],
+        unique=True,
+    )

@@ -6,7 +6,20 @@ from fastapi import FastAPI
 
 from poly_house.config import Settings
 from poly_house.db import create_client
-from poly_house.server.routes import activity, events, home_profiles, markets, predict, profiles, profile_summary, tag_profiles, tags, trades, users
+from poly_house.server.routes import (
+    activity,
+    events,
+    home_profiles,
+    klines,
+    markets,
+    predict,
+    profiles,
+    profile_summary,
+    tag_profiles,
+    tags,
+    trades,
+    users,
+)
 
 
 @asynccontextmanager
@@ -18,7 +31,9 @@ async def lifespan(app: FastAPI):
     await client.close()
 
 
-app = FastAPI(title="poly-house", description="Polymarket warehouse API", lifespan=lifespan)
+app = FastAPI(
+    title="poly-house", description="Polymarket warehouse API", lifespan=lifespan
+)
 app.include_router(events.router)
 app.include_router(markets.router)
 app.include_router(tags.router)
@@ -30,3 +45,4 @@ app.include_router(tag_profiles.router)
 app.include_router(profile_summary.router)
 app.include_router(predict.router)
 app.include_router(activity.router)
+app.include_router(klines.router)
