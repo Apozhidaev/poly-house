@@ -52,9 +52,9 @@ async def _run_with_gateway(
         async with GatewayClient(settings) as gateway:
             once = run_once(db, gateway)
             if watch:
-                await _watch_loop(
-                    once, interval=watch_interval or settings.watch_interval
-                )
+                if watch_interval is None:
+                    raise ValueError("watch_interval is required when watch=True")
+                await _watch_loop(once, interval=watch_interval)
             else:
                 await once(None)
     finally:
@@ -75,9 +75,11 @@ async def _run_db_only(
 
     try:
         if watch:
+            if watch_interval is None:
+                raise ValueError("watch_interval is required when watch=True")
             await _watch_loop(
                 lambda stop: run_once(db, stop),
-                interval=watch_interval or settings.watch_interval,
+                interval=watch_interval,
             )
         else:
             await run_once(db, None)

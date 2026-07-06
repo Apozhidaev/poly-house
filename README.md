@@ -70,7 +70,7 @@ uv run poly-house data-fix --apply   # удалить activities (пары) + ac
 # бесконечный цикл (остановка — Ctrl+C); sync-event — SYNC_EVENT_WATCH_INTERVAL
 uv run poly-house sync-event --watch
 uv run poly-house sync-event --open --watch
-# sync-trade/sync-kline/sync-holder — свои SYNC_*_WATCH_INTERVAL; WATCH_INTERVAL — fallback
+# sync-trade/sync-kline/sync-holder — свои SYNC_*_WATCH_INTERVAL
 uv run poly-house sync-trade --watch
 uv run poly-house sync-kline --watch
 uv run poly-house sync-holder --watch

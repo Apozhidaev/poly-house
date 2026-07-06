@@ -11,8 +11,7 @@ class Settings(BaseSettings):
 
     gateway_url: str = "http://localhost:8080"
 
-    # watch-режим
-    watch_interval: float = 60.0  # секунды между прогонами
+    # watch-режим (--watch): интервал задаётся per-command SYNC_*_WATCH_INTERVAL
     sync_event_watch_interval: float = 1800.0  # sync-event --watch
     sync_kline_watch_interval: float = 60.0  # sync-kline --watch
     sync_trade_watch_interval: float = 86400.0  # sync-trade --watch
