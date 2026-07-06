@@ -18,6 +18,7 @@ from poly_house.sync.events import add_event_by_slug, sync_events
 from poly_house.sync.home_profiles import sync_activity_for_wallet_event, sync_home_profiles
 from poly_house.sync.profiles import sync_profiles
 from poly_house.sync.holders import sync_holder_profiles
+from poly_house.sync.klines import sync_klines
 from poly_house.sync.tag_profiles import update_tag_profiles
 from poly_house.sync.trades import sync_trades
 
@@ -40,6 +41,7 @@ async def _run_with_gateway(
     run_once: GatewayRunOnce,
     *,
     watch: bool,
+    watch_interval: float | None = None,
 ) -> None:
     """Обвязка для команд с Gateway."""
     client = create_client(settings)
@@ -50,7 +52,9 @@ async def _run_with_gateway(
         async with GatewayClient(settings) as gateway:
             once = run_once(db, gateway)
             if watch:
-                await _watch_loop(once, settings)
+                await _watch_loop(
+                    once, watch_interval or settings.watch_interval
+                )
             else:
                 await once(None)
     finally:
@@ -62,6 +66,7 @@ async def _run_db_only(
     run_once: DbRunOnce,
     *,
     watch: bool,
+    watch_interval: float | None = None,
 ) -> None:
     """Обвязка для команд без внешних API."""
     client = create_client(settings)
@@ -70,27 +75,30 @@ async def _run_db_only(
 
     try:
         if watch:
-            await _watch_loop(lambda stop: run_once(db, stop), settings)
+            await _watch_loop(
+                lambda stop: run_once(db, stop),
+                watch_interval or settings.watch_interval,
+            )
         else:
             await run_once(db, None)
     finally:
         await client.close()
 
 
-async def _watch_loop(once: RunOnce, settings: Settings) -> None:
+async def _watch_loop(once: RunOnce, interval: float) -> None:
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
-    logger.info("watch_started", interval=settings.watch_interval)
+    logger.info("watch_started", interval=interval)
     try:
         while not stop.is_set():
             await once(stop)
             if stop.is_set():
                 break
-            logger.info("watch_sleep", seconds=settings.watch_interval)
+            logger.info("watch_sleep", seconds=interval)
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(stop.wait(), timeout=settings.watch_interval)
+                await asyncio.wait_for(stop.wait(), timeout=interval)
     finally:
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.remove_signal_handler(sig)
@@ -140,6 +148,29 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
         return once
 
     await _run_with_gateway(settings, make_once, watch=watch)
+
+
+async def run_sync_klines(settings: Settings, *, watch: bool = False) -> None:
+    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+        async def once(stop: asyncio.Event | None) -> None:
+            started = time.monotonic()
+            written = await sync_klines(
+                db, gateway, settings=settings, stop=stop
+            )
+            logger.info(
+                "kline_sync_run_complete",
+                written=written,
+                seconds=round(time.monotonic() - started, 1),
+            )
+
+        return once
+
+    await _run_with_gateway(
+        settings,
+        make_once,
+        watch=watch,
+        watch_interval=settings.sync_kline_watch_interval,
+    )
 
 
 @dataclass

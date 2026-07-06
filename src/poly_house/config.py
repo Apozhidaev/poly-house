@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     # watch-режим
     watch_interval: float = 60.0  # секунды между прогонами
+    sync_kline_watch_interval: float = 60.0  # sync-kline --watch
 
     # первый прогон: глубина загрузки events по updatedAt
     updated_in_days: int = 30

@@ -17,6 +17,7 @@ from poly_house.sync.runner import (
     run_sync_home_profile,
     run_sync_holder,
     run_sync_trades,
+    run_sync_klines,
     run_update_tag_profiles,
     run_add_user,
     run_add_event,
@@ -59,6 +60,22 @@ def sync_trade(
     _configure_logging()
     settings = Settings()
     asyncio.run(run_sync_trades(settings, watch=watch))
+
+
+@app.command("sync-kline")
+def sync_kline(
+    watch: Annotated[
+        bool,
+        typer.Option(
+            "--watch",
+            help="Бесконечный цикл прогонов с интервалом SYNC_KLINE_WATCH_INTERVAL (Ctrl+C для остановки).",
+        ),
+    ] = False,
+) -> None:
+    """CLOB orderbook open markets → hourly bid/ask klines."""
+    _configure_logging()
+    settings = Settings()
+    asyncio.run(run_sync_klines(settings, watch=watch))
 
 
 @app.command("sync-holder")
