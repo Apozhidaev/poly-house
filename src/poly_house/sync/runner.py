@@ -15,7 +15,10 @@ from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.add_user import add_user
 from poly_house.sync.data_fix import run_data_fix as execute_data_fix
 from poly_house.sync.events import add_event_by_slug, sync_events
-from poly_house.sync.home_profiles import sync_activity_for_wallet_event, sync_home_profiles
+from poly_house.sync.home_profiles import (
+    sync_activity_for_wallet_event,
+    sync_home_profiles,
+)
 from poly_house.sync.profiles import sync_profiles
 from poly_house.sync.holders import sync_holder_profiles
 from poly_house.sync.klines import sync_klines
@@ -36,7 +39,7 @@ class EventSyncOptions:
     max_pages: int | None = None
 
 
-async def _run_with_gateway(
+async def _run(
     settings: Settings,
     run_once: GatewayRunOnce,
     *,
@@ -61,28 +64,14 @@ async def _run_with_gateway(
         await client.close()
 
 
-async def _run_db_only(
-    settings: Settings,
-    run_once: DbRunOnce,
-    *,
-    watch: bool,
-    watch_interval: float | None = None,
-) -> None:
+async def _run_db_only(settings: Settings, run_once: DbRunOnce) -> None:
     """Обвязка для команд без внешних API."""
     client = create_client(settings)
     db = client[settings.mongo_db]
     await ensure_indexes(db)
 
     try:
-        if watch:
-            if watch_interval is None:
-                raise ValueError("watch_interval is required when watch=True")
-            await _watch_loop(
-                lambda stop: run_once(db, stop),
-                interval=watch_interval,
-            )
-        else:
-            await run_once(db, None)
+        await run_once(db, None)
     finally:
         await client.close()
 
@@ -141,7 +130,7 @@ async def run_sync_events(
 
         return once
 
-    await _run_with_gateway(
+    await _run(
         settings,
         make_once,
         watch=watch,
@@ -163,7 +152,7 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
 
         return once
 
-    await _run_with_gateway(
+    await _run(
         settings,
         make_once,
         watch=watch,
@@ -175,9 +164,7 @@ async def run_sync_klines(settings: Settings, *, watch: bool = False) -> None:
     def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            written = await sync_klines(
-                db, gateway, settings=settings, stop=stop
-            )
+            written = await sync_klines(db, gateway, settings=settings, stop=stop)
             logger.info(
                 "kline_sync_run_complete",
                 written=written,
@@ -186,7 +173,7 @@ async def run_sync_klines(settings: Settings, *, watch: bool = False) -> None:
 
         return once
 
-    await _run_with_gateway(
+    await _run(
         settings,
         make_once,
         watch=watch,
@@ -222,7 +209,7 @@ async def run_sync_profile(
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=False)
+    await _run(settings, make_once, watch=False)
 
 
 async def run_sync_home_profile(
@@ -247,7 +234,7 @@ async def run_sync_home_profile(
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=False)
+    await _run(settings, make_once, watch=False)
 
 
 async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
@@ -266,7 +253,7 @@ async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
 
         return once
 
-    await _run_with_gateway(
+    await _run(
         settings,
         make_once,
         watch=watch,
@@ -299,7 +286,7 @@ async def run_update_tag_profiles(
             seconds=round(time.monotonic() - started, 1),
         )
 
-    await _run_db_only(settings, once, watch=False)
+    await _run_db_only(settings, once)
 
 
 async def run_add_user(settings: Settings, wallet: str) -> None:
@@ -316,7 +303,7 @@ async def run_add_user(settings: Settings, wallet: str) -> None:
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=False)
+    await _run(settings, make_once, watch=False)
 
 
 async def run_add_event(settings: Settings, slug: str) -> None:
@@ -333,12 +320,10 @@ async def run_add_event(settings: Settings, slug: str) -> None:
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=False)
+    await _run(settings, make_once, watch=False)
 
 
-async def run_sync_activity(
-    settings: Settings, wallet: str, event_slug: str
-) -> None:
+async def run_sync_activity(settings: Settings, wallet: str, event_slug: str) -> None:
     def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
@@ -357,7 +342,7 @@ async def run_sync_activity(
 
         return once
 
-    await _run_with_gateway(settings, make_once, watch=False)
+    await _run(settings, make_once, watch=False)
 
 
 async def run_data_fix(settings: Settings, *, apply: bool = False) -> None:
@@ -373,4 +358,4 @@ async def run_data_fix(settings: Settings, *, apply: bool = False) -> None:
             seconds=round(time.monotonic() - started, 1),
         )
 
-    await _run_db_only(settings, once, watch=False)
+    await _run_db_only(settings, once)
