@@ -105,7 +105,7 @@ def sync_home_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число home_profiles (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один home profile по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация устаревших home_profiles (activity cache → activities, synced_at > 6h)."""
+    """Синхронизация устаревших home_profiles (activity cache → activities, synced_at > HOME_PROFILE_REFRESH_INTERVAL_DAYS)."""
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)

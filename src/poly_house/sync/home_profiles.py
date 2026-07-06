@@ -35,7 +35,7 @@ async def wallets_needing_home_profile_sync(
     if not wallets:
         return []
     cutoff = datetime.now(UTC) - timedelta(
-        hours=settings.home_profile_sync_interval_hours
+        days=settings.home_profile_refresh_interval_days
     )
     cursor = db.home_profiles.find(
         {"_id": {"$in": wallets}, "synced_at": {"$gte": cutoff}},
@@ -53,7 +53,7 @@ async def _load_home_profiles_needing_sync(
     limit: int | None = None,
 ) -> list[str]:
     cutoff = datetime.now(UTC) - timedelta(
-        hours=settings.home_profile_sync_interval_hours
+        days=settings.home_profile_refresh_interval_days
     )
     query: dict[str, Any] = {
         "$or": [

@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     # sync-profile: считать profile свежим, если synced_at моложе N дней
     profile_sync_interval_days: int = 1
 
-    # sync-home-profile: считать home profile свежим, если synced_at моложе N часов
-    home_profile_sync_interval_hours: int = 6
+    # sync-home-profile: считать home profile свежим, если synced_at моложе N дней
+    home_profile_refresh_interval_days: int = 1
 
     # необязательный фильтр events по тегам (tag_id=1&tag_id=2)
     events_tag_ids: list[int] = []
