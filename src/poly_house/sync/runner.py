@@ -196,7 +196,7 @@ class SyncProfileOptions:
     limit: int | None = None
 
 
-async def run_sync_profile(
+async def run_refresh_profile(
     settings: Settings,
     options: SyncProfileOptions,
 ) -> None:
@@ -221,7 +221,7 @@ async def run_sync_profile(
     await _run(settings, make_once, watch=False)
 
 
-async def run_sync_home_profile(
+async def run_refresh_home_profile(
     settings: Settings,
     options: SyncProfileOptions,
 ) -> None:

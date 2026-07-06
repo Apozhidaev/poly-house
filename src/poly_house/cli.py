@@ -13,8 +13,8 @@ from poly_house.sync.runner import (
     SyncProfileOptions,
     TagProfileSyncOptions,
     run_sync_events,
-    run_sync_profile,
-    run_sync_home_profile,
+    run_refresh_profile,
+    run_refresh_home_profile,
     run_sync_holder,
     run_sync_trades,
     run_sync_klines,
@@ -88,28 +88,28 @@ def sync_holder(
     asyncio.run(run_sync_holder(settings, watch=watch))
 
 
-@app.command("sync-profile")
-def sync_profile(
+@app.command("refresh-profile")
+def refresh_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число profiles (для теста).")] = None,
-    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один profile по proxy_wallet.")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Обновить один profile по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация устаревших profiles (Polymarket API, synced_at > PROFILE_REFRESH_INTERVAL_DAYS)."""
+    """Устаревшие profiles (Polymarket API, synced_at > PROFILE_REFRESH_INTERVAL_DAYS)."""
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_sync_profile(settings, options))
+    asyncio.run(run_refresh_profile(settings, options))
 
 
-@app.command("sync-home-profile")
-def sync_home_profile(
+@app.command("refresh-home-profile")
+def refresh_home_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число home_profiles (для теста).")] = None,
-    wallet: Annotated[str | None, typer.Option("--wallet", help="Синхронизировать один home profile по proxy_wallet.")] = None,
+    wallet: Annotated[str | None, typer.Option("--wallet", help="Обновить один home profile по proxy_wallet.")] = None,
 ) -> None:
-    """Синхронизация устаревших home_profiles (activity cache → activities, synced_at > HOME_PROFILE_REFRESH_INTERVAL_DAYS)."""
+    """Устаревшие home_profiles (activity cache → activities, synced_at > HOME_PROFILE_REFRESH_INTERVAL_DAYS)."""
     _configure_logging()
     settings = Settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
-    asyncio.run(run_sync_home_profile(settings, options))
+    asyncio.run(run_refresh_home_profile(settings, options))
 
 
 @app.command("update-tag-profile")

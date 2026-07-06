@@ -20,13 +20,13 @@ class Settings(BaseSettings):
     # первый прогон: глубина загрузки events по updatedAt
     updated_in_days: int = 30
 
-    # первый прогон sync-home-profile: activity cache за последние N дней
+    # первый прогон refresh-home-profile: activity cache за последние N дней
     activity_cache_in_days: int = 365
 
-    # sync-profile: считать profile свежим, если synced_at моложе N дней
+    # refresh-profile: считать profile свежим, если synced_at моложе N дней
     profile_refresh_interval_days: int = 1
 
-    # sync-home-profile: считать home profile свежим, если synced_at моложе N дней
+    # refresh-home-profile: считать home profile свежим, если synced_at моложе N дней
     home_profile_refresh_interval_days: int = 1
 
     # необязательный фильтр events по тегам (tag_id=1&tag_id=2)
