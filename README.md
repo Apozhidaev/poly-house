@@ -31,61 +31,53 @@ uv run basedpyright src/poly_house/
 Синхронизация разбита на команды:
 
 ```bash
-# events + nested markets + tags
+# sync-event — events + nested markets + tags
 uv run poly-house sync-event
 uv run poly-house sync-event --open
-
-# один event по slug: Gateway /gamma/events/slug → tags, event, markets
-uv run poly-house add-event <slug>
-
-# трейды + пользователи (для маркетов, обновлённых после прошлого прогона)
-uv run poly-house sync-trade
-
-# orderbook open markets → hourly bid/ask klines
-uv run poly-house sync-kline
-uv run poly-house sync-kline --watch
-
-# holders открытых маркетов → sync profiles/home_profiles/tag_profiles
-uv run poly-house sync-holder
-
-# устаревшие profiles (Polymarket API, synced_at > 24h)
-uv run poly-house sync-profile
-
-# устаревшие home_profiles (activity cache → activities, synced_at > 6h)
-uv run poly-house sync-home-profile
-
-# tag profiles holders (activities × market tags) → коллекция tag_profiles
-uv run poly-house update-tag-profile
-
-# один пользователь: Gateway /gamma/public-profile → users + profiles/home_profiles/tag_profiles
-uv run poly-house add-user 0x...
-
-# перезагрузка activity для wallet+event (delete + full fetch по event из Gateway)
-uv run poly-house sync-activity --wallet 0x... --event some-event-slug
-
-# диагностика: wallet+event_slug с >= 3500 activities (TSV + total)
-uv run poly-house data-fix
-uv run poly-house data-fix --apply   # удалить activities (пары) + activity_caches (кошельки)
-
-# бесконечный цикл (остановка — Ctrl+C); sync-event — SYNC_EVENT_WATCH_INTERVAL
-uv run poly-house sync-event --watch
+uv run poly-house sync-event --watch                    # SYNC_EVENT_WATCH_INTERVAL
 uv run poly-house sync-event --open --watch
-# sync-trade/sync-kline/sync-holder — свои SYNC_*_WATCH_INTERVAL
-uv run poly-house sync-trade --watch
-uv run poly-house sync-kline --watch
-uv run poly-house sync-holder --watch
-
-# тестовый прогон: 2 страницы events
-uv run poly-house sync-event --max-pages 2
+uv run poly-house sync-event --max-pages 2              # тест: 2 страницы
 uv run poly-house sync-event --open --max-pages 2
 
-# тестовый прогон: 10 записей или один wallet
+# add-event — один event по slug
+uv run poly-house add-event <slug>
+
+# sync-trade — трейды + пользователи
+uv run poly-house sync-trade
+uv run poly-house sync-trade --watch                    # SYNC_TRADE_WATCH_INTERVAL
+
+# sync-kline — orderbook open markets → hourly bid/ask klines
+uv run poly-house sync-kline
+uv run poly-house sync-kline --watch                    # SYNC_KLINE_WATCH_INTERVAL
+
+# sync-holder — holders → profiles / home_profiles / tag_profiles
+uv run poly-house sync-holder
+uv run poly-house sync-holder --watch                   # SYNC_HOLDER_WATCH_INTERVAL
+
+# sync-profile — устаревшие profiles (synced_at > 24h)
+uv run poly-house sync-profile
 uv run poly-house sync-profile --limit 10
 uv run poly-house sync-profile --wallet 0x...
+
+# sync-home-profile — устаревшие home_profiles (synced_at > 6h)
+uv run poly-house sync-home-profile
 uv run poly-house sync-home-profile --limit 10
 uv run poly-house sync-home-profile --wallet 0x...
+
+# update-tag-profile — tag profiles из activities × market tags
+uv run poly-house update-tag-profile
 uv run poly-house update-tag-profile --limit 10
 uv run poly-house update-tag-profile --wallet 0x...
+
+# add-user — один пользователь + profiles / home_profiles / tag_profiles
+uv run poly-house add-user 0x...
+
+# sync-activity — перезагрузка activity для wallet+event
+uv run poly-house sync-activity --wallet 0x... --event some-event-slug
+
+# data-fix — wallet+event_slug с >= 3500 activities
+uv run poly-house data-fix
+uv run poly-house data-fix --apply                       # удалить activities + activity_caches
 ```
 
 Как это работает:
