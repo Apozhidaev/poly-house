@@ -54,7 +54,7 @@ def sync_event(
 
 @app.command("sync-trade")
 def sync_trade(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом SYNC_TRADE_WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
 ) -> None:
     """Синхронизация трейдов (+ пользователи) для маркетов, обновлённых после прошлого прогона."""
     _configure_logging()
