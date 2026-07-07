@@ -478,9 +478,7 @@ async def sync_activity_for_wallet_event(
         raise ValueError(f"Event not found: {event_slug}")
     slug = event["slug"]
     deleted = (
-        await db.activities.delete_many(
-            {"proxy_wallet": wallet, "event_slug": slug}
-        )
+        await db.activities.delete_many({"proxy_wallet": wallet, "event_slug": slug})
     ).deleted_count
     activities = await _fetch_new_activities(
         db, gateway, settings, wallet, event["_id"], watermark=None
@@ -507,7 +505,16 @@ async def _mark_activity_cache_synced(
 ) -> None:
     await db.activity_caches.update_one(
         {"proxy_wallet": proxy_wallet, "event_slug": event_slug},
-        {"$set": {"activity_synced": True}},
+        {"$set": {"activity_synced": True, "sync_fail_count": 0}},
+    )
+
+
+async def _mark_activity_cache_sync_failed(
+    db: Database, proxy_wallet: str, event_slug: str, sync_fail_count: int
+) -> None:
+    await db.activity_caches.update_one(
+        {"proxy_wallet": proxy_wallet, "event_slug": event_slug},
+        {"$set": {"activity_synced": False, "sync_fail_count": sync_fail_count + 1}},
     )
 
 
@@ -526,6 +533,9 @@ async def _sync_activities_for_wallets(
     for entry in pending:
         if stop is not None and stop.is_set():
             break
+        sync_fail_count = entry.sync_fail_count or 0
+        if sync_fail_count > 3:
+            continue
         event_id = slug_to_event_id.get(entry.event_slug)
         if event_id is None:
             continue
@@ -548,6 +558,10 @@ async def _sync_activities_for_wallets(
                 event_slug=entry.event_slug,
                 event_id=event_id,
                 error=str(exc),
+                sync_fail_count=sync_fail_count + 1,
+            )
+            await _mark_activity_cache_sync_failed(
+                db, entry.proxy_wallet, entry.event_slug, sync_fail_count
             )
             continue
         if activities:
@@ -621,4 +635,6 @@ async def sync_home_profiles(
         limit=limit,
     )
 
-    await sync_home_profiles_for_wallets(db, gateway, settings, wallets_to_sync, stop=stop)
+    await sync_home_profiles_for_wallets(
+        db, gateway, settings, wallets_to_sync, stop=stop
+    )

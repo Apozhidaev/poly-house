@@ -15,6 +15,7 @@ class ActivityCache(BaseModel):
     event_slug: str
     timestamp: int
     activity_synced: bool = False
+    sync_fail_count: int | None = None
 
     def to_doc(self) -> dict[str, Any]:
         return self.model_dump()
