@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NamedTuple
 
 import structlog
 from pymongo import ReplaceOne, UpdateOne
@@ -20,8 +20,7 @@ from poly_house.sync.sync_state import (
 logger = structlog.get_logger()
 
 
-@dataclass(frozen=True)
-class EventWithMarkets:
+class EventWithMarkets(NamedTuple):
     event: Event
     markets: list[Market]
 
@@ -31,7 +30,6 @@ def parse_event_with_markets(raw: dict[str, Any]) -> EventWithMarkets:
     markets = [
         Market.model_validate(m)
         for m in raw.get("markets") or []
-        if m.get("conditionId")
     ]
     return EventWithMarkets(event=event, markets=markets)
 
