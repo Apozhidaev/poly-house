@@ -210,15 +210,14 @@ async def get_holders(
     if market is None:
         raise HTTPException(status_code=404, detail="Market not found")
 
-    holders = await db.activities.distinct(
+    wallets = await db.activities.distinct(
         "proxy_wallet", {"condition_id": condition_id}
     )
-    if expert_only and holders:
-        holders = await _load_expert_wallets(db, holders)
-
+    if expert_only and wallets:
+        wallets = await _load_expert_wallets(db, wallets)
     return {
         "condition_id": condition_id,
-        "holders": holders,
+        "proxy_wallets": wallets,
     }
 
 
@@ -246,6 +245,4 @@ async def get_holder_distribution(
         if holder_distribution:
             return holder_distribution.model_dump()
 
-    return HolderDistribution(
-        proxy_wallet=proxy_wallet, distribution={}, max_days_left=-1
-    ).model_dump()
+    return HolderDistribution(proxy_wallet=proxy_wallet).model_dump()

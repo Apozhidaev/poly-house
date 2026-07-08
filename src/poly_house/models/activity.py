@@ -146,8 +146,8 @@ class ActivityMetrics(BaseModel):
 
 class HolderDistribution(BaseModel):
     proxy_wallet: str
-    distribution: dict[int, int]
-    max_days_left: int
+    distribution: dict[int, int] = {}
+    max_days_left: int = -1
 
 
 def compute_pnl(activities: list[Activity]) -> float:
