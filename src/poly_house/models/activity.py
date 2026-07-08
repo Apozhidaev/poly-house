@@ -375,15 +375,16 @@ def build_holder_distributions(
     closed_day_ts: int,
     *,
     min_usdc: float = 1,
-    skip_wallets: list[str] = [],
+    skip_wallets: list[str] | None = None,
 ) -> tuple[list[HolderDistribution], int]:
     by_holder: dict[str, list[Activity]] = {}
     for activity in activities:
         by_holder.setdefault(activity.proxy_wallet, []).append(activity)
     result: list[HolderDistribution] = []
     max_days_left = -1
+    skip = skip_wallets or []
     for proxy_wallet, group in by_holder.items():
-        if proxy_wallet in skip_wallets:
+        if proxy_wallet in skip:
             continue
         distribution = _compute_holder_distribution(group, closed_day_ts, min_usdc)
         if distribution:

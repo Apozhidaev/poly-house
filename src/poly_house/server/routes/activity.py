@@ -184,9 +184,26 @@ async def list_event_activity(
     return {"items": page_items, "total": len(home_event_activities)}
 
 
+async def _load_expert_skip_wallets(db: Db, wallets: list[str]) -> list[str]:
+    if not wallets:
+        return []
+    docs = await db.home_profiles.find(
+        {"_id": {"$in": wallets}},
+        projection={"_id": 1, "pnl": 1},
+    ).to_list(None)
+    pnl_by_wallet = {doc["_id"]: doc.get("pnl") for doc in docs}
+    return [
+        wallet
+        for wallet in wallets
+        if (pnl := pnl_by_wallet.get(wallet)) is None or pnl <= 0
+    ]
+
+
 @router.get("/holder-distribution")
 async def get_holder_distribution(
-    db: Db, condition_id: str
+    db: Db,
+    condition_id: str,
+    expert_only: bool = True,
 ) -> dict[str, Any]:
     market = await db.markets.find_one({"condition_id": condition_id})
     if market is None:
@@ -203,7 +220,13 @@ async def get_holder_distribution(
         activities = [Activity.model_validate(doc) for doc in docs]
         closed_timestamp = int(deadline.timestamp())
         closed_day_ts = day_timestamp(closed_timestamp)
-        distributions, max_days_left = build_holder_distributions(activities, closed_day_ts)
+        skip_wallets: list[str] = []
+        if expert_only:
+            wallets = list({a.proxy_wallet for a in activities})
+            skip_wallets = await _load_expert_skip_wallets(db, wallets)
+        distributions, max_days_left = build_holder_distributions(
+            activities, closed_day_ts, skip_wallets=skip_wallets
+        )
         holders = [h.model_dump() for h in distributions]
 
     return {
