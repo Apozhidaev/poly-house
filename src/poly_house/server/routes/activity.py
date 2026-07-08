@@ -198,17 +198,17 @@ async def get_holder_distribution(
     deadline = market.get("deadline")
     if not docs or deadline is None:
         holders: list[dict[str, Any]] = []
+        max_days = 0
     else:
         activities = [Activity.model_validate(doc) for doc in docs]
         closed_timestamp = int(deadline.timestamp())
         closed_day_ts = day_timestamp(closed_timestamp)
-        holders = [
-            h.model_dump()
-            for h in build_holder_distributions(activities, closed_day_ts)
-        ]
+        distributions, max_days = build_holder_distributions(activities, closed_day_ts)
+        holders = [h.model_dump() for h in distributions]
 
     return {
         "condition_id": condition_id,
         "resolved_outcome_index": market.get("resolved_outcome_index"),
         "holders": holders,
+        "max_days": max_days,
     }
