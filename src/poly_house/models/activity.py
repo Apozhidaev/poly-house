@@ -144,6 +144,11 @@ class ActivityMetrics(BaseModel):
     lose_holder_count: int = 0
 
 
+class HolderDistribution(BaseModel):
+    proxy_wallet: str
+    distribution: dict[int, int]
+
+
 def compute_pnl(activities: list[Activity]) -> float:
     pnl = 0.0
     for activity in activities:
@@ -341,13 +346,11 @@ def _compute_outcome_hold_days(
     return result
 
 
-def compute_hold_days_distribution(
+def _compute_holder_distribution(
     activities: list[Activity],
-    closed_timestamp: int,
-    *,
-    min_usdc: float = 1,
+    closed_day_ts: int,
+    min_usdc: float,
 ) -> dict[int, int]:
-    closed_day_ts = day_timestamp(closed_timestamp)
     side_by_day: dict[int, int] = {}
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
     set_0 = _compute_outcome_hold_days(sorted_activities, 0, closed_day_ts, min_usdc)
@@ -363,6 +366,25 @@ def compute_hold_days_distribution(
             side_by_day[day] = 1
 
     return {
-        ((closed_day_ts - day) // DAY_SEC): side
-        for day, side in side_by_day.items()
+        ((closed_day_ts - day) // DAY_SEC): side for day, side in side_by_day.items()
     }
+
+
+def build_holder_distributions(
+    activities: list[Activity],
+    closed_timestamp: int,
+    *,
+    min_usdc: float = 1,
+) -> list[HolderDistribution]:
+    closed_day_ts = day_timestamp(closed_timestamp)
+    by_holder: dict[str, list[Activity]] = {}
+    for activity in activities:
+        by_holder.setdefault(activity.proxy_wallet, []).append(activity)
+    result: list[HolderDistribution] = []
+    for proxy_wallet, group in by_holder.items():
+        distribution = _compute_holder_distribution(group, closed_day_ts, min_usdc)
+        if distribution:
+            result.append(
+                HolderDistribution(proxy_wallet=proxy_wallet, distribution=distribution)
+            )
+    return result
