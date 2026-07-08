@@ -296,17 +296,16 @@ def build_event_activities(activities: list[Activity]) -> list[EventActivity]:
     return result
 
 
-def compute_outcome_hold_days(
-    activities: list[Activity],
+def _compute_outcome_hold_days(
+    sorted_activities: list[Activity],
     outcome_index: int,
     closed_timestamp: int,
-    *,
-    min_usdc: float = 5,
-) -> set[int] | None:
+    min_usdc: float,
+) -> set[int]:
     hold = 0.0
     result: set[int] = set()
     last_hold_day: int | None = None
-    for activity in sorted(activities, key=lambda x: x.timestamp):
+    for activity in sorted_activities:
         match activity.type:
             case "SPLIT":
                 hold += activity.usdc_size
@@ -341,3 +340,18 @@ def compute_outcome_hold_days(
             )
 
     return result
+
+
+def compute_hold_days(
+    activities: list[Activity],
+    closed_timestamp: int,
+    *,
+    min_usdc: float = 5,
+) -> list[set[int]]:
+    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
+    return [
+        _compute_outcome_hold_days(
+            sorted_activities, outcome_index, closed_timestamp, min_usdc
+        )
+        for outcome_index in range(2)
+    ]
