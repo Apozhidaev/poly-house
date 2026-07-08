@@ -363,6 +363,6 @@ def compute_hold_days_distribution(
             side_by_day[day] = 1
 
     return {
-        round((closed_day_ts - day) / DAY_SEC): side
+        ((closed_day_ts - day) // DAY_SEC): side
         for day, side in side_by_day.items()
     }
