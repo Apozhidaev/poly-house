@@ -26,6 +26,7 @@ async def list_markets(
     tag_ids: list[int] | None = None,
     slug: str | None = None,
     condition_id: str | None = None,
+    resolved: bool | None = None,
 ) -> dict[str, Any]:
     query: dict[str, Any] = {}
     if closed is not None:
@@ -40,6 +41,10 @@ async def list_markets(
         query["slug"] = slug
     if condition_id:
         query["condition_id"] = condition_id
+    if resolved is True:
+        query["resolved_outcome_index"] = {"$ne": None}
+    elif resolved is False:
+        query["resolved_outcome_index"] = None
     cursor = db.markets.find(query).skip(page.offset).limit(page.limit)
     return {"items": await cursor.to_list(page.limit)}
 
