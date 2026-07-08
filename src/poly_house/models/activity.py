@@ -301,22 +301,23 @@ def compute_outcome_hold_days(
 ) -> set[int] | None:
     if not any(a.type == "REDEEM" for a in activities):
         return None
+    sorted_activities = sorted(activities, key=lambda x: x.timestamp)
     hold = 0.0
     result: set[int] = set()
     last_hold_day: int | None = None
-    for activity in activities:
+    for activity in sorted_activities:
         match activity.type:
             case "SPLIT":
                 hold += activity.usdc_size
             case "MERGE":
                 hold -= activity.usdc_size
             case "TRADE":
-                    if activity.outcome_index == outcome_index:
-                        match activity.side:
-                            case "SELL":
-                                hold -= activity.usdc_size
-                            case "BUY":
-                                hold += activity.usdc_size
+                if activity.outcome_index == outcome_index:
+                    match activity.side:
+                        case "SELL":
+                            hold -= activity.usdc_size
+                        case "BUY":
+                            hold += activity.usdc_size
             case "REDEEM":
                 hold = 0.0
 
@@ -328,7 +329,7 @@ def compute_outcome_hold_days(
 
         if last_hold_day is not None:
             result.update(range(last_hold_day, day_ts, DAY_SEC))
-
+            result.add(day_ts)
 
         last_hold_day = hold_day
 

@@ -9,7 +9,7 @@ from pymongo import UpdateOne
 from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
-from poly_house.utils import hour_timestamp
+from poly_house.utils import hour_timestamp_from_ms
 
 logger = structlog.get_logger()
 
@@ -46,7 +46,7 @@ def _kline_update_op(
     best_bid: float,
     best_ask: float,
 ) -> UpdateOne:
-    hour_ts = hour_timestamp(timestamp_ms)
+    hour_ts = hour_timestamp_from_ms(timestamp_ms)
     return UpdateOne(
         {
             "condition_id": condition_id,
