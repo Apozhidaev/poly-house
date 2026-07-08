@@ -370,6 +370,20 @@ def _compute_holder_distribution(
     }
 
 
+def resolve_closed_timestamp(
+    *, closed_time: str | None, activities: list[Activity]
+) -> int:
+    candidates: list[int] = []
+    if closed_time:
+        candidates.append(int(datetime.fromisoformat(closed_time).timestamp()))
+    redeem_timestamps = [a.timestamp for a in activities if a.type == "REDEEM"]
+    if redeem_timestamps:
+        candidates.append(min(redeem_timestamps))
+    if candidates:
+        return min(candidates)
+    return max(a.timestamp for a in activities)
+
+
 def build_holder_distributions(
     activities: list[Activity],
     closed_timestamp: int,
