@@ -342,16 +342,24 @@ def _compute_outcome_hold_days(
     return result
 
 
-def compute_hold_days(
+def compute_hold_days_distribution(
     activities: list[Activity],
     closed_timestamp: int,
     *,
     min_usdc: float = 1,
-) -> list[set[int]]:
+) -> dict[int, int]:
+    result: dict[int, int] = {}
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
-    return [
-        _compute_outcome_hold_days(
-            sorted_activities, outcome_index, closed_timestamp, min_usdc
-        )
-        for outcome_index in range(2)
-    ]
+    set_0 = _compute_outcome_hold_days(sorted_activities, 0, closed_timestamp, min_usdc)
+    set_1 = _compute_outcome_hold_days(sorted_activities, 1, closed_timestamp, min_usdc)
+    for day in set_0.union(set_1):
+        if day > closed_timestamp:
+            continue
+        side_0 = day in set_0
+        side_1 = day in set_1
+        if side_0 and not side_1:
+            result[day] = 0
+        elif side_1 and not side_0:
+            result[day] = 1
+
+    return result
