@@ -147,6 +147,7 @@ class ActivityMetrics(BaseModel):
 class HolderDistribution(BaseModel):
     proxy_wallet: str
     distribution: dict[int, int]
+    max_days_left: int
 
 
 def compute_pnl(activities: list[Activity]) -> float:
@@ -370,26 +371,18 @@ def _compute_holder_distribution(
     }
 
 
-def build_holder_distributions(
+def build_holder_distribution(
+    proxy_wallet: str,
     activities: list[Activity],
     closed_day_ts: int,
     *,
     min_usdc: float = 1,
-    skip_wallets: list[str] | None = None,
-) -> tuple[list[HolderDistribution], int]:
-    by_holder: dict[str, list[Activity]] = {}
-    for activity in activities:
-        by_holder.setdefault(activity.proxy_wallet, []).append(activity)
-    result: list[HolderDistribution] = []
-    max_days_left = -1
-    skip = skip_wallets or []
-    for proxy_wallet, group in by_holder.items():
-        if proxy_wallet in skip:
-            continue
-        distribution = _compute_holder_distribution(group, closed_day_ts, min_usdc)
-        if distribution:
-            max_days_left = max(max_days_left, max(distribution.keys()))
-            result.append(
-                HolderDistribution(proxy_wallet=proxy_wallet, distribution=distribution)
-            )
-    return result, max_days_left
+) -> HolderDistribution | None:
+    distribution = _compute_holder_distribution(activities, closed_day_ts, min_usdc)
+    if distribution:
+        return HolderDistribution(
+            proxy_wallet=proxy_wallet,
+            distribution=distribution,
+            max_days_left=max(distribution.keys()),
+        )
+    return None

@@ -7,8 +7,9 @@ from fastapi import APIRouter, HTTPException, Query
 from poly_house.db import Doc
 from poly_house.models.activity import (
     Activity,
+    HolderDistribution,
     build_event_activities,
-    build_holder_distributions,
+    build_holder_distribution,
     build_market_activities,
     build_user_activity_item,
 )
@@ -184,7 +185,7 @@ async def list_event_activity(
     return {"items": page_items, "total": len(home_event_activities)}
 
 
-async def _load_expert_skip_wallets(db: Db, wallets: list[str]) -> list[str]:
+async def _load_expert_wallets(db: Db, wallets: list[str]) -> list[str]:
     if not wallets:
         return []
     docs = await db.home_profiles.find(
@@ -195,12 +196,12 @@ async def _load_expert_skip_wallets(db: Db, wallets: list[str]) -> list[str]:
     return [
         wallet
         for wallet in wallets
-        if (pnl := pnl_by_wallet.get(wallet)) is None or pnl <= 0
+        if (pnl := pnl_by_wallet.get(wallet)) is not None and pnl > 0
     ]
 
 
-@router.get("/holder-distribution")
-async def get_holder_distribution(
+@router.get("/holders")
+async def get_holders(
     db: Db,
     condition_id: str,
     expert_only: bool = True,
@@ -209,29 +210,47 @@ async def get_holder_distribution(
     if market is None:
         raise HTTPException(status_code=404, detail="Market not found")
 
-    docs = await db.activities.find(
-        {"condition_id": condition_id}, {"_id": 0}
-    ).to_list(None)
-    deadline = market.get("deadline")
-    if not docs or deadline is None:
-        holders: list[dict[str, Any]] = []
-        max_days_left = 0
+    docs = await db.activities.find({"condition_id": condition_id}, {"_id": 0}).to_list(
+        None
+    )
+    if not docs:
+        holders: list[str] = []
     else:
         activities = [Activity.model_validate(doc) for doc in docs]
-        closed_timestamp = int(deadline.timestamp())
-        closed_day_ts = day_timestamp(closed_timestamp)
-        skip_wallets: list[str] = []
+        holders = list({a.proxy_wallet for a in activities})
         if expert_only:
-            wallets = list({a.proxy_wallet for a in activities})
-            skip_wallets = await _load_expert_skip_wallets(db, wallets)
-        distributions, max_days_left = build_holder_distributions(
-            activities, closed_day_ts, skip_wallets=skip_wallets
-        )
-        holders = [h.model_dump() for h in distributions]
+            holders = await _load_expert_wallets(db, holders)
 
     return {
         "condition_id": condition_id,
-        "resolved_outcome_index": market.get("resolved_outcome_index"),
         "holders": holders,
-        "max_days_left": max_days_left,
     }
+
+
+@router.get("/holder-distribution")
+async def get_holder_distribution(
+    db: Db,
+    condition_id: str,
+    proxy_wallet: str,
+) -> dict[str, Any]:
+    market = await db.markets.find_one({"condition_id": condition_id})
+    if market is None:
+        raise HTTPException(status_code=404, detail="Market not found")
+
+    docs = await db.activities.find(
+        {"condition_id": condition_id, "proxy_wallet": proxy_wallet}, {"_id": 0}
+    ).to_list(None)
+    deadline = market.get("deadline")
+    if docs and deadline:
+        activities = [Activity.model_validate(doc) for doc in docs]
+        closed_timestamp = int(deadline.timestamp())
+        closed_day_ts = day_timestamp(closed_timestamp)
+        holder_distribution = build_holder_distribution(
+            proxy_wallet, activities, closed_day_ts
+        )
+        if holder_distribution:
+            return holder_distribution.model_dump()
+
+    return HolderDistribution(
+        proxy_wallet=proxy_wallet, distribution={}, max_days_left=-1
+    ).model_dump()
