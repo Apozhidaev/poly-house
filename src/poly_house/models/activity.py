@@ -296,35 +296,40 @@ def build_event_activities(activities: list[Activity]) -> list[EventActivity]:
     return result
 
 
-def compute_hold_days(
-    activities: list[Activity], *, min_usdc: float = 5
-) -> list[set[int]]:
-    hold = [0.0, 0.0]
-    result: list[set[int]] = [set(), set()]
+def compute_outcome_hold_days(
+    activities: list[Activity], outcome_index: int, *, min_usdc: float = 5
+) -> set[int] | None:
     if not any(a.type == "REDEEM" for a in activities):
-        return result
+        return None
+    hold = 0.0
+    result: set[int] = set()
+    last_hold_day: int | None = None
     for activity in activities:
         match activity.type:
             case "SPLIT":
-                hold[0] += activity.usdc_size
-                hold[1] += activity.usdc_size
+                hold += activity.usdc_size
             case "MERGE":
-                hold[0] -= activity.usdc_size
-                hold[1] -= activity.usdc_size
+                hold -= activity.usdc_size
             case "TRADE":
-                match activity.side:
-                    case "SELL":
-                        hold[activity.outcome_index] -= activity.usdc_size
-                    case "BUY":
-                        hold[activity.outcome_index] += activity.usdc_size
+                    if activity.outcome_index == outcome_index:
+                        match activity.side:
+                            case "SELL":
+                                hold -= activity.usdc_size
+                            case "BUY":
+                                hold += activity.usdc_size
             case "REDEEM":
-                hold = [0.0, 0.0]
+                hold = 0.0
 
         day_ts = day_timestamp(activity.timestamp)
+        hold_day = None if hold < min_usdc else day_ts
 
-        if hold[0] >= min_usdc:
-            result[0].add(day_ts)
-        if hold[1] >= min_usdc:
-            result[1].add(day_ts)
+        if hold_day is not None:
+            result.add(hold_day)
+
+        if last_hold_day is not None:
+            result.update(range(last_hold_day, day_ts, DAY_SEC))
+
+
+        last_hold_day = hold_day
 
     return result
