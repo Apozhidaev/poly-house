@@ -11,10 +11,10 @@ from poly_house.models.activity import (
     build_holder_distributions,
     build_market_activities,
     build_user_activity_item,
-    resolve_closed_timestamp,
 )
 from poly_house.models.market import load_resolved_outcomes
 from poly_house.server.deps import Db, Page
+from poly_house.utils import day_timestamp
 
 router = APIRouter(prefix="/activity", tags=["activity"])
 
@@ -195,17 +195,16 @@ async def get_holder_distribution(
     docs = await db.activities.find(
         {"condition_id": condition_id}, {"_id": 0}
     ).to_list(None)
-    if not docs:
+    deadline = market.get("deadline")
+    if not docs or deadline is None:
         holders: list[dict[str, Any]] = []
     else:
         activities = [Activity.model_validate(doc) for doc in docs]
-        closed_timestamp = resolve_closed_timestamp(
-            closed_time=market.get("closed_time"),
-            activities=activities,
-        )
+        closed_timestamp = int(deadline.timestamp())
+        closed_day_ts = day_timestamp(closed_timestamp)
         holders = [
             h.model_dump()
-            for h in build_holder_distributions(activities, closed_timestamp)
+            for h in build_holder_distributions(activities, closed_day_ts)
         ]
 
     return {
