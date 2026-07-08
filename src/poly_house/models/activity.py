@@ -299,7 +299,7 @@ def build_event_activities(activities: list[Activity]) -> list[EventActivity]:
 def _compute_outcome_hold_days(
     sorted_activities: list[Activity],
     outcome_index: int,
-    closed_timestamp: int,
+    closed_day_ts: int,
     min_usdc: float,
 ) -> set[int]:
     hold_usdc = 0.0
@@ -333,7 +333,6 @@ def _compute_outcome_hold_days(
         last_hold_day = hold_day
 
     if last_hold_day is not None:
-        closed_day_ts = day_timestamp(closed_timestamp)
         if closed_day_ts > last_hold_day:
             result.update(
                 range(last_hold_day + DAY_SEC, closed_day_ts + DAY_SEC, DAY_SEC)
@@ -348,18 +347,22 @@ def compute_hold_days_distribution(
     *,
     min_usdc: float = 1,
 ) -> dict[int, int]:
-    result: dict[int, int] = {}
+    closed_day_ts = day_timestamp(closed_timestamp)
+    side_by_day: dict[int, int] = {}
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
-    set_0 = _compute_outcome_hold_days(sorted_activities, 0, closed_timestamp, min_usdc)
-    set_1 = _compute_outcome_hold_days(sorted_activities, 1, closed_timestamp, min_usdc)
+    set_0 = _compute_outcome_hold_days(sorted_activities, 0, closed_day_ts, min_usdc)
+    set_1 = _compute_outcome_hold_days(sorted_activities, 1, closed_day_ts, min_usdc)
     for day in set_0.union(set_1):
-        if day > closed_timestamp:
+        if day > closed_day_ts:
             continue
         side_0 = day in set_0
         side_1 = day in set_1
         if side_0 and not side_1:
-            result[day] = 0
+            side_by_day[day] = 0
         elif side_1 and not side_0:
-            result[day] = 1
+            side_by_day[day] = 1
 
-    return result
+    return {
+        round((closed_day_ts - day) / DAY_SEC): side
+        for day, side in side_by_day.items()
+    }
