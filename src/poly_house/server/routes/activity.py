@@ -210,16 +210,11 @@ async def get_holders(
     if market is None:
         raise HTTPException(status_code=404, detail="Market not found")
 
-    docs = await db.activities.find({"condition_id": condition_id}, {"_id": 0}).to_list(
-        None
+    holders = await db.activities.distinct(
+        "proxy_wallet", {"condition_id": condition_id}
     )
-    if not docs:
-        holders: list[str] = []
-    else:
-        activities = [Activity.model_validate(doc) for doc in docs]
-        holders = list({a.proxy_wallet for a in activities})
-        if expert_only:
-            holders = await _load_expert_wallets(db, holders)
+    if expert_only and holders:
+        holders = await _load_expert_wallets(db, holders)
 
     return {
         "condition_id": condition_id,
