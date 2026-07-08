@@ -296,9 +296,13 @@ def build_event_activities(activities: list[Activity]) -> list[EventActivity]:
     return result
 
 
-def compute_hold_days(activities: list[Activity], deadline: datetime) -> list[set[int]]:
+def compute_hold_days(
+    activities: list[Activity], *, min_usdc: float = 5
+) -> list[set[int]]:
     hold = [0.0, 0.0]
     result: list[set[int]] = [set(), set()]
+    if not any(a.type == "REDEEM" for a in activities):
+        return result
     for activity in activities:
         match activity.type:
             case "SPLIT":
@@ -312,13 +316,15 @@ def compute_hold_days(activities: list[Activity], deadline: datetime) -> list[se
                     case "SELL":
                         hold[activity.outcome_index] -= activity.usdc_size
                     case "BUY":
-
                         hold[activity.outcome_index] += activity.usdc_size
+            case "REDEEM":
+                hold = [0.0, 0.0]
+
         day_ts = day_timestamp(activity.timestamp)
 
-        if abs(hold[0]) > 5:
+        if hold[0] >= min_usdc:
             result[0].add(day_ts)
-        if abs(hold[1]) > 5:
+        if hold[1] >= min_usdc:
             result[1].add(day_ts)
 
     return result
