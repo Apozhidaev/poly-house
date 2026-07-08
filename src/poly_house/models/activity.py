@@ -302,27 +302,27 @@ def _compute_outcome_hold_days(
     closed_timestamp: int,
     min_usdc: float,
 ) -> set[int]:
-    hold = 0.0
+    hold_usdc = 0.0
     result: set[int] = set()
     last_hold_day: int | None = None
     for activity in sorted_activities:
         match activity.type:
             case "SPLIT":
-                hold += activity.usdc_size
+                hold_usdc += activity.usdc_size
             case "MERGE":
-                hold -= activity.usdc_size
+                hold_usdc -= activity.usdc_size
             case "TRADE":
                 if activity.outcome_index == outcome_index:
                     match activity.side:
                         case "SELL":
-                            hold -= activity.usdc_size
+                            hold_usdc -= activity.usdc_size
                         case "BUY":
-                            hold += activity.usdc_size
+                            hold_usdc += activity.usdc_size
             case "REDEEM":
-                hold = 0.0
+                hold_usdc = 0.0
 
         day_ts = day_timestamp(activity.timestamp)
-        hold_day = None if hold < min_usdc else day_ts
+        hold_day = None if hold_usdc < min_usdc else day_ts
 
         if hold_day is not None:
             result.add(hold_day)
@@ -346,7 +346,7 @@ def compute_hold_days(
     activities: list[Activity],
     closed_timestamp: int,
     *,
-    min_usdc: float = 5,
+    min_usdc: float = 1,
 ) -> list[set[int]]:
     sorted_activities = sorted(activities, key=lambda x: x.timestamp)
     return [
