@@ -9,11 +9,11 @@ from pymongo import UpdateOne
 from poly_house.api.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
+from poly_house.utils import hour_timestamp
 
 logger = structlog.get_logger()
 
 BULK_SIZE = 200
-_HOUR_SEC = 3_600
 
 
 def _open_market_query(**filters: Any) -> dict[str, Any]:
@@ -39,10 +39,6 @@ def _best_from_book(book: dict[str, Any]) -> tuple[float, float, int]:
     return best_bid, best_ask, timestamp
 
 
-def _hour_timestamp(timestamp_ms: int) -> int:
-    return (timestamp_ms // 1000 // _HOUR_SEC) * _HOUR_SEC
-
-
 def _kline_update_op(
     condition_id: str,
     outcome_index: int,
@@ -50,7 +46,7 @@ def _kline_update_op(
     best_bid: float,
     best_ask: float,
 ) -> UpdateOne:
-    hour_ts = _hour_timestamp(timestamp_ms)
+    hour_ts = hour_timestamp(timestamp_ms)
     return UpdateOne(
         {
             "condition_id": condition_id,

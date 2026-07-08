@@ -9,6 +9,7 @@ from pydantic.alias_generators import to_camel
 
 from poly_house.models.ts import TimeSeriesPoint
 from poly_house.utils.metrics import fit_trend_by_days
+from poly_house.utils.time import DAY_SEC, day_timestamp
 
 
 class ActivityType(StrEnum):
@@ -103,12 +104,12 @@ def build_user_activity_item(
         kwargs.update(
             title=market["question"],
             group_item_title=market.get("group_item_title", ""),
-            asset=clob_token_ids[outcome_index]
-            if outcome_index < len(clob_token_ids)
-            else "",
-            outcome=outcomes[outcome_index]
-            if outcome_index < len(outcomes)
-            else "",
+            asset=(
+                clob_token_ids[outcome_index]
+                if outcome_index < len(clob_token_ids)
+                else ""
+            ),
+            outcome=outcomes[outcome_index] if outcome_index < len(outcomes) else "",
         )
     return UserActivityItem(**kwargs)
 
@@ -292,4 +293,32 @@ def build_event_activities(activities: list[Activity]) -> list[EventActivity]:
     for event_slug, group in by_event.items():
         if ea := build_event_activity(group):
             result.append(ea)
+    return result
+
+
+def compute_hold_days(activities: list[Activity], deadline: datetime) -> list[set[int]]:
+    hold = [0.0, 0.0]
+    result: list[set[int]] = [set(), set()]
+    for activity in activities:
+        match activity.type:
+            case "SPLIT":
+                hold[0] += activity.usdc_size
+                hold[1] += activity.usdc_size
+            case "MERGE":
+                hold[0] -= activity.usdc_size
+                hold[1] -= activity.usdc_size
+            case "TRADE":
+                match activity.side:
+                    case "SELL":
+                        hold[activity.outcome_index] -= activity.usdc_size
+                    case "BUY":
+
+                        hold[activity.outcome_index] += activity.usdc_size
+        day_ts = day_timestamp(activity.timestamp)
+
+        if abs(hold[0]) > 5:
+            result[0].add(day_ts)
+        if abs(hold[1]) > 5:
+            result[1].add(day_ts)
+
     return result
