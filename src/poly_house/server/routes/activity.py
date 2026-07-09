@@ -185,19 +185,25 @@ async def list_event_activity(
     return {"items": page_items, "total": len(home_event_activities)}
 
 
-async def _load_profit_wallets(db: Db, wallets: list[str], tag_id: int) -> list[str]:
+async def _load_top_wallets(
+    db: Db, wallets: list[str], tag_id: int, limit: int
+) -> list[str]:
     if not wallets:
         return []
-    docs = await db.tag_profiles.find(
-        {"proxy_wallet": {"$in": wallets}, "tag_id": tag_id},
-        projection={"proxy_wallet": 1, "pnl": 1},
-    ).to_list(None)
-    pnl_by_wallet = {doc["proxy_wallet"]: doc.get("pnl") for doc in docs}
-    return [
-        wallet
-        for wallet in wallets
-        if (pnl := pnl_by_wallet.get(wallet)) is not None and pnl > 0
-    ]
+    docs = (
+        await db.tag_profiles.find(
+            {
+                "proxy_wallet": {"$in": wallets},
+                "tag_id": tag_id,
+                "win_rate": {"$ne": None},
+            },
+            projection={"proxy_wallet": 1},
+        )
+        .sort("win_rate", -1)
+        .limit(limit)
+        .to_list(None)
+    )
+    return [doc["proxy_wallet"] for doc in docs]
 
 
 @router.get("/holders")
@@ -205,7 +211,7 @@ async def get_holders(
     db: Db,
     condition_id: str,
     tag_id: int,
-    profit_only: bool = True,
+    limit: int = 200,
 ) -> dict[str, Any]:
     market = await db.markets.find_one({"condition_id": condition_id})
     if market is None:
@@ -214,8 +220,8 @@ async def get_holders(
     wallets = await db.activities.distinct(
         "proxy_wallet", {"condition_id": condition_id}
     )
-    if profit_only and wallets:
-        wallets = await _load_profit_wallets(db, wallets, tag_id)
+    if len(wallets) > limit:
+        wallets = await _load_top_wallets(db, wallets, tag_id, limit)
     return {
         "condition_id": condition_id,
         "proxy_wallets": wallets,
