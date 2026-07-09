@@ -134,7 +134,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /trades/to-outcome` | `target_outcome_index` (default 0), `condition_id`, `user`, `side`, `from`, `to` |
 | `GET /activity` | `condition_id`, `outcome_index`, `user`, `type`, `side`, `from`, `to` |
 | `GET /activity/by-market` | `user` (required), `condition_id` |
-| `GET /activity/holders` | `condition_id` (required), `expert_only` (default `true`) |
+| `GET /activity/holders` | `condition_id` (required), `profit_only` (default `true`) |
 | `GET /activity/holder-distribution` | `condition_id` (required), `proxy_wallet` (required) |
 
 Все списки пагинируются через `limit` (default 50, max 500) и `offset`.

@@ -185,7 +185,7 @@ async def list_event_activity(
     return {"items": page_items, "total": len(home_event_activities)}
 
 
-async def _load_expert_wallets(db: Db, wallets: list[str]) -> list[str]:
+async def _load_profit_wallets(db: Db, wallets: list[str]) -> list[str]:
     if not wallets:
         return []
     docs = await db.home_profiles.find(
@@ -204,7 +204,7 @@ async def _load_expert_wallets(db: Db, wallets: list[str]) -> list[str]:
 async def get_holders(
     db: Db,
     condition_id: str,
-    expert_only: bool = True,
+    profit_only: bool = True,
 ) -> dict[str, Any]:
     market = await db.markets.find_one({"condition_id": condition_id})
     if market is None:
@@ -213,8 +213,8 @@ async def get_holders(
     wallets = await db.activities.distinct(
         "proxy_wallet", {"condition_id": condition_id}
     )
-    if expert_only and wallets:
-        wallets = await _load_expert_wallets(db, wallets)
+    if profit_only and wallets:
+        wallets = await _load_profit_wallets(db, wallets)
     return {
         "condition_id": condition_id,
         "proxy_wallets": wallets,
