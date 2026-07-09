@@ -18,7 +18,8 @@ class TagProfile(BaseModel):
     markets_count: int
     win_holder_count: int
     lose_holder_count: int
-    accuracy: float
+    hit_rate: float
+    error_rate: float
     synced_at: datetime
 
     def to_doc(self) -> dict[str, Any]:
