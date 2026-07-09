@@ -108,7 +108,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 |---|---|
 | `GET /events` | `closed`, `tag_id`, `slug` |
 | `GET /events/{id}` | — |
-| `GET /markets` | `closed`, `event_id`, `tag_id`, `slug`, `condition_id`, `resolved` |
+| `GET /markets` | `closed`, `event_id`, `tag_id`, `slug`, `condition_id`, `resolved`, `temporal` |
 | `GET /markets/deadline-soon` | `tag_ids`, `neg_risk`, `q`, `future_only`; sort `deadline` ASC; `items` + `total` |
 | `GET /markets/{id}` | — |
 | `GET /tags` | `slug` |
