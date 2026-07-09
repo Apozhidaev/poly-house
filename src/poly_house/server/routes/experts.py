@@ -34,6 +34,9 @@ async def list_experts(tag_id: int, db: Db) -> dict[str, Any]:
     experts: list[Expert] = []
     for item in features:
         wallet = item["feature"]
+        importance = item["importance"]
+        if importance is None:
+            continue
         user = user_map.get(wallet)
         if user is None:
             continue
@@ -42,7 +45,7 @@ async def list_experts(tag_id: int, db: Db) -> dict[str, Any]:
         experts.append(
             Expert(
                 proxy_wallet=wallet,
-                importance=item["importance"],
+                importance=importance,
                 name=user.get("name") or "",
                 profile_image=user.get("profile_image") or "",
                 pnl=profile.get("pnl") if profile else None,
