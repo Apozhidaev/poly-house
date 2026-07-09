@@ -28,6 +28,8 @@ async def list_markets(
     condition_id: str | None = None,
     resolved: bool | None = None,
     temporal: bool | None = None,
+    duration_from: int | None = None,
+    duration_to: int | None = None,
 ) -> dict[str, Any]:
     query: dict[str, Any] = {}
     if closed is not None:
@@ -50,6 +52,13 @@ async def list_markets(
         query["duration_minutes"] = {"$ne": None}
     elif temporal is False:
         query["duration_minutes"] = None
+    duration_minutes: dict[str, int] = {}
+    if duration_from is not None:
+        duration_minutes["$gte"] = duration_from
+    if duration_to is not None:
+        duration_minutes["$lte"] = duration_to
+    if duration_minutes:
+        query["duration_minutes"] = duration_minutes
     cursor = db.markets.find(query).skip(page.offset).limit(page.limit)
     return {"items": await cursor.to_list(page.limit)}
 
