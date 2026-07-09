@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     mongo_db: str = "poly_house"
 
     gateway_url: str = "http://localhost:8080"
+    holder_boost_url: str = "http://127.0.0.1:8003"
 
     # watch (--watch): период между стартами прогонов; пауза = interval − elapsed
     sync_event_watch_interval: float = 1800.0  # sync-event --watch

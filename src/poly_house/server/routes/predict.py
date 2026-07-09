@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, field_validator
 
+from poly_house.api.holder_boost import HolderBoostClient
+from poly_house.config import Settings
 from poly_house.models.tag_profile import TagProfileAggregate
 from poly_house.server.deps import Db
+from poly_house.utils import compute_days_left_until_deadline
 from poly_house.utils.predict import compute_market_vote_prices
 from poly_house.utils.tag_metrics import (
     aggregate_wallet_tag_metrics,
@@ -17,6 +20,8 @@ from poly_house.utils.tag_metrics import (
 router = APIRouter(prefix="/predict", tags=["predict"])
 
 MARKET_VOTE = "MARKET_VOTE"
+UKRAINE_MAP = "UKRAINE_MAP"
+UKRAINE_MAP_TAG_ID = 102486
 
 
 class PredictHolder(BaseModel):
@@ -33,8 +38,9 @@ class PredictHolder(BaseModel):
 
 
 class PredictByHolderRequest(BaseModel):
-    holders: list[PredictHolder] = Field(min_length=1)
+    condition_id: str
     tag_ids: list[int] = Field(min_length=1)
+    holders: list[PredictHolder] = Field(min_length=1)
 
 
 class Prediction(BaseModel):
@@ -83,8 +89,36 @@ async def predict_by_holder(
     wallets = list(dict.fromkeys(holder.proxy_wallet for holder in body.holders))
     aggregates = await _load_tag_aggregates(db, wallets, body.tag_ids)
     predict_prices = compute_market_vote_prices(body.holders, aggregates)
-    return {
-        "predictions": [
-            Prediction(type=MARKET_VOTE, predict_prices=predict_prices).model_dump()
-        ]
-    }
+    predictions: list[dict[str, Any]] = [
+        Prediction(type=MARKET_VOTE, predict_prices=predict_prices).model_dump()
+    ]
+
+    if UKRAINE_MAP_TAG_ID in body.tag_ids:
+        market = await db.markets.find_one({"condition_id": body.condition_id})
+        days_left = compute_days_left_until_deadline(
+            market.get("deadline") if market else None
+        )
+        if days_left is not None:
+            settings = Settings()
+            holder_payload = [
+                {
+                    "proxy_wallet": holder.proxy_wallet,
+                    "outcome_index": holder.outcome_index,
+                }
+                for holder in body.holders
+            ]
+            async with HolderBoostClient(settings) as client:
+                probs = await client.predict(
+                    tag_id=UKRAINE_MAP_TAG_ID,
+                    days_left=days_left,
+                    holders=holder_payload,
+                )
+            if probs is not None:
+                predictions.append(
+                    Prediction(
+                        type=UKRAINE_MAP,
+                        predict_prices=cast(list[float | None], probs),
+                    ).model_dump()
+                )
+
+    return {"predictions": predictions}
