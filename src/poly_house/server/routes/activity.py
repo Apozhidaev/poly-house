@@ -185,14 +185,14 @@ async def list_event_activity(
     return {"items": page_items, "total": len(home_event_activities)}
 
 
-async def _load_profit_wallets(db: Db, wallets: list[str]) -> list[str]:
+async def _load_profit_wallets(db: Db, wallets: list[str], tag_id: int) -> list[str]:
     if not wallets:
         return []
-    docs = await db.home_profiles.find(
-        {"_id": {"$in": wallets}},
-        projection={"_id": 1, "pnl": 1},
+    docs = await db.tag_profiles.find(
+        {"proxy_wallet": {"$in": wallets}, "tag_id": tag_id},
+        projection={"proxy_wallet": 1, "pnl": 1},
     ).to_list(None)
-    pnl_by_wallet = {doc["_id"]: doc.get("pnl") for doc in docs}
+    pnl_by_wallet = {doc["proxy_wallet"]: doc.get("pnl") for doc in docs}
     return [
         wallet
         for wallet in wallets
@@ -204,6 +204,7 @@ async def _load_profit_wallets(db: Db, wallets: list[str]) -> list[str]:
 async def get_holders(
     db: Db,
     condition_id: str,
+    tag_id: int,
     profit_only: bool = True,
 ) -> dict[str, Any]:
     market = await db.markets.find_one({"condition_id": condition_id})
@@ -214,7 +215,7 @@ async def get_holders(
         "proxy_wallet", {"condition_id": condition_id}
     )
     if profit_only and wallets:
-        wallets = await _load_profit_wallets(db, wallets)
+        wallets = await _load_profit_wallets(db, wallets, tag_id)
     return {
         "condition_id": condition_id,
         "proxy_wallets": wallets,
