@@ -54,3 +54,33 @@ class HolderBoostClient:
                 error=str(exc),
             )
             return None
+
+    async def features(self, tag_id: int) -> list[dict[str, Any]] | None:
+        try:
+            resp = await self._client.get(f"{self._base}/features/{tag_id}")
+            resp.raise_for_status()
+            data = resp.json()
+            raw_features = data.get("features")
+            if not isinstance(raw_features, list):
+                return None
+            features: list[dict[str, Any]] = []
+            for item in raw_features:
+                if not isinstance(item, dict):
+                    continue
+                feature = item.get("feature")
+                importance = item.get("importance")
+                if not isinstance(feature, str) or not isinstance(
+                    importance, (int, float)
+                ):
+                    continue
+                features.append(
+                    {"feature": feature, "importance": float(importance)}
+                )
+            return features
+        except (httpx.HTTPStatusError, httpx.RequestError, TypeError, ValueError) as exc:
+            logger.warning(
+                "holder_boost_features_failed",
+                tag_id=tag_id,
+                error=str(exc),
+            )
+            return None

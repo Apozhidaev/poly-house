@@ -12,6 +12,7 @@ from poly_house.models.equity import EquitySnapshot
 from poly_house.models.leaderboard import LeaderboardStats
 from poly_house.models.profile import Profile
 from poly_house.models.tag_profile import TagProfile
+from poly_house.models.expert import Expert
 
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "LeaderboardStats",
     "Profile",
     "TagProfile",
+    "Expert",
 ]
