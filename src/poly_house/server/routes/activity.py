@@ -7,9 +7,9 @@ from fastapi import APIRouter, HTTPException, Query
 from poly_house.db import Doc
 from poly_house.models.activity import (
     Activity,
-    HolderDistribution,
+    HoldDistribution,
     build_event_activities,
-    build_holder_distribution,
+    build_hold_distribution,
     build_market_activities,
     build_user_activity_item,
 )
@@ -221,8 +221,8 @@ async def get_holders(
     }
 
 
-@router.get("/holder-distribution")
-async def get_holder_distribution(
+@router.get("/hold-distribution")
+async def get_hold_distribution(
     db: Db,
     condition_id: str,
     proxy_wallet: str,
@@ -239,10 +239,10 @@ async def get_holder_distribution(
         activities = [Activity.model_validate(doc) for doc in docs]
         closed_timestamp = int(deadline.timestamp())
         closed_day_ts = day_timestamp(closed_timestamp)
-        holder_distribution = build_holder_distribution(
+        holder_distribution = build_hold_distribution(
             proxy_wallet, activities, closed_day_ts
         )
         if holder_distribution:
             return holder_distribution.model_dump()
 
-    return HolderDistribution(proxy_wallet=proxy_wallet).model_dump()
+    return HoldDistribution(proxy_wallet=proxy_wallet).model_dump()

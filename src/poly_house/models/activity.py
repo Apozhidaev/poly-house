@@ -144,7 +144,7 @@ class ActivityMetrics(BaseModel):
     lose_holder_count: int = 0
 
 
-class HolderDistribution(BaseModel):
+class HoldDistribution(BaseModel):
     proxy_wallet: str
     distribution: dict[int, int] = {}
     max_days_left: int = -1
@@ -371,16 +371,16 @@ def _compute_holder_distribution(
     }
 
 
-def build_holder_distribution(
+def build_hold_distribution(
     proxy_wallet: str,
     activities: list[Activity],
     closed_day_ts: int,
     *,
     min_usdc: float = 1,
-) -> HolderDistribution | None:
+) -> HoldDistribution | None:
     distribution = _compute_holder_distribution(activities, closed_day_ts, min_usdc)
     if distribution:
-        return HolderDistribution(
+        return HoldDistribution(
             proxy_wallet=proxy_wallet,
             distribution=distribution,
             max_days_left=max(distribution.keys()),
