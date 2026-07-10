@@ -195,6 +195,7 @@ async def _load_top_hit_wallets(
             {
                 "proxy_wallet": {"$in": wallets},
                 "tag_id": tag_id,
+                "pnl": {"$gt": 0},
                 "hit_rate": {"$ne": None},
             },
             projection={"proxy_wallet": 1},
