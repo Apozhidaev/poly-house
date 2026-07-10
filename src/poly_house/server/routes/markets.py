@@ -26,6 +26,7 @@ async def list_markets(
     neg_risk: bool | None = None,
     event_id: int | None = None,
     tag_ids: OptionalTagIds = None,
+    exclude_tag_ids: OptionalTagIds = None,
     slug: str | None = None,
     condition_id: str | None = None,
     resolved: bool | None = None,
@@ -42,6 +43,11 @@ async def list_markets(
         query["event_id"] = event_id
     if tag_ids:
         query["tag_ids"] = {"$in": tag_ids}
+    if exclude_tag_ids:
+        query["tag_ids"] = {
+            **query.get("tag_ids", {}),
+            "$nin": exclude_tag_ids,
+        }
     if slug:
         query["slug"] = slug
     if condition_id:
