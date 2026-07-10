@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from poly_house.models.market import deadline_soon_market_query
 from poly_house.server.deps import Db, Page
 
 router = APIRouter(prefix="/markets", tags=["markets"])
+
+OptionalTagIds = Annotated[list[int] | None, Query()]
 
 
 class CheckHomeMarketsRequest(BaseModel):
@@ -23,7 +25,7 @@ async def list_markets(
     closed: bool | None = None,
     neg_risk: bool | None = None,
     event_id: int | None = None,
-    tag_ids: list[int] | None = None,
+    tag_ids: OptionalTagIds = None,
     slug: str | None = None,
     condition_id: str | None = None,
     resolved: bool | None = None,
@@ -86,7 +88,7 @@ async def list_deadline_soon_markets(
     db: Db,
     page: Page,
     neg_risk: bool | None = None,
-    tag_ids: list[int] | None = None,
+    tag_ids: OptionalTagIds = None,
     q: str | None = None,
     future_only: bool = False,
 ) -> dict[str, Any]:
