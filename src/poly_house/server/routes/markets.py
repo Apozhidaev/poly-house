@@ -103,6 +103,55 @@ async def list_deadline_soon_markets(
     return {"items": await cursor.to_list(page.limit), "total": total}
 
 
+@router.get("/tag-distribution")
+async def list_market_tag_distribution(
+    db: Db,
+    page: Page,
+    tag_id: int,
+) -> dict[str, Any]:
+    pipeline: list[dict[str, Any]] = [
+        {"$match": {"tag_ids": tag_id}},
+        {"$unwind": "$tag_ids"},
+        {"$group": {"_id": "$tag_ids", "markets_count": {"$sum": 1}}},
+        {"$sort": {"markets_count": -1, "_id": 1}},
+        {
+            "$facet": {
+                "metadata": [{"$count": "total"}],
+                "items": [
+                    {"$skip": page.offset},
+                    {"$limit": page.limit},
+                    {
+                        "$lookup": {
+                            "from": "tags",
+                            "localField": "_id",
+                            "foreignField": "_id",
+                            "as": "tag",
+                        }
+                    },
+                    {"$unwind": "$tag"},
+                    {
+                        "$project": {
+                            "_id": 0,
+                            "id": "$_id",
+                            "slug": "$tag.slug",
+                            "label": "$tag.label",
+                            "markets_count": 1,
+                        }
+                    },
+                ],
+            }
+        },
+    ]
+    cursor = await db.markets.aggregate(pipeline)
+    docs = await cursor.to_list(length=1)
+    if not docs:
+        return {"items": [], "total": 0}
+    result = docs[0]
+    metadata = result.get("metadata") or []
+    total = metadata[0]["total"] if metadata else 0
+    return {"items": result.get("items") or [], "total": total}
+
+
 @router.get("/{market_id}")
 async def get_market(market_id: int, db: Db) -> dict[str, Any]:
     doc = await db.markets.find_one({"_id": market_id})
