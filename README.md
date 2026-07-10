@@ -127,7 +127,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `POST /tag-profile/batch` | body: `{ "proxy_wallets": [...], "tag_ids": [...] }` |
 | `GET /profile-summary/{proxy_wallet}` | `tag_id` (required, list); `pnl`, `total_balance` из `profiles`, `tag_pnl` — агрегат по `tag_ids` |
 | `POST /profile-summary/batch` | body: `{ "proxy_wallets": [...], "tag_ids": [...] }` |
-| `POST /predict/by-holder` | body: `{ "holders": [{ "proxy_wallet", "outcome_index", "amount" }], "tag_ids": [...], "condition_id" }` → `predictions`: `MARKET_VOTE`; при `102486` в `tag_ids` и валидном deadline маркета — также `UKRAINE_MAP` (holder-boost) |
+| `POST /predict/by-holder` | body: `{ "holders": [{ "proxy_wallet", "outcome_index", "amount" }], "tag_ids": [...], "condition_id" }` → `predictions`: `MARKET_VOTE`; при `102486` в `tag_ids` и валидном deadline маркета — также `UKRAINE_MAP`; при `78` — `IRAN` (holder-boost) |
 | `GET /experts/{tag_id}` | holder-boost features → users + profiles + home_profiles; sort `importance` DESC; без пагинации |
 | `GET /trades` | `condition_id`, `outcome_index`, `user`, `side`, `from`, `to` |
 | `GET /trades/take-prices` | `condition_id`, `outcome_index`, `side` |

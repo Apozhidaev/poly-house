@@ -22,6 +22,13 @@ router = APIRouter(prefix="/predict", tags=["predict"])
 MARKET_VOTE = "MARKET_VOTE"
 UKRAINE_MAP = "UKRAINE_MAP"
 UKRAINE_MAP_TAG_ID = 102486
+IRAN = "IRAN"
+IRAN_TAG_ID = 78
+
+HOLDER_BOOST_PREDICTIONS = (
+    (UKRAINE_MAP, UKRAINE_MAP_TAG_ID),
+    (IRAN, IRAN_TAG_ID),
+)
 
 
 class PredictHolder(BaseModel):
@@ -93,7 +100,12 @@ async def predict_by_holder(
         Prediction(type=MARKET_VOTE, predict_prices=predict_prices).model_dump()
     ]
 
-    if UKRAINE_MAP_TAG_ID in body.tag_ids:
+    holder_boost_predictions = [
+        (prediction_type, tag_id)
+        for prediction_type, tag_id in HOLDER_BOOST_PREDICTIONS
+        if tag_id in body.tag_ids
+    ]
+    if holder_boost_predictions:
         market = await db.markets.find_one({"condition_id": body.condition_id})
         days_left = compute_days_left_until_deadline(
             market.get("deadline") if market else None
@@ -108,17 +120,18 @@ async def predict_by_holder(
                 for holder in body.holders
             ]
             async with HolderBoostClient(settings) as client:
-                probs = await client.predict(
-                    tag_id=UKRAINE_MAP_TAG_ID,
-                    days_left=days_left,
-                    holders=holder_payload,
-                )
-            if probs is not None:
-                predictions.append(
-                    Prediction(
-                        type=UKRAINE_MAP,
-                        predict_prices=cast(list[float | None], probs),
-                    ).model_dump()
-                )
+                for prediction_type, tag_id in holder_boost_predictions:
+                    probs = await client.predict(
+                        tag_id=tag_id,
+                        days_left=days_left,
+                        holders=holder_payload,
+                    )
+                    if probs is not None:
+                        predictions.append(
+                            Prediction(
+                                type=prediction_type,
+                                predict_prices=cast(list[float | None], probs),
+                            ).model_dump()
+                        )
 
     return {"predictions": predictions}
