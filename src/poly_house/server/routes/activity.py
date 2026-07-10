@@ -185,7 +185,7 @@ async def list_event_activity(
     return {"items": page_items, "total": len(home_event_activities)}
 
 
-async def _load_top_wallets(
+async def _load_top_hit_wallets(
     db: Db, wallets: list[str], tag_id: int, limit: int
 ) -> list[str]:
     if not wallets:
@@ -195,11 +195,11 @@ async def _load_top_wallets(
             {
                 "proxy_wallet": {"$in": wallets},
                 "tag_id": tag_id,
-                "win_rate": {"$ne": None},
+                "hit_rate": {"$ne": None},
             },
             projection={"proxy_wallet": 1},
         )
-        .sort("win_rate", -1)
+        .sort("hit_rate", -1)
         .limit(limit)
         .to_list(None)
     )
@@ -221,7 +221,7 @@ async def get_holders(
         "proxy_wallet", {"condition_id": condition_id}
     )
     if len(wallets) > limit:
-        wallets = await _load_top_wallets(db, wallets, tag_id, limit)
+        wallets = await _load_top_hit_wallets(db, wallets, tag_id, limit)
     return {
         "condition_id": condition_id,
         "proxy_wallets": wallets,
