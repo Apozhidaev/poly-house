@@ -142,6 +142,8 @@ class ActivityMetrics(BaseModel):
     markets_count: int = 0
     win_holder_count: int = 0
     lose_holder_count: int = 0
+    hit_rate: float | None = None
+    error_rate: float | None = None
 
 
 class HoldDistribution(BaseModel):
@@ -258,6 +260,9 @@ def metrics_from_market_activities(
     else:
         pnl_growth = None
         pnl_stability = None
+
+    hit_rate = win_holder_count / markets_count
+    error_rate = lose_holder_count / markets_count
     return ActivityMetrics(
         win_rate=win_count / markets_count,
         markets_count=markets_count,
@@ -267,6 +272,8 @@ def metrics_from_market_activities(
         pnl_stability=pnl_stability,
         win_holder_count=win_holder_count,
         lose_holder_count=lose_holder_count,
+        hit_rate=hit_rate,
+        error_rate=error_rate
     )
 
 

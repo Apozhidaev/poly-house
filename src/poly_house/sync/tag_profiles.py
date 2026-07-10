@@ -56,19 +56,14 @@ def build_tag_profile(
     synced_at: datetime,
 ) -> TagProfile:
     metrics = metrics_from_market_activities(market_activities)
-    hit_rate = (
-        metrics.win_holder_count / metrics.markets_count
-        if metrics.markets_count > 0
-        else 0.0
-    )
-
     return TagProfile(
         proxy_wallet=wallet,
         tag_id=tag_id,
         markets_count=metrics.markets_count,
         win_holder_count=metrics.win_holder_count,
         lose_holder_count=metrics.lose_holder_count,
-        hit_rate=hit_rate,
+        hit_rate=metrics.hit_rate,
+        error_rate=metrics.error_rate,
         pnl=metrics.pnl,
         volume=metrics.volume,
         pnl_growth=metrics.pnl_growth,
