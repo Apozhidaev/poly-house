@@ -19,4 +19,4 @@ def compute_days_left_until_deadline(deadline: datetime | None) -> int | None:
     today_day = day_timestamp(now_ts)
     deadline_day = day_timestamp(int(deadline.timestamp()))
     days_left = (deadline_day - today_day) // DAY_SEC
-    return days_left if days_left >= 0 else None
+    return days_left if days_left >= 0 else 0
