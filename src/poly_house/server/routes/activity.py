@@ -221,11 +221,10 @@ async def get_holders(
     wallets = await db.activities.distinct(
         "proxy_wallet", {"condition_id": condition_id}
     )
-    if len(wallets) > limit:
-        wallets = await _load_top_hit_wallets(db, wallets, tag_id, limit)
+    proxy_wallets = await _load_top_hit_wallets(db, wallets, tag_id, limit)
     return {
         "condition_id": condition_id,
-        "proxy_wallets": wallets,
+        "proxy_wallets": proxy_wallets,
     }
 
 
