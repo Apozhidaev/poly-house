@@ -36,7 +36,11 @@ def compute_win_votes(
 ) -> float:
     if agg is None:
         return 0.0
-    if agg.win_holder_count is None or agg.markets_count is None or agg.pnl is None:
+    if (
+        agg.win_holder_count is None
+        or agg.markets_count is None
+        or agg.pnl is None
+    ):
         return 0.0
 
     markets_count = int(agg.markets_count)
@@ -48,8 +52,11 @@ def compute_win_votes(
     if agg.win_holder_count == 0:
         return 0.0
 
-    p = agg.win_holder_count / agg.markets_count
-    ci = wilson_ci(p, markets_count, confidence=0.99999)
+    hit_rate = agg.win_holder_count / agg.markets_count
+    if hit_rate <= 0.5:
+        return 0.0
+
+    ci = wilson_ci(hit_rate, markets_count, confidence=0.99999)
     return ci[0]
 
 
