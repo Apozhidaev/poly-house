@@ -26,70 +26,6 @@ def compute_tag_weighted_average(
     return weighted_sum / weight_sum
 
 
-def compute_tag_win_rate(
-    wallet: str,
-    tag_ids: list[int],
-    tag_weights: dict[int, float],
-    win_rates: dict[tuple[str, int], float],
-) -> float | None:
-    return compute_tag_weighted_average(wallet, tag_ids, tag_weights, win_rates)
-
-
-def compute_tag_pnl_growth(
-    wallet: str,
-    tag_ids: list[int],
-    tag_weights: dict[int, float],
-    pnl_growths: dict[tuple[str, int], float],
-) -> float | None:
-    return compute_tag_weighted_average(
-        wallet, tag_ids, tag_weights, pnl_growths
-    )
-
-
-def compute_tag_pnl_stability(
-    wallet: str,
-    tag_ids: list[int],
-    tag_weights: dict[int, float],
-    pnl_stabilities: dict[tuple[str, int], float],
-) -> float | None:
-    return compute_tag_weighted_average(
-        wallet, tag_ids, tag_weights, pnl_stabilities
-    )
-
-
-def compute_tag_markets_count(
-    wallet: str,
-    tag_ids: list[int],
-    tag_weights: dict[int, float],
-    markets_counts: dict[tuple[str, int], float],
-) -> float | None:
-    return compute_tag_weighted_average(
-        wallet, tag_ids, tag_weights, markets_counts
-    )
-
-
-def compute_tag_win_holder_count(
-    wallet: str,
-    tag_ids: list[int],
-    tag_weights: dict[int, float],
-    win_holder_counts: dict[tuple[str, int], float],
-) -> float | None:
-    return compute_tag_weighted_average(
-        wallet, tag_ids, tag_weights, win_holder_counts
-    )
-
-
-def compute_tag_lose_holder_count(
-    wallet: str,
-    tag_ids: list[int],
-    tag_weights: dict[int, float],
-    lose_holder_counts: dict[tuple[str, int], float],
-) -> float | None:
-    return compute_tag_weighted_average(
-        wallet, tag_ids, tag_weights, lose_holder_counts
-    )
-
-
 def compute_tag_pnl_volume(
     wallet: str,
     tag_ids: list[int],
@@ -143,9 +79,11 @@ async def load_tag_profile_tag_metrics(
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
     dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
+    dict[tuple[str, int], float],
 ]:
     if not wallets or not tag_ids:
-        return {}, {}, {}, {}, {}, {}, {}, {}
+        return {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
     cursor = db.tag_profiles.find(
         {
             "proxy_wallet": {"$in": wallets},
@@ -162,6 +100,8 @@ async def load_tag_profile_tag_metrics(
             "markets_count": 1,
             "win_holder_count": 1,
             "lose_holder_count": 1,
+            "hit_rate": 1,
+            "error_rate": 1,
         },
     )
     docs = await cursor.to_list(length=None)
@@ -173,6 +113,8 @@ async def load_tag_profile_tag_metrics(
     markets_counts: dict[tuple[str, int], float] = {}
     win_holder_counts: dict[tuple[str, int], float] = {}
     lose_holder_counts: dict[tuple[str, int], float] = {}
+    hit_rates: dict[tuple[str, int], float] = {}
+    error_rates: dict[tuple[str, int], float] = {}
     for doc in docs:
         key = (doc["proxy_wallet"], doc["tag_id"])
         markets_counts[key] = float(doc.get("markets_count", 0))
@@ -193,6 +135,12 @@ async def load_tag_profile_tag_metrics(
         volume = doc.get("volume")
         if volume is not None:
             volumes[key] = volume
+        hit_rate = doc.get("hit_rate")
+        if hit_rate is not None:
+            hit_rates[key] = hit_rate
+        error_rate = doc.get("error_rate")
+        if error_rate is not None:
+            error_rates[key] = error_rate
     return (
         win_rates,
         pnl_growths,
@@ -202,6 +150,8 @@ async def load_tag_profile_tag_metrics(
         markets_counts,
         win_holder_counts,
         lose_holder_counts,
+        hit_rates,
+        error_rates,
     )
 
 
@@ -229,28 +179,32 @@ def aggregate_wallet_tag_metrics(
     markets_counts: dict[tuple[str, int], float],
     win_holder_counts: dict[tuple[str, int], float],
     lose_holder_counts: dict[tuple[str, int], float],
+    hit_rates: dict[tuple[str, int], float],
+    error_rates: dict[tuple[str, int], float],
 ) -> TagProfileAggregate:
-    pnl, volume = compute_tag_pnl_volume(
-        wallet, tag_ids, tag_weights, pnls, volumes
-    )
+    pnl, volume = compute_tag_pnl_volume(wallet, tag_ids, tag_weights, pnls, volumes)
     return TagProfileAggregate(
         proxy_wallet=wallet,
-        win_rate=compute_tag_win_rate(wallet, tag_ids, tag_weights, win_rates),
-        pnl_growth=compute_tag_pnl_growth(
+        win_rate=compute_tag_weighted_average(wallet, tag_ids, tag_weights, win_rates),
+        pnl_growth=compute_tag_weighted_average(
             wallet, tag_ids, tag_weights, pnl_growths
         ),
-        pnl_stability=compute_tag_pnl_stability(
+        pnl_stability=compute_tag_weighted_average(
             wallet, tag_ids, tag_weights, pnl_stabilities
         ),
         pnl=pnl,
         volume=volume,
-        markets_count=compute_tag_markets_count(
+        markets_count=compute_tag_weighted_average(
             wallet, tag_ids, tag_weights, markets_counts
         ),
-        win_holder_count=compute_tag_win_holder_count(
+        win_holder_count=compute_tag_weighted_average(
             wallet, tag_ids, tag_weights, win_holder_counts
         ),
-        lose_holder_count=compute_tag_lose_holder_count(
+        lose_holder_count=compute_tag_weighted_average(
             wallet, tag_ids, tag_weights, lose_holder_counts
+        ),
+        hit_rate=compute_tag_weighted_average(wallet, tag_ids, tag_weights, hit_rates),
+        error_rate=compute_tag_weighted_average(
+            wallet, tag_ids, tag_weights, error_rates
         ),
     )

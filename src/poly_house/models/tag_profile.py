@@ -40,3 +40,5 @@ class TagProfileAggregate(BaseModel):
     markets_count: float | None = None
     win_holder_count: float | None = None
     lose_holder_count: float | None = None
+    hit_rate: float | None = None
+    error_rate: float | None = None

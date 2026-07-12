@@ -43,9 +43,18 @@ async def _aggregate_for_wallets(
     if not wallets:
         return []
     tag_weights = await load_tag_weights(db, tag_ids)
-    win_rates, pnl_growths, pnl_stabilities, pnls, volumes, markets_counts, win_holder_counts, lose_holder_counts = (
-        await load_tag_profile_tag_metrics(db, wallets, tag_ids)
-    )
+    (
+        win_rates,
+        pnl_growths,
+        pnl_stabilities,
+        pnls,
+        volumes,
+        markets_counts,
+        win_holder_counts,
+        lose_holder_counts,
+        hit_rates,
+        error_rates,
+    ) = await load_tag_profile_tag_metrics(db, wallets, tag_ids)
     metric_maps = (win_rates, pnl_growths, pnl_stabilities, pnls, volumes)
     items: list[TagProfileAggregate] = []
     for wallet in wallets:
@@ -64,24 +73,22 @@ async def _aggregate_for_wallets(
                 markets_counts,
                 win_holder_counts,
                 lose_holder_counts,
+                hit_rates,
+                error_rates,
             )
         )
     return items
 
 
 @router.get("")
-async def list_tag_profiles(
-    db: Db, page: Page, tag_id: TagIds
-) -> dict[str, Any]:
+async def list_tag_profiles(db: Db, page: Page, tag_id: TagIds) -> dict[str, Any]:
     wallets = await _load_page_wallets(db, tag_id, page)
     items = await _aggregate_for_wallets(db, wallets, tag_id)
     return {"items": [item.model_dump() for item in items]}
 
 
 @router.post("/batch")
-async def batch_tag_profiles(
-    body: TagProfileBatchRequest, db: Db
-) -> dict[str, Any]:
+async def batch_tag_profiles(body: TagProfileBatchRequest, db: Db) -> dict[str, Any]:
     if not body.proxy_wallets:
         return {"items": []}
     items = await _aggregate_for_wallets(db, body.proxy_wallets, body.tag_ids)
@@ -89,9 +96,7 @@ async def batch_tag_profiles(
 
 
 @router.get("/{proxy_wallet}")
-async def get_tag_profile(
-    proxy_wallet: str, db: Db, tag_id: TagIds
-) -> dict[str, Any]:
+async def get_tag_profile(proxy_wallet: str, db: Db, tag_id: TagIds) -> dict[str, Any]:
     items = await _aggregate_for_wallets(db, [proxy_wallet], tag_id)
     if not items:
         raise HTTPException(status_code=404, detail="Tag profile not found")
