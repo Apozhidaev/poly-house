@@ -10,7 +10,7 @@ import httpx
 import structlog
 from pymongo import ReplaceOne, UpdateOne
 
-from poly_house.clients.gateway import GatewayClient
+from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Activity, ActivityCache, ActivityMetrics, HomeProfile
@@ -199,7 +199,7 @@ def _activity_cache_min_timestamp(settings: Settings, watermark: int | None) -> 
 
 
 async def _fetch_activity_cache_entries(
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     user: str,
     watermark: int | None,
@@ -246,7 +246,7 @@ async def _write_activity_cache(db: Database, raw_entries: list[dict[str, Any]])
 
 async def _sync_activity_cache_for_wallets(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     wallets: list[str],
     *,
@@ -339,7 +339,7 @@ async def _get_activity_watermark(
 
 
 async def _add_new_activities_by_condition_id(
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     pages: list[list[dict[str, Any]]],
     user: str,
@@ -371,7 +371,7 @@ async def _add_new_activities_by_condition_id(
 
 async def _fetch_new_activities_fallback(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     user: str,
     event_id: int,
@@ -412,7 +412,7 @@ async def _fetch_new_activities_fallback(
 
 async def _fetch_new_activities(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     user: str,
     event_id: int,
@@ -467,7 +467,7 @@ class SyncActivityResult:
 
 async def sync_activity_for_wallet_event(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     *,
     wallet: str,
@@ -522,7 +522,7 @@ async def _mark_activity_cache_sync_failed(
 
 async def _sync_activities_for_wallets(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     wallets: list[str],
     *,
@@ -582,7 +582,7 @@ async def _sync_activities_for_wallets(
 
 async def sync_home_profiles_for_wallets(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     wallets: list[str],
     *,
@@ -618,7 +618,7 @@ async def sync_home_profiles_for_wallets(
 
 async def sync_home_profiles(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     *,
     wallet: str | None = None,

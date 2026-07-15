@@ -7,7 +7,7 @@ from typing import Any
 import structlog
 from pymongo import UpdateOne
 
-from poly_house.clients.gateway import GatewayClient
+from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Trade, User
@@ -26,7 +26,7 @@ async def _get_market_watermark(db: Database, condition_id: str) -> int | None:
 
 
 async def _fetch_new_trades(
-    gateway: GatewayClient, settings: Settings, condition_id: str, watermark: int | None
+    gateway: PolyGateClient, settings: Settings, condition_id: str, watermark: int | None
 ) -> list[dict[str, Any]]:
     """Качаем страницы (новые первыми) до watermark или потолка offset, возвращаем по возрастанию timestamp."""
     pages: list[list[dict[str, Any]]] = []
@@ -87,7 +87,7 @@ async def _select_markets(
 
 async def sync_trades(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     *,
     stop: asyncio.Event | None = None,

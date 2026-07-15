@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import structlog
 
-from poly_house.clients.gateway import GatewayClient
+from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.commands.add_user import add_user
@@ -33,7 +33,7 @@ logger = structlog.get_logger()
 
 RunOnce = Callable[[asyncio.Event | None], Awaitable[None]]
 DbRunOnce = Callable[[Database, asyncio.Event | None], Awaitable[None]]
-GatewayRunOnce = Callable[[Database, GatewayClient], RunOnce]
+GatewayRunOnce = Callable[[Database, PolyGateClient], RunOnce]
 
 
 @dataclass
@@ -56,7 +56,7 @@ async def _run(
     await ensure_indexes(db)
 
     try:
-        async with GatewayClient(settings) as gateway:
+        async with PolyGateClient(settings) as gateway:
             once = run_once(db, gateway)
             if watch:
                 if watch_interval is None:
@@ -121,7 +121,7 @@ async def _watch_loop(once: RunOnce, *, interval: float) -> None:
 async def run_sync_events(
     settings: Settings, options: EventSyncOptions, *, watch: bool = False
 ) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             entries = await sync_events(
@@ -152,7 +152,7 @@ async def run_sync_events(
 
 
 async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             n_trades, n_users = await sync_trades(db, gateway, settings, stop=stop)
@@ -174,7 +174,7 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
 
 
 async def run_sync_klines(settings: Settings, *, watch: bool = False) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             written = await sync_klines(db, gateway, settings=settings, stop=stop)
@@ -204,7 +204,7 @@ async def run_refresh_profile(
     settings: Settings,
     options: SyncProfileOptions,
 ) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             await sync_profiles(
@@ -229,7 +229,7 @@ async def run_refresh_home_profile(
     settings: Settings,
     options: SyncProfileOptions,
 ) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             await sync_home_profiles(
@@ -251,7 +251,7 @@ async def run_refresh_home_profile(
 
 
 async def run_sync_holder(settings: Settings, *, watch: bool = False) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             processed, skipped = await sync_holder_profiles(
@@ -303,7 +303,7 @@ async def run_update_tag_profiles(
 
 
 async def run_add_user(settings: Settings, wallet: str) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             result = await add_user(db, gateway, settings, wallet)
@@ -320,7 +320,7 @@ async def run_add_user(settings: Settings, wallet: str) -> None:
 
 
 async def run_refresh_event(settings: Settings, slug: str | None = None) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             result = await refresh_events(db, gateway, settings, slug=slug)
@@ -347,7 +347,7 @@ async def run_refresh_event(settings: Settings, slug: str | None = None) -> None
 
 
 async def run_sync_activity(settings: Settings, wallet: str, event_slug: str) -> None:
-    def make_once(db: Database, gateway: GatewayClient) -> RunOnce:
+    def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(_stop: asyncio.Event | None) -> None:
             started = time.monotonic()
             result = await sync_activity_for_wallet_event(

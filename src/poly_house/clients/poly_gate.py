@@ -20,7 +20,7 @@ def _parse_valuation_time(raw: str) -> datetime:
     return datetime.fromisoformat(raw)
 
 
-class GatewayClient:
+class PolyGateClient:
     def __init__(self, settings: Settings) -> None:
         self._base = settings.gateway_url.rstrip("/")
         self._client = httpx.AsyncClient(timeout=None)

@@ -6,7 +6,7 @@ from typing import Any
 import structlog
 from pymongo import UpdateOne
 
-from poly_house.clients.gateway import GatewayClient
+from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.utils import hour_timestamp_from_ms
@@ -72,7 +72,7 @@ async def _bulk_write_klines(db: Database, ops: list[UpdateOne]) -> int:
 
 async def sync_klines(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     *,
     settings: Settings,
     stop: asyncio.Event | None = None,

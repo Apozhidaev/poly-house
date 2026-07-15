@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import structlog
 
-from poly_house.clients.gateway import GatewayClient
+from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import User
@@ -28,7 +28,7 @@ class AddUserResult:
 
 async def add_user(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     wallet: str,
 ) -> AddUserResult:

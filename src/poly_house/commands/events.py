@@ -8,7 +8,7 @@ from typing import Any, NamedTuple
 import structlog
 from pymongo import ReplaceOne, UpdateOne
 
-from poly_house.clients.gateway import GatewayClient
+from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
@@ -74,7 +74,7 @@ async def _refresh_tag_events_count(db: Database) -> None:
 
 
 async def _fetch_pages(
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     watermark: str,
     settings: Settings,
     *,
@@ -175,7 +175,7 @@ async def _write_page(
 
 async def sync_events(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     *,
     page_limit: int | None = None,
@@ -240,7 +240,7 @@ class RefreshEventsBulkResult:
 
 async def refresh_event_by_slug(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     slug: str,
 ) -> RefreshEventResult:
@@ -263,7 +263,7 @@ async def refresh_event_by_slug(
 
 async def refresh_events(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     slug: str | None = None,
 ) -> RefreshEventResult | RefreshEventsBulkResult:

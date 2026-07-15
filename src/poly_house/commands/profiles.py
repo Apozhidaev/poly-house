@@ -8,7 +8,7 @@ from typing import Any
 import structlog
 from pymongo import UpdateOne
 
-from poly_house.clients.gateway import GatewayClient
+from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import (
@@ -102,7 +102,7 @@ def build_profile(
 
 
 async def _fetch_user_metrics(
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     wallet: str,
 ) -> tuple[LeaderboardStats | None, EquitySnapshot | None, PnlTimeSeries | None]:
     stats, equity, ts = await asyncio.gather(
@@ -120,7 +120,7 @@ async def _flush_profile_writes(db: Database, ops: list[UpdateOne]) -> None:
 
 async def upsert_profiles_for_wallets(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     wallets: list[str],
     *,
     stop: asyncio.Event | None = None,
@@ -162,7 +162,7 @@ async def upsert_profiles_for_wallets(
 
 async def sync_profiles_for_wallets(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     wallets: list[str],
     *,
@@ -188,7 +188,7 @@ async def sync_profiles_for_wallets(
 
 async def sync_profiles(
     db: Database,
-    gateway: GatewayClient,
+    gateway: PolyGateClient,
     settings: Settings,
     *,
     wallet: str | None = None,
