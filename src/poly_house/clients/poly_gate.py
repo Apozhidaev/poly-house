@@ -8,16 +8,15 @@ import httpx
 import structlog
 
 from poly_house.config import Settings
-from poly_house.models import EquitySnapshot, LeaderboardStats, PnlTimeSeries, TimeSeriesPoint
+from poly_house.models import (
+    EquitySnapshot,
+    LeaderboardStats,
+    PnlTimeSeries,
+    TimeSeriesPoint,
+)
 from poly_house.models.activity import ActivityType
 
 logger = structlog.get_logger()
-
-
-def _parse_valuation_time(raw: str) -> datetime:
-    if raw.endswith("Z"):
-        raw = f"{raw[:-1]}+00:00"
-    return datetime.fromisoformat(raw)
 
 
 class PolyGateClient:
@@ -201,7 +200,9 @@ class PolyGateClient:
             resp.raise_for_status()
             data = resp.json()
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
-            logger.warning("gateway_accounting_equity_failed", user=user, error=str(exc))
+            logger.warning(
+                "gateway_accounting_equity_failed", user=user, error=str(exc)
+            )
             return None
         if not isinstance(data, dict):
             return None
@@ -210,10 +211,12 @@ class PolyGateClient:
                 cash_balance=float(data["cashBalance"]),
                 positions_value=float(data["positionsValue"]),
                 equity=float(data["equity"]),
-                valuation_time=_parse_valuation_time(str(data["valuationTime"])),
+                valuation_time=datetime.fromisoformat(str(data["valuationTime"])),
             )
         except (KeyError, TypeError, ValueError) as exc:
-            logger.warning("gateway_accounting_equity_parse_failed", user=user, error=str(exc))
+            logger.warning(
+                "gateway_accounting_equity_parse_failed", user=user, error=str(exc)
+            )
             return None
 
     async def activity_page(
