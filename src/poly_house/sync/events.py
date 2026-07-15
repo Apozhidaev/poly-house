@@ -8,7 +8,7 @@ from typing import Any, NamedTuple
 import structlog
 from pymongo import ReplaceOne, UpdateOne
 
-from poly_house.api.gateway import GatewayClient
+from poly_house.clients.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market

@@ -6,7 +6,7 @@ from typing import Any
 import structlog
 from pymongo import UpdateOne
 
-from poly_house.api.gateway import GatewayClient
+from poly_house.clients.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import User

@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from poly_house.api.holder_boost import HolderBoostClient
+from poly_house.clients.holder_boost import HolderBoostClient
 from poly_house.config import Settings
 from poly_house.models.expert import Expert
 from poly_house.server.deps import Db

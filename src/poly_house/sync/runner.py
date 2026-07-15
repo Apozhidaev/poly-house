@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import structlog
 
-from poly_house.api.gateway import GatewayClient
+from poly_house.clients.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.sync.add_user import add_user

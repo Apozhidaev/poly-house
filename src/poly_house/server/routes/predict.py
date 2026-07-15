@@ -5,7 +5,7 @@ from typing import Any, cast
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, field_validator
 
-from poly_house.api.holder_boost import HolderBoostClient
+from poly_house.clients.holder_boost import HolderBoostClient
 from poly_house.config import Settings
 from poly_house.models.tag_profile import TagProfileAggregate
 from poly_house.server.deps import Db
