@@ -86,6 +86,8 @@ def _build_home_profile(
         markets_count=metrics.markets_count if metrics else 0,
         win_holder_count=metrics.win_holder_count if metrics else 0,
         lose_holder_count=metrics.lose_holder_count if metrics else 0,
+        hit_rate=metrics.hit_rate if metrics else None,
+        error_rate=metrics.error_rate if metrics else None,
         synced_at=synced_at,
     )
 

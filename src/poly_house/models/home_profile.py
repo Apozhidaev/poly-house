@@ -18,6 +18,8 @@ class HomeProfile(BaseModel):
     markets_count: int
     win_holder_count: int
     lose_holder_count: int
+    hit_rate: float | None = None
+    error_rate: float | None = None
     synced_at: datetime
 
     def to_doc(self) -> dict[str, Any]:
