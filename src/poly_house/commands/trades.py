@@ -11,7 +11,7 @@ from poly_house.clients.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import Trade, User
-from poly_house.sync.sync_state import get_trades_watermark, set_trades_watermark
+from poly_house.commands.sync_state import get_trades_watermark, set_trades_watermark
 
 logger = structlog.get_logger()
 

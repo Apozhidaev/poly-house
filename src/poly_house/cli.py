@@ -8,7 +8,7 @@ import typer
 import uvicorn
 
 from poly_house.config import Settings
-from poly_house.sync.runner import (
+from poly_house.commands.runner import (
     EventSyncOptions,
     SyncProfileOptions,
     TagProfileSyncOptions,

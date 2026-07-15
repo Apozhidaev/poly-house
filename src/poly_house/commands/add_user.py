@@ -8,9 +8,9 @@ from poly_house.clients.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database
 from poly_house.models import User
-from poly_house.sync.home_profiles import sync_home_profiles_for_wallets
-from poly_house.sync.profiles import sync_profiles_for_wallets
-from poly_house.sync.tag_profiles import (
+from poly_house.commands.home_profiles import sync_home_profiles_for_wallets
+from poly_house.commands.profiles import sync_profiles_for_wallets
+from poly_house.commands.tag_profiles import (
     load_condition_tag_ids,
     update_tag_profiles_for_wallets,
 )

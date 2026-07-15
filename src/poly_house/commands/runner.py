@@ -12,22 +12,22 @@ import structlog
 from poly_house.clients.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
-from poly_house.sync.add_user import add_user
-from poly_house.sync.data_fix import run_data_fix as execute_data_fix
-from poly_house.sync.events import (
+from poly_house.commands.add_user import add_user
+from poly_house.commands.data_fix import run_data_fix as execute_data_fix
+from poly_house.commands.events import (
     RefreshEventsBulkResult,
     refresh_events,
     sync_events,
 )
-from poly_house.sync.home_profiles import (
+from poly_house.commands.home_profiles import (
     sync_activity_for_wallet_event,
     sync_home_profiles,
 )
-from poly_house.sync.profiles import sync_profiles
-from poly_house.sync.holders import sync_holder_profiles
-from poly_house.sync.klines import sync_klines
-from poly_house.sync.tag_profiles import update_tag_profiles
-from poly_house.sync.trades import sync_trades
+from poly_house.commands.profiles import sync_profiles
+from poly_house.commands.holders import sync_holder_profiles
+from poly_house.commands.klines import sync_klines
+from poly_house.commands.tag_profiles import update_tag_profiles
+from poly_house.commands.trades import sync_trades
 
 logger = structlog.get_logger()
 

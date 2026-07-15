@@ -12,7 +12,7 @@ from poly_house.clients.gateway import GatewayClient
 from poly_house.config import Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
-from poly_house.sync.sync_state import (
+from poly_house.commands.sync_state import (
     get_events_watermark,
     set_events_watermark,
 )
