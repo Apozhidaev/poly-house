@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 from poly_house.config import Settings
 from poly_house.db import create_client
-from poly_house.server.routes import (
+from poly_house.api.routes import (
     activity,
     events,
     experts,

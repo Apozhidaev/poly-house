@@ -14,7 +14,7 @@ from poly_house.models.activity import (
     build_user_activity_item,
 )
 from poly_house.models.market import load_resolved_outcomes
-from poly_house.server.deps import Db, Page
+from poly_house.api.deps import Db, Page
 from poly_house.utils import day_timestamp
 
 router = APIRouter(prefix="/activity", tags=["activity"])

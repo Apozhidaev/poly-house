@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from poly_house.server.deps import Db, Page
+from poly_house.api.deps import Db, Page
 
 router = APIRouter(prefix="/users", tags=["users"])
 

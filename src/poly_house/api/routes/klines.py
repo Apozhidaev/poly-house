@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from poly_house.server.deps import Db
+from poly_house.api.deps import Db
 
 router = APIRouter(prefix="/klines", tags=["klines"])
 

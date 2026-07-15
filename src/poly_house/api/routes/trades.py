@@ -4,7 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from poly_house.server.deps import Db, Page
+from poly_house.api.deps import Db, Page
 
 router = APIRouter(prefix="/trades", tags=["trades"])
 

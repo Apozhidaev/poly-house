@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from poly_house.clients.holder_boost import HolderBoostClient
 from poly_house.config import Settings
 from poly_house.models.tag_profile import TagProfileAggregate
-from poly_house.server.deps import Db
+from poly_house.api.deps import Db
 from poly_house.utils import compute_days_left_until_deadline
 from poly_house.utils.predict import compute_market_vote_prices
 from poly_house.utils.tag_metrics import (

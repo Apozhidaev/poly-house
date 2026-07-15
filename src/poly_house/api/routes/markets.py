@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from poly_house.models.market import deadline_soon_market_query
-from poly_house.server.deps import Db, Page
+from poly_house.api.deps import Db, Page
 
 router = APIRouter(prefix="/markets", tags=["markets"])
 

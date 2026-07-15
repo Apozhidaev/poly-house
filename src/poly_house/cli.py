@@ -188,7 +188,7 @@ def serve(
     """Запуск REST API поверх MongoDB."""
     settings = Settings()
     uvicorn.run(
-        "poly_house.server.app:app",
+        "poly_house.api.app:app",
         host=host or settings.server_host,
         port=port or settings.server_port,
     )
