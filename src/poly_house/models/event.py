@@ -43,7 +43,7 @@ class Event(BaseModel):
     liquidity: float | None = None
     open_interest: float | None = None
     relevant: bool
-    calendar: bool
+    calendar: bool | None = None
     deadline: datetime | None = None
     tags: list[Tag] = []
     series: list[dict[str, Any]] = []
