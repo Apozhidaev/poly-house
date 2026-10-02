@@ -9,7 +9,6 @@ from poly_house.db import create_client
 from poly_house.api.routes import (
     activity,
     events,
-    experts,
     home_profiles,
     klines,
     markets,
@@ -43,6 +42,5 @@ app.include_router(users.router)
 app.include_router(home_profiles.router)
 app.include_router(tag_profiles.router)
 app.include_router(profile_summary.router)
-app.include_router(experts.router)
 app.include_router(activity.router)
 app.include_router(klines.router)
