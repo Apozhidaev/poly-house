@@ -75,10 +75,6 @@ uv run poly-house add-user 0x...
 
 # sync-activity — перезагрузка activity для wallet+event
 uv run poly-house sync-activity --wallet 0x... --event some-event-slug
-
-# data-fix — wallet+event_slug с >= 3500 activities
-uv run poly-house data-fix
-uv run poly-house data-fix --apply                       # удалить activities + activity_caches
 ```
 
 Как это работает:
@@ -93,7 +89,6 @@ uv run poly-house data-fix --apply                       # удалить activi
 - **refresh-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> `PROFILE_REFRESH_INTERVAL_DAYS`) — Gateway `/data/leaderboard`, `/data/accounting/snapshot`, `/pnl/user-pnl` → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `sync-holder`.
 - **refresh-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> `HOME_PROFILE_REFRESH_INTERVAL_DAYS`) — activity cache из Gateway `/data/positions?status=CLOSED` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/data/activity?event_id=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `sync-holder`.
 - **update-tag-profile**: для каждого wallet из `profiles` — activities из `activities`, у которых `condition_id` есть в `markets`; агрегирует в `market_activities` (по `condition_id`: `volume` = sum `usdc_size`, `pnl` = signed sum TRADE BUY/SELL); по `tag_ids` маркета группирует метрики и upsert в `tag_profiles` (уникальность `(proxy_wallet, tag_id)`, `_id` — MongoDB ObjectId). Поля: `markets_count`, `pnl` (sum per-market `pnl`), `volume` (sum per-market `volume`), `win_rate` (доля market_activities с `pnl > 0`), `hit_rate` (`win_holder_count / markets_count`), `error_rate` (`lose_holder_count / markets_count`), `pnl_growth` / `pnl_stability` (линейная регрессия по per-market `pnl` с `use_cumulative=True`; `null` при одном маркете). Маркет с несколькими тегами учитывается в каждом теге. Нужны `sync-event`, `profiles` и `activities`.
-- **data-fix**: aggregate по `activities` — группы `(proxy_wallet, event_slug)` с count >= 3500; stdout TSV `count`, `proxy_wallet`, `event_slug`, последняя строка `total`. С `--apply`: удаление activities по найденным парам и всех `activity_caches` для затронутых wallets.
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
 ### REST API

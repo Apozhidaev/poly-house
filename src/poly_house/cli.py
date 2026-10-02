@@ -21,7 +21,6 @@ from poly_house.commands.runner import (
     run_update_tag_profiles,
     run_add_user,
     run_refresh_event,
-    run_data_fix,
     run_sync_activity,
 )
 
@@ -165,19 +164,6 @@ def sync_activity_cmd(
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
-
-
-@app.command("data-fix")
-def data_fix_cmd(
-    apply: Annotated[
-        bool,
-        typer.Option("--apply", help="Удалить activities и activity_caches."),
-    ] = False,
-) -> None:
-    """Список wallet+event_slug с >= 3500 activities (TSV + total)."""
-    _configure_logging()
-    settings = Settings()
-    asyncio.run(run_data_fix(settings, apply=apply))
 
 
 @app.command()

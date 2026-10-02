@@ -13,7 +13,6 @@ from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database, create_client, ensure_indexes
 from poly_house.commands.add_user import add_user
-from poly_house.commands.data_fix import run_data_fix as execute_data_fix
 from poly_house.commands.events import (
     RefreshEventsBulkResult,
     refresh_events,
@@ -366,19 +365,3 @@ async def run_sync_activity(settings: Settings, wallet: str, event_slug: str) ->
         return once
 
     await _run(settings, make_once, watch=False)
-
-
-async def run_data_fix(settings: Settings, *, apply: bool = False) -> None:
-    async def once(db: Database, _stop: asyncio.Event | None) -> None:
-        started = time.monotonic()
-        result = await execute_data_fix(db, apply=apply)
-        logger.info(
-            "data_fix_run_complete",
-            rows=len(result.rows),
-            apply=apply,
-            activities_deleted=result.activities_deleted,
-            activity_caches_deleted=result.activity_caches_deleted,
-            seconds=round(time.monotonic() - started, 1),
-        )
-
-    await _run_db_only(settings, once)
