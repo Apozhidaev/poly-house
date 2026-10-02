@@ -95,32 +95,38 @@ class PolyGateClient:
             return None
 
     async def pnl_time_series(self, *, user: str) -> PnlTimeSeries | None:
-        """GET /pnl/user-pnl?user_address&interval=all&fidelity=1d → PnlTimeSeries."""
+        """GET /data/user-pnl?user&interval=all&fidelity=1d → PnlTimeSeries."""
         try:
             resp = await self._client.get(
-                f"{self._base}/pnl/user-pnl",
-                params={"user_address": user, "interval": "all", "fidelity": "1d"},
+                f"{self._base}/data/user-pnl",
+                params={"user": user, "interval": "all", "fidelity": "1d"},
             )
             resp.raise_for_status()
-            data = resp.json()
+            payload = resp.json()
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             logger.warning("gateway_pnl_time_series_failed", user=user, error=str(exc))
             return None
 
-        if not data or not isinstance(data, list):
+        if not isinstance(payload, dict):
+            return None
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return None
+        raw_points = data.get("points")
+        if not isinstance(raw_points, list):
             return None
 
         points: list[TimeSeriesPoint] = []
-        for item in data:
+        for item in raw_points:
+            if not isinstance(item, dict):
+                continue
             try:
-                t = item.get("t") or item.get("timestamp")
-                p = item.get("p") or item.get("pnl")
-                if t is not None and p is not None:
-                    if isinstance(t, (int, float)):
-                        ts = datetime.fromtimestamp(int(t))
-                    else:
-                        ts = datetime.fromisoformat(str(t))
-                    points.append(TimeSeriesPoint(timestamp=ts, value=float(p)))
+                t = item.get("timestamp")
+                p = item.get("realized_pnl")
+                if t is None or p is None:
+                    continue
+                ts = datetime.fromtimestamp(int(t))
+                points.append(TimeSeriesPoint(timestamp=ts, value=float(p)))
             except (ValueError, TypeError):
                 continue
 
