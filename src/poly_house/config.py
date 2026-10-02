@@ -45,12 +45,12 @@ class Settings(BaseSettings):
     # размеры страниц API
     events_page_limit: int = 100  # /gamma/events max 100
     trades_page_limit: int = 1000  # максимум Data API
-    trades_max_offset: int = 3000  # потолок offset в Data API
+    trades_max_offset: int = 3000  # потолок fetched rows при cursor-пагинации
     holders_limit: int = 500  # max Data API /holders
     activity_page_limit: int = 500
-    activity_max_offset: int = 3000  # потолок offset в Data API
+    activity_max_offset: int = 3000  # потолок fetched rows при cursor-пагинации
     activity_cache_page_limit: int = 50
-    activity_cache_max_offset: int = 100000
+    activity_cache_max_offset: int = 100000  # потолок fetched rows при cursor-пагинации
 
     # REST API
     server_host: str = "127.0.0.1"

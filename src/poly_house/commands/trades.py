@@ -28,24 +28,30 @@ async def _get_market_watermark(db: Database, condition_id: str) -> int | None:
 async def _fetch_new_trades(
     gateway: PolyGateClient, settings: Settings, condition_id: str, watermark: int | None
 ) -> list[dict[str, Any]]:
-    """Качаем страницы (новые первыми) до watermark или потолка offset, возвращаем по возрастанию timestamp."""
+    """Качаем страницы (новые первыми) до watermark или потолка, возвращаем по возрастанию timestamp."""
     pages: list[list[dict[str, Any]]] = []
-    offset = 0
-    while offset <= settings.trades_max_offset:
-        raw = await gateway.trades_page(
-            condition_id=condition_id, limit=settings.trades_page_limit, offset=offset
+    cursor: str | None = None
+    fetched = 0
+    while fetched <= settings.trades_max_offset:
+        raw, next_cursor = await gateway.trades_page(
+            condition_id=condition_id,
+            limit=settings.trades_page_limit,
+            cursor=cursor,
         )
         if not raw:
             break
         fresh = [
-            t for t in raw if watermark is None or t["timestamp"] > watermark # тут мы можем потерять новый трейд, если timestamp == watermark (пока что не критично)
+            t
+            for t in raw
+            if watermark is None or t["timestamp"] > watermark  # тут мы можем потерять новый трейд, если timestamp == watermark (пока что не критично)
         ]
         pages.append(fresh)
+        fetched += len(raw)
         if len(fresh) < len(raw):
             break  # дошли до watermark
-        if len(raw) < settings.trades_page_limit:
-            break  # конец истории
-        offset += settings.trades_page_limit
+        if not next_cursor:
+            break
+        cursor = next_cursor
     return [t for page in reversed(pages) for t in reversed(page)]
 
 

@@ -19,6 +19,13 @@ from poly_house.models.activity import ActivityType
 logger = structlog.get_logger()
 
 
+def _page(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], str | None]:
+    data = payload.get("data") or []
+    pagination = payload.get("pagination") or {}
+    next_cursor = pagination.get("next_cursor")
+    return (data if isinstance(data, list) else [], next_cursor if next_cursor else None)
+
+
 class PolyGateClient:
     def __init__(self, settings: Settings) -> None:
         self._base = settings.gateway_url.rstrip("/")
@@ -139,32 +146,32 @@ class PolyGateClient:
             return []
 
     async def trades_page(
-        self, *, condition_id: str, limit: int, offset: int
-    ) -> list[dict[str, Any]]:
-        """Страница /data/trades по маркету, новые первыми, только taker-сделки."""
+        self, *, condition_id: str, limit: int, cursor: str | None = None
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Страница /data/trades по condition, новые первыми, только taker-сделки."""
         params: dict[str, Any] = {
-            "market": condition_id,
-            "takerOnly": "true",
+            "condition": condition_id,
+            "taker_only": True,
             "limit": limit,
-            "offset": offset,
         }
+        if cursor:
+            params["cursor"] = cursor
         resp = await self._client.get(f"{self._base}/data/trades", params=params)
         resp.raise_for_status()
-        data = resp.json()
-        return data if isinstance(data, list) else []
+        return _page(resp.json())
 
     async def top_holders(
         self, *, condition_id: str, limit: int = 500
     ) -> list[dict[str, Any]] | None:
-        """Топ держателей по маркету (single request, no pagination)."""
+        """Топ держателей по condition (single request, no pagination)."""
         try:
             resp = await self._client.get(
                 f"{self._base}/data/holders",
-                params={"market": condition_id, "limit": limit},
+                params={"condition": condition_id, "limit": limit},
             )
             resp.raise_for_status()
-            data = resp.json()
-            return data if isinstance(data, list) else None
+            data, _ = _page(resp.json())
+            return data
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             logger.warning(
                 "gateway_top_holders_failed",
@@ -174,21 +181,21 @@ class PolyGateClient:
             return None
 
     async def leaderboard_stats(self, *, user: str) -> LeaderboardStats | None:
-        """GET /data/leaderboard?timePeriod=ALL&user=... → PNL и vol за всё время или None."""
+        """GET /data/leaderboard?time_period=all&user=... → PNL и volume за всё время или None."""
         try:
             resp = await self._client.get(
                 f"{self._base}/data/leaderboard",
-                params={"timePeriod": "ALL", "user": user},
+                params={"time_period": "all", "user": user},
             )
             resp.raise_for_status()
-            data = resp.json()
+            payload = resp.json()
         except (httpx.HTTPStatusError, httpx.RequestError) as exc:
             logger.warning("gateway_leaderboard_failed", user=user, error=str(exc))
             return None
-        if isinstance(data, list) and len(data) > 0:
-            entry = data[0]
-            return LeaderboardStats(pnl=entry.get("pnl", 0), vol=entry.get("vol", 0))
-        return None
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(data, dict):
+            return None
+        return LeaderboardStats(pnl=data.get("pnl", 0), vol=data.get("volume", 0))
 
     async def accounting_equity(self, *, user: str) -> EquitySnapshot | None:
         """GET /data/accounting/snapshot → EquitySnapshot или None."""
@@ -224,44 +231,52 @@ class PolyGateClient:
         *,
         user: str,
         limit: int,
-        offset: int,
+        cursor: str | None = None,
         market: str | None = None,
         event_id: int | None = None,
         activity_types: Sequence[ActivityType] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """Страница /data/activity по пользователю, новые первыми."""
         params: dict[str, Any] = {
             "user": user,
             "limit": limit,
-            "offset": offset,
-            "sortBy": "TIMESTAMP",
-            "sortDirection": "DESC",
+            "sort_by": "TIMESTAMP",
+            "sort_direction": "DESC",
         }
+        if cursor:
+            params["cursor"] = cursor
         if event_id is not None:
-            params["eventId"] = event_id
+            params["event_id"] = str(event_id)
         elif market is not None:
-            params["market"] = market
+            params["condition"] = market
         if activity_types is not None:
             params["type"] = ",".join(t.value for t in activity_types)
         resp = await self._client.get(f"{self._base}/data/activity", params=params)
         resp.raise_for_status()
-        data = resp.json()
-        return data if isinstance(data, list) else []
+        return _page(resp.json())
 
     async def closed_positions_page(
-        self, *, user: str, limit: int, offset: int
-    ) -> list[dict[str, Any]]:
-        """Страница /data/closed-positions по пользователю, новые первыми."""
+        self, *, user: str, limit: int, cursor: str | None = None
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Страница /data/positions?status=CLOSED по пользователю, новые первыми."""
         params: dict[str, Any] = {
             "user": user,
             "limit": limit,
-            "offset": offset,
-            "sortBy": "TIMESTAMP",
-            "sortDirection": "DESC",
+            "status": "CLOSED",
+            "sort_by": "TIMESTAMP",
+            "sort_direction": "DESC",
         }
-        resp = await self._client.get(
-            f"{self._base}/data/closed-positions", params=params
-        )
+        if cursor:
+            params["cursor"] = cursor
+        resp = await self._client.get(f"{self._base}/data/positions", params=params)
         resp.raise_for_status()
-        data = resp.json()
-        return data if isinstance(data, list) else []
+        rows, next_cursor = _page(resp.json())
+        normalized = [
+            {
+                "proxy_wallet": row["proxy_wallet"],
+                "event_slug": row["event_slug"],
+                "timestamp": row["last_event_at"],
+            }
+            for row in rows
+        ]
+        return normalized, next_cursor

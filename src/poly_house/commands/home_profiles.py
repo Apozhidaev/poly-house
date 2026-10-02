@@ -204,25 +204,27 @@ async def _fetch_activity_cache_entries(
     user: str,
     watermark: int | None,
 ) -> list[dict[str, Any]]:
-    """Пагинация /closed-positions (новые первыми) до watermark или max_offset."""
+    """Пагинация /positions?status=CLOSED (новые первыми) до watermark или max_offset."""
     min_timestamp = _activity_cache_min_timestamp(settings, watermark)
     pages: list[list[dict[str, Any]]] = []
-    offset = 0
-    while offset <= settings.activity_cache_max_offset:
-        raw = await gateway.closed_positions_page(
+    cursor: str | None = None
+    fetched = 0
+    while fetched <= settings.activity_cache_max_offset:
+        raw, next_cursor = await gateway.closed_positions_page(
             user=user,
             limit=settings.activity_cache_page_limit,
-            offset=offset,
+            cursor=cursor,
         )
         if not raw:
             break
         fresh = [p for p in raw if p["timestamp"] > min_timestamp]
         pages.append(fresh)
+        fetched += len(raw)
         if any(p["timestamp"] <= min_timestamp for p in raw):
             break
-        if len(raw) < settings.activity_cache_page_limit:
+        if not next_cursor:
             break
-        offset += settings.activity_cache_page_limit
+        cursor = next_cursor
     return [p for page in reversed(pages) for p in reversed(page)]
 
 
@@ -252,7 +254,7 @@ async def _sync_activity_cache_for_wallets(
     *,
     stop: asyncio.Event | None = None,
 ) -> int:
-    """Догружает activity cache из /closed-positions; returns number of entries written."""
+    """Догружает activity cache из /positions?status=CLOSED; returns number of entries written."""
     total_entries = 0
     for proxy_wallet in wallets:
         if stop is not None and stop.is_set():
@@ -347,12 +349,13 @@ async def _add_new_activities_by_condition_id(
     min_timestamp: int,
 ) -> bool:
     """Пагинация /activity по condition_id (новые первыми) до min_timestamp или max_offset."""
-    offset = 0
-    while offset <= settings.activity_max_offset:
-        raw = await gateway.activity_page(
+    cursor: str | None = None
+    fetched = 0
+    while fetched <= settings.activity_max_offset:
+        raw, next_cursor = await gateway.activity_page(
             user=user,
             limit=settings.activity_page_limit,
-            offset=offset,
+            cursor=cursor,
             market=condition_id,
             activity_types=MARKET_ACTIVITY_TYPES,
         )
@@ -360,13 +363,14 @@ async def _add_new_activities_by_condition_id(
             break
         fresh = [p for p in raw if p["timestamp"] > min_timestamp]
         pages.append(fresh)
+        fetched += len(raw)
         if any(p["timestamp"] <= min_timestamp for p in raw):
             break
-        if len(raw) < settings.activity_page_limit:
+        if not next_cursor:
             break
-        offset += settings.activity_page_limit
+        cursor = next_cursor
 
-    return offset <= settings.activity_max_offset
+    return fetched <= settings.activity_max_offset
 
 
 async def _fetch_new_activities_fallback(
@@ -379,12 +383,13 @@ async def _fetch_new_activities_fallback(
 ) -> list[dict[str, Any]]:
     """Пагинация /activity по event (новые первыми) до min_timestamp или max_offset."""
     pages: list[list[dict[str, Any]]] = []
-    offset = 0
-    while offset <= settings.activity_max_offset:
-        raw = await gateway.activity_page(
+    cursor: str | None = None
+    fetched = 0
+    while fetched <= settings.activity_max_offset:
+        raw, next_cursor = await gateway.activity_page(
             user=user,
             limit=settings.activity_page_limit,
-            offset=offset,
+            cursor=cursor,
             event_id=event_id,
             activity_types=(ActivityType.CONVERSION,),
         )
@@ -392,11 +397,12 @@ async def _fetch_new_activities_fallback(
             break
         fresh = [p for p in raw if p["timestamp"] > min_timestamp]
         pages.append(fresh)
+        fetched += len(raw)
         if any(p["timestamp"] <= min_timestamp for p in raw):
             break
-        if len(raw) < settings.activity_page_limit:
+        if not next_cursor:
             break
-        offset += settings.activity_page_limit
+        cursor = next_cursor
 
     condition_ids, event_slug = await _load_condition_ids_for_event(db, event_id)
     for condition_id in condition_ids:
@@ -421,12 +427,13 @@ async def _fetch_new_activities(
     """Пагинация /activity по event (новые первыми) до watermark или max_offset."""
     min_timestamp = watermark if watermark is not None else -1
     pages: list[list[dict[str, Any]]] = []
-    offset = 0
-    while offset <= settings.activity_max_offset:
-        raw = await gateway.activity_page(
+    cursor: str | None = None
+    fetched = 0
+    while fetched <= settings.activity_max_offset:
+        raw, next_cursor = await gateway.activity_page(
             user=user,
             limit=settings.activity_page_limit,
-            offset=offset,
+            cursor=cursor,
             event_id=event_id,
             activity_types=ALL_ACTIVITY_TYPES,
         )
@@ -434,13 +441,14 @@ async def _fetch_new_activities(
             break
         fresh = [p for p in raw if p["timestamp"] > min_timestamp]
         pages.append(fresh)
+        fetched += len(raw)
         if any(p["timestamp"] <= min_timestamp for p in raw):
             break
-        if len(raw) < settings.activity_page_limit:
+        if not next_cursor:
             break
-        offset += settings.activity_page_limit
+        cursor = next_cursor
 
-    if offset > settings.activity_max_offset:
+    if fetched > settings.activity_max_offset:
         logger.warning("Max offset reached for event", event_id=event_id)
         return await _fetch_new_activities_fallback(
             db, gateway, settings, user, event_id, min_timestamp

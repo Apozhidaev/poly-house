@@ -42,9 +42,9 @@ def collect_holders(holders_raw: list[dict[str, Any]]) -> dict[str, User]:
     holders: dict[str, User] = {}
     for entry in holders_raw:
         for raw in entry.get("holders") or []:
-            if not raw.get("displayUsernamePublic"):
+            if not raw.get("display_username_public"):
                 continue
-            holders[raw["proxyWallet"]] = User.from_payload(raw)
+            holders[raw["proxy_wallet"]] = User.from_payload(raw)
     return holders
 
 
