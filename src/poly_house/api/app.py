@@ -13,7 +13,6 @@ from poly_house.api.routes import (
     home_profiles,
     klines,
     markets,
-    predict,
     profiles,
     profile_summary,
     tag_profiles,
@@ -44,7 +43,6 @@ app.include_router(users.router)
 app.include_router(home_profiles.router)
 app.include_router(tag_profiles.router)
 app.include_router(profile_summary.router)
-app.include_router(predict.router)
 app.include_router(experts.router)
 app.include_router(activity.router)
 app.include_router(klines.router)
