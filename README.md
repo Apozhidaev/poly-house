@@ -123,6 +123,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /profile-summary/{proxy_wallet}` | `tag_id` (required, list); `pnl`, `total_balance` из `profiles`, `tag_pnl` — агрегат по `tag_ids` |
 | `POST /profile-summary/batch` | body: `{ "proxy_wallets": [...], "tag_ids": [...] }` |
 | `GET /trades` | `condition_id`, `outcome_index`, `user`, `side`, `from`, `to` |
+| `GET /trades/market-stats` | `condition_id` (required); counts/size/volume totals + per-day (span first..last trade); buy/sell×outcome массивы `[0, 1]`; `volume = size * price` |
 | `GET /trades/mid-prices` | `condition_id` |
 | `GET /trades/to-outcome` | `target_outcome_index` (default 0), `condition_id`, `user`, `side`, `from`, `to` |
 | `GET /activity` | `condition_id`, `outcome_index`, `user`, `type`, `side`, `from`, `to` |
