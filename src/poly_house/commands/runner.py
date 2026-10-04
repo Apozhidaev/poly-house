@@ -24,7 +24,7 @@ from poly_house.commands.home_profiles import (
 )
 from poly_house.commands.profiles import sync_profiles
 from poly_house.commands.holders import sync_holder_profiles
-from poly_house.commands.klines import sync_orderbook
+from poly_house.commands.orderbook import sync_orderbook
 from poly_house.commands.tag_profiles import update_tag_profiles
 from poly_house.commands.trades import sync_trades
 
