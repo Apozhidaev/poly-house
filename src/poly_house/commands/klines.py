@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -105,6 +106,21 @@ async def _bulk_write_best_prices(db: Database, ops: list[UpdateOne]) -> int:
     return written
 
 
+async def _prune_best_prices(db: Database, settings: Settings) -> int:
+    cutoff_ms = (
+        int(datetime.now(UTC).timestamp() * 1000) - settings.best_prices_window * 1000
+    )
+    result = await db.best_prices.delete_many({"timestamp": {"$lt": cutoff_ms}})
+    deleted = result.deleted_count
+    logger.info(
+        "best_prices_pruned",
+        deleted=deleted,
+        cutoff_ms=cutoff_ms,
+        window_sec=settings.best_prices_window,
+    )
+    return deleted
+
+
 async def sync_klines(
     db: Database,
     gateway: PolyGateClient,
@@ -160,6 +176,8 @@ async def sync_klines(
 
         klines_written += await _bulk_write_klines(db, kline_ops)
         best_prices_written += await _bulk_write_best_prices(db, best_price_ops)
+
+    await _prune_best_prices(db, settings)
 
     written = klines_written + best_prices_written
     logger.info(

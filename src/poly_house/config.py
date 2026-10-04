@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     sync_trade_watch_interval: float = 86400.0  # sync-trade --watch
     sync_holder_watch_interval: float = 86400.0  # sync-holder --watch
 
+    # sync-kline: хранить best_prices не дольше N секунд
+    best_prices_window: int = 86400
+
     # первый прогон: глубина загрузки events по updatedAt
     updated_in_days: int = 30
 

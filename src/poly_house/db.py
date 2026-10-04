@@ -64,3 +64,4 @@ async def ensure_indexes(db: Database) -> None:
         [("condition_id", 1), ("outcome_index", 1), ("timestamp", 1)],
         unique=True,
     )
+    await db.best_prices.create_index("timestamp")
