@@ -8,6 +8,7 @@ from poly_house.config import Settings
 from poly_house.db import create_client
 from poly_house.api.routes import (
     activity,
+    best_prices,
     events,
     home_profiles,
     klines,
@@ -44,3 +45,4 @@ app.include_router(tag_profiles.router)
 app.include_router(profile_summary.router)
 app.include_router(activity.router)
 app.include_router(klines.router)
+app.include_router(best_prices.router)

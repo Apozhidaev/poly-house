@@ -130,6 +130,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /activity/by-market` | `user` (required), `condition_id` |
 | `GET /activity/holders` | `condition_id` (required), `profit_only` (default `true`) |
 | `GET /activity/holder-distribution` | `condition_id` (required), `proxy_wallet` (required) |
+| `GET /best-prices` | `condition_id`, `outcome_index` (required); без пагинации |
 
 Все списки пагинируются через `limit` (default 50, max 500) и `offset`.
 
