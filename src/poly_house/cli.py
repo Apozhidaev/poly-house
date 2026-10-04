@@ -17,7 +17,7 @@ from poly_house.commands.runner import (
     run_refresh_home_profile,
     run_sync_holder,
     run_sync_trades,
-    run_sync_klines,
+    run_sync_orderbook,
     run_update_tag_profiles,
     run_add_user,
     run_refresh_event,
@@ -61,20 +61,20 @@ def sync_trade(
     asyncio.run(run_sync_trades(settings, watch=watch))
 
 
-@app.command("sync-kline")
-def sync_kline(
+@app.command("sync-orderbook")
+def sync_orderbook(
     watch: Annotated[
         bool,
         typer.Option(
             "--watch",
-            help="Бесконечный цикл прогонов с интервалом SYNC_KLINE_WATCH_INTERVAL (Ctrl+C для остановки).",
+            help="Бесконечный цикл прогонов с интервалом SYNC_ORDERBOOK_WATCH_INTERVAL (Ctrl+C для остановки).",
         ),
     ] = False,
 ) -> None:
-    """CLOB orderbook open markets → hourly bid/ask klines."""
+    """CLOB orderbook open markets → hourly bid/ask klines + best_prices."""
     _configure_logging()
     settings = Settings()
-    asyncio.run(run_sync_klines(settings, watch=watch))
+    asyncio.run(run_sync_orderbook(settings, watch=watch))
 
 
 @app.command("sync-holder")

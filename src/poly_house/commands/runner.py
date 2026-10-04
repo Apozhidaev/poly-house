@@ -24,7 +24,7 @@ from poly_house.commands.home_profiles import (
 )
 from poly_house.commands.profiles import sync_profiles
 from poly_house.commands.holders import sync_holder_profiles
-from poly_house.commands.klines import sync_klines
+from poly_house.commands.klines import sync_orderbook
 from poly_house.commands.tag_profiles import update_tag_profiles
 from poly_house.commands.trades import sync_trades
 
@@ -172,13 +172,13 @@ async def run_sync_trades(settings: Settings, *, watch: bool = False) -> None:
     )
 
 
-async def run_sync_klines(settings: Settings, *, watch: bool = False) -> None:
+async def run_sync_orderbook(settings: Settings, *, watch: bool = False) -> None:
     def make_once(db: Database, gateway: PolyGateClient) -> RunOnce:
         async def once(stop: asyncio.Event | None) -> None:
             started = time.monotonic()
-            written = await sync_klines(db, gateway, settings=settings, stop=stop)
+            written = await sync_orderbook(db, gateway, settings=settings, stop=stop)
             logger.info(
-                "kline_sync_run_complete",
+                "orderbook_sync_run_complete",
                 written=written,
                 seconds=round(time.monotonic() - started, 1),
             )
@@ -189,7 +189,7 @@ async def run_sync_klines(settings: Settings, *, watch: bool = False) -> None:
         settings,
         make_once,
         watch=watch,
-        watch_interval=settings.sync_kline_watch_interval,
+        watch_interval=settings.sync_orderbook_watch_interval,
     )
 
 

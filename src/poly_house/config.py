@@ -13,11 +13,11 @@ class Settings(BaseSettings):
 
     # watch (--watch): период между стартами прогонов; пауза = interval − elapsed
     sync_event_watch_interval: float = 1800.0  # sync-event --watch
-    sync_kline_watch_interval: float = 60.0  # sync-kline --watch
+    sync_orderbook_watch_interval: float = 60.0  # sync-orderbook --watch
     sync_trade_watch_interval: float = 86400.0  # sync-trade --watch
     sync_holder_watch_interval: float = 86400.0  # sync-holder --watch
 
-    # sync-kline: хранить best_prices не дольше N секунд
+    # sync-orderbook: хранить best_prices не дольше N секунд
     best_prices_window: int = 86400
 
     # первый прогон: глубина загрузки events по updatedAt

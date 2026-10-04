@@ -121,7 +121,7 @@ async def _prune_best_prices(db: Database, settings: Settings) -> int:
     return deleted
 
 
-async def sync_klines(
+async def sync_orderbook(
     db: Database,
     gateway: PolyGateClient,
     *,
