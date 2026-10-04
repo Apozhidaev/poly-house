@@ -9,6 +9,7 @@ from pymongo import UpdateOne
 from poly_house.clients.poly_gate import PolyGateClient
 from poly_house.config import Settings
 from poly_house.db import Database
+from poly_house.models.best_price import BestPrice
 from poly_house.utils import hour_timestamp_from_ms
 
 logger = structlog.get_logger()
@@ -61,12 +62,46 @@ def _kline_update_op(
     )
 
 
+def _best_price_update_op(
+    condition_id: str,
+    outcome_index: int,
+    timestamp: int,
+    best_bid: float,
+    best_ask: float,
+) -> UpdateOne:
+    doc = BestPrice(
+        condition_id=condition_id,
+        outcome_index=outcome_index,
+        timestamp=timestamp,
+        best_bid=best_bid,
+        best_ask=best_ask,
+    ).to_doc()
+    return UpdateOne(
+        {
+            "condition_id": condition_id,
+            "outcome_index": outcome_index,
+            "timestamp": timestamp,
+        },
+        {"$set": doc},
+        upsert=True,
+    )
+
+
 async def _bulk_write_klines(db: Database, ops: list[UpdateOne]) -> int:
     if not ops:
         return 0
     await db.klines.bulk_write(ops)
     written = len(ops)
     logger.info("klines_bulk_written", klines=written)
+    return written
+
+
+async def _bulk_write_best_prices(db: Database, ops: list[UpdateOne]) -> int:
+    if not ops:
+        return 0
+    await db.best_prices.bulk_write(ops)
+    written = len(ops)
+    logger.info("best_prices_bulk_written", best_prices=written)
     return written
 
 
@@ -77,14 +112,15 @@ async def sync_klines(
     settings: Settings,
     stop: asyncio.Event | None = None,
 ) -> int:
-    """Best bid/ask из CLOB orderbook для relevant open markets → prices + klines."""
+    """Best bid/ask из CLOB orderbook для relevant open markets → best_prices + klines."""
     cursor = db.markets.find(
         _open_market_query(),
         projection={"condition_id": 1, "clob_token_ids": 1},
     )
     markets = await cursor.to_list(length=None)
 
-    written = 0
+    klines_written = 0
+    best_prices_written = 0
     for start in range(0, len(markets), BULK_SIZE):
         if stop is not None and stop.is_set():
             break
@@ -104,6 +140,7 @@ async def sync_klines(
         books_by_token = {book["asset_id"]: book for book in books}
 
         kline_ops: list[UpdateOne] = []
+        best_price_ops: list[UpdateOne] = []
         for condition_id, outcome_index, token_id in entries:
             book = books_by_token.get(token_id)
             if book is None or _book_is_empty(book):
@@ -115,12 +152,21 @@ async def sync_klines(
                     condition_id, outcome_index, timestamp, best_bid, best_ask
                 )
             )
+            best_price_ops.append(
+                _best_price_update_op(
+                    condition_id, outcome_index, timestamp, best_bid, best_ask
+                )
+            )
 
-        written += await _bulk_write_klines(db, kline_ops)
+        klines_written += await _bulk_write_klines(db, kline_ops)
+        best_prices_written += await _bulk_write_best_prices(db, best_price_ops)
 
+    written = klines_written + best_prices_written
     logger.info(
         "klines_sync_done",
         markets=len(markets),
+        klines=klines_written,
+        best_prices=best_prices_written,
         written=written,
         interrupted=stop is not None and stop.is_set(),
     )
