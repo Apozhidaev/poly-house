@@ -60,12 +60,16 @@ async def avg_price(
             "window_sec": window_sec,
             "avg_bid": None,
             "avg_ask": None,
+            "spread": None,
         }
     row = rows[0]
+    avg_bid = row["avg_bid"]
+    avg_ask = row["avg_ask"]
     return {
         "condition_id": condition_id,
         "outcome_index": outcome_index,
         "window_sec": window_sec,
-        "avg_bid": row["avg_bid"],
-        "avg_ask": row["avg_ask"],
+        "avg_bid": avg_bid,
+        "avg_ask": avg_ask,
+        "spread": avg_ask - avg_bid,
     }
