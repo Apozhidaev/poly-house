@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter
@@ -34,13 +34,13 @@ async def avg_price(
     outcome_index: int,
     window_sec: int,
 ) -> dict[str, Any]:
-    cutoff_ms = int(datetime.now(UTC).timestamp() * 1000) - window_sec * 1000
+    cutoff = datetime.now(UTC) - timedelta(seconds=window_sec)
     pipeline: list[dict[str, Any]] = [
         {
             "$match": {
                 "condition_id": condition_id,
                 "outcome_index": outcome_index,
-                "timestamp": {"$gte": cutoff_ms},
+                "synced_at": {"$gte": cutoff},
             }
         },
         {

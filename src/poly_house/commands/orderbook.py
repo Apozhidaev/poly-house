@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -69,6 +69,7 @@ def _best_price_update_op(
     timestamp: int,
     best_bid: float,
     best_ask: float,
+    synced_at: datetime,
 ) -> UpdateOne:
     doc = BestPrice(
         condition_id=condition_id,
@@ -76,6 +77,7 @@ def _best_price_update_op(
         timestamp=timestamp,
         best_bid=best_bid,
         best_ask=best_ask,
+        synced_at=synced_at,
     ).to_doc()
     return UpdateOne(
         {
@@ -107,15 +109,13 @@ async def _bulk_write_best_prices(db: Database, ops: list[UpdateOne]) -> int:
 
 
 async def _prune_best_prices(db: Database, settings: Settings) -> int:
-    cutoff_ms = (
-        int(datetime.now(UTC).timestamp() * 1000) - settings.best_prices_window * 1000
-    )
-    result = await db.best_prices.delete_many({"timestamp": {"$lt": cutoff_ms}})
+    cutoff = datetime.now(UTC) - timedelta(seconds=settings.best_prices_window)
+    result = await db.best_prices.delete_many({"synced_at": {"$lt": cutoff}})
     deleted = result.deleted_count
     logger.info(
         "best_prices_pruned",
         deleted=deleted,
-        cutoff_ms=cutoff_ms,
+        cutoff=cutoff.isoformat(),
         window_sec=settings.best_prices_window,
     )
     return deleted
@@ -155,6 +155,7 @@ async def sync_orderbook(
         books = await gateway.order_books([token_id for _, _, token_id in entries])
         books_by_token = {book["asset_id"]: book for book in books}
 
+        synced_at = datetime.now(UTC)
         kline_ops: list[UpdateOne] = []
         best_price_ops: list[UpdateOne] = []
         for condition_id, outcome_index, token_id in entries:
@@ -170,7 +171,12 @@ async def sync_orderbook(
             )
             best_price_ops.append(
                 _best_price_update_op(
-                    condition_id, outcome_index, timestamp, best_bid, best_ask
+                    condition_id,
+                    outcome_index,
+                    timestamp,
+                    best_bid,
+                    best_ask,
+                    synced_at,
                 )
             )
 
