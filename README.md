@@ -12,7 +12,7 @@ Warehouse для [Polymarket](https://polymarket.com): инкременталь�
 
 ```bash
 uv sync
-cp .env.example .env  # при необходимости поправить настройки
+cp config.example.yaml config.yaml  # при необходимости поправить настройки
 ```
 
 ## Проверка типов
@@ -34,7 +34,7 @@ uv run basedpyright src/poly_house/
 # sync-event — events + nested markets + tags
 uv run poly-house sync-event
 uv run poly-house sync-event --open
-uv run poly-house sync-event --watch                    # период SYNC_EVENT_WATCH_INTERVAL между стартами
+uv run poly-house sync-event --watch                    # период sync_event_watch_interval между стартами
 uv run poly-house sync-event --open --watch
 uv run poly-house sync-event --max-pages 2              # тест: 2 страницы
 uv run poly-house sync-event --open --max-pages 2
@@ -45,22 +45,22 @@ uv run poly-house refresh-event
 
 # sync-trade — трейды + пользователи
 uv run poly-house sync-trade
-uv run poly-house sync-trade --watch                    # период SYNC_TRADE_WATCH_INTERVAL между стартами
+uv run poly-house sync-trade --watch                    # период sync_trade_watch_interval между стартами
 
 # sync-orderbook — orderbook open markets → hourly klines + best_prices
 uv run poly-house sync-orderbook
-uv run poly-house sync-orderbook --watch                # период SYNC_ORDERBOOK_WATCH_INTERVAL между стартами
+uv run poly-house sync-orderbook --watch                # период sync_orderbook_watch_interval между стартами
 
 # sync-holder — holders → profiles / home_profiles / tag_profiles
 uv run poly-house sync-holder
-uv run poly-house sync-holder --watch                   # период SYNC_HOLDER_WATCH_INTERVAL между стартами
+uv run poly-house sync-holder --watch                   # период sync_holder_watch_interval между стартами
 
-# refresh-profile — устаревшие profiles (synced_at > PROFILE_REFRESH_INTERVAL_DAYS)
+# refresh-profile — устаревшие profiles (synced_at > profile_refresh_interval_days)
 uv run poly-house refresh-profile
 uv run poly-house refresh-profile --limit 10
 uv run poly-house refresh-profile --wallet 0x...
 
-# refresh-home-profile — устаревшие home_profiles (synced_at > HOME_PROFILE_REFRESH_INTERVAL_DAYS)
+# refresh-home-profile — устаревшие home_profiles (synced_at > home_profile_refresh_interval_days)
 uv run poly-house refresh-home-profile
 uv run poly-house refresh-home-profile --limit 10
 uv run poly-house refresh-home-profile --wallet 0x...
@@ -79,15 +79,15 @@ uv run poly-house sync-activity --wallet 0x... --event some-event-slug
 
 Как это работает:
 
-- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: `EVENTS_TAG_IDS`, `EVENTS_EXCLUDE_TAG_IDS`, `EVENTS_SLUGS` (API), `EVENTS_NEG_RISK`, `MARKETS_YES_NO_ONLY` (пропуск event, если среди nested markets есть не Yes/No). `--watch`: цикл; период между стартами прогонов `SYNC_EVENT_WATCH_INTERVAL` (время работы вычитается из паузы).
+- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: `events_tag_ids`, `events_exclude_tag_ids`, `events_slugs` (API), `events_neg_risk`, `markets_yes_no_only` (пропуск event, если среди nested markets есть не Yes/No). `--watch`: цикл; период между стартами прогонов `sync_event_watch_interval` (время работы вычитается из паузы).
 - **sync-event --open**: то же, с `closed=false` в API; watermark общий — `events_watermark`; `--watch` — тот же период.
 - **refresh-event**: один event по `--slug` или все events из базы — Gateway `/gamma/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`. В bulk-режиме ошибки по slug пропускаются с warning в логе.
-- Первый прогон загружает events, обновлявшиеся за последние `UPDATED_IN_DAYS` дней (по умолчанию 30).
-- **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды через Gateway `/data/trades?taker_only=true` по watermark `timestamp` для каждого маркета (cursor-пагинация; потолок API: `limit=1000`, cap `trades_max_offset`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов. `--watch`: цикл; период между стартами `SYNC_TRADE_WATCH_INTERVAL` (время работы вычитается из паузы).
-- **sync-orderbook**: для open markets (`active`, `closed=false`, `accepting_orders`, непустые `clob_token_ids`) — Gateway orderbook → upsert hourly bid/ask в `klines` и snapshot best bid/ask в `best_prices` (`timestamp` как в orderbook, `synced_at` — время прогона; хранение `BEST_PRICES_WINDOW` секунд по `synced_at`, старше удаляются на каждом прогоне). `--watch`: период между стартами `SYNC_ORDERBOOK_WATCH_INTERVAL`.
-- **sync-holder**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — Gateway `/data/holders`; для публичных holders (`display_username_public=true`) inline sync: `sync_profiles_for_wallets` (stale > `PROFILE_REFRESH_INTERVAL_DAYS`), `sync_home_profiles_for_wallets` (stale > `HOME_PROFILE_REFRESH_INTERVAL_DAYS`: activity cache → activities → upsert); `tag_profiles` обновляются только после home sync. Маркет пропускается, если `/data/holders` недоступен. Нужны `sync-event` и закрытые маркеты с тегами для `tag_profiles`. `--watch`: период между стартами `SYNC_HOLDER_WATCH_INTERVAL`.
-- **refresh-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> `PROFILE_REFRESH_INTERVAL_DAYS`) — Gateway `/data/leaderboard`, `/data/accounting/snapshot`, `/data/user-pnl` → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `sync-holder`.
-- **refresh-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> `HOME_PROFILE_REFRESH_INTERVAL_DAYS`) — activity cache из Gateway `/data/positions?status=CLOSED` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/data/activity?event_id=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `sync-holder`.
+- Первый прогон загружает events, обновлявшиеся за последние `updated_in_days` дней (по умолчанию 30).
+- **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды через Gateway `/data/trades?taker_only=true` по watermark `timestamp` для каждого маркета (cursor-пагинация; потолок API: `limit=1000`, cap `trades_max_offset`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов. `--watch`: цикл; период между стартами `sync_trade_watch_interval` (время работы вычитается из паузы).
+- **sync-orderbook**: для open markets (`active`, `closed=false`, `accepting_orders`, непустые `clob_token_ids`) — Gateway orderbook → upsert hourly bid/ask в `klines` и snapshot best bid/ask в `best_prices` (`timestamp` как в orderbook, `synced_at` — время прогона; хранение `best_prices_window` секунд по `synced_at`, старше удаляются на каждом прогоне). `--watch`: период между стартами `sync_orderbook_watch_interval`.
+- **sync-holder**: для открытых маркетов (`closed=false`, `accepting_orders=true`, оба `clob_token_ids`) — Gateway `/data/holders`; для публичных holders (`display_username_public=true`) inline sync: `sync_profiles_for_wallets` (stale > `profile_refresh_interval_days`), `sync_home_profiles_for_wallets` (stale > `home_profile_refresh_interval_days`: activity cache → activities → upsert); `tag_profiles` обновляются только после home sync. Маркет пропускается, если `/data/holders` недоступен. Нужны `sync-event` и закрытые маркеты с тегами для `tag_profiles`. `--watch`: период между стартами `sync_holder_watch_interval`.
+- **refresh-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> `profile_refresh_interval_days`) — Gateway `/data/leaderboard`, `/data/accounting/snapshot`, `/data/user-pnl` → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `sync-holder`.
+- **refresh-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> `home_profile_refresh_interval_days`) — activity cache из Gateway `/data/positions?status=CLOSED` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/data/activity?event_id=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `sync-holder`.
 - **update-tag-profile**: для каждого wallet из `profiles` — activities из `activities`, у которых `condition_id` есть в `markets`; агрегирует в `market_activities` (по `condition_id`: `volume` = sum `usdc_size`, `pnl` = signed sum TRADE BUY/SELL); по `tag_ids` маркета группирует метрики и upsert в `tag_profiles` (уникальность `(proxy_wallet, tag_id)`, `_id` — MongoDB ObjectId). Поля: `markets_count`, `pnl` (sum per-market `pnl`), `volume` (sum per-market `volume`), `win_rate` (доля market_activities с `pnl > 0`), `hit_rate` (`win_holder_count / markets_count`), `error_rate` (`lose_holder_count / markets_count`), `pnl_growth` / `pnl_stability` (линейная регрессия по per-market `pnl` с `use_cumulative=True`; `null` при одном маркете). Маркет с несколькими тегами учитывается в каждом теге. Нужны `sync-event`, `profiles` и `activities`.
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
@@ -137,4 +137,4 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 
 ## Конфигурация
 
-Все настройки — через `.env` (см. `.env.example`): подключение к MongoDB, интервал watch-режима, глубина первой загрузки, лимиты rate limiter'а и размеры страниц API.
+Все настройки — через `config.yaml` (см. `config.example.yaml`): подключение к MongoDB, интервал watch-режима, глубина первой загрузки, фильтры events и размеры страниц API.

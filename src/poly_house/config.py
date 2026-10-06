@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+from typing import Any
+
+import yaml
+from pydantic import BaseModel
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
+class Settings(BaseModel):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db: str = "poly_house"
 
@@ -60,3 +62,12 @@ class Settings(BaseSettings):
     # REST API
     server_host: str = "127.0.0.1"
     server_port: int = 8000
+
+
+def load_settings(path: Path | None = None) -> Settings:
+    config_path = path or Path("config.yaml")
+    if not config_path.is_file():
+        return Settings()
+    raw: Any = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    data = raw if isinstance(raw, dict) else {}
+    return Settings.model_validate(data)

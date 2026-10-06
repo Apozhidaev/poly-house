@@ -7,7 +7,7 @@ import structlog
 import typer
 import uvicorn
 
-from poly_house.config import Settings
+from poly_house.config import load_settings
 from poly_house.commands.runner import (
     EventSyncOptions,
     SyncProfileOptions,
@@ -40,24 +40,24 @@ def _configure_logging() -> None:
 @app.command("sync-event")
 def sync_event(
     open_only: Annotated[bool, typer.Option("--open", help="Только открытые events (closed=false).")] = False,
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом SYNC_EVENT_WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом sync_event_watch_interval (Ctrl+C для остановки).")] = False,
     limit: Annotated[int | None, typer.Option("--limit", help="Размер страницы /gamma/events.")] = None,
     max_pages: Annotated[int | None, typer.Option("--max-pages", help="Ограничить число страниц events (для теста).")] = None,
 ) -> None:
     """Синхронизация events + nested markets + tags из Gateway /gamma/events → MongoDB."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     options = EventSyncOptions(open_only=open_only, page_limit=limit, max_pages=max_pages)
     asyncio.run(run_sync_events(settings, options, watch=watch))
 
 
 @app.command("sync-trade")
 def sync_trade(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом SYNC_TRADE_WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом sync_trade_watch_interval (Ctrl+C для остановки).")] = False,
 ) -> None:
     """Синхронизация трейдов (+ пользователи) для маркетов, обновлённых после прошлого прогона."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     asyncio.run(run_sync_trades(settings, watch=watch))
 
 
@@ -67,23 +67,23 @@ def sync_orderbook(
         bool,
         typer.Option(
             "--watch",
-            help="Бесконечный цикл прогонов с интервалом SYNC_ORDERBOOK_WATCH_INTERVAL (Ctrl+C для остановки).",
+            help="Бесконечный цикл прогонов с интервалом sync_orderbook_watch_interval (Ctrl+C для остановки).",
         ),
     ] = False,
 ) -> None:
     """CLOB orderbook open markets → hourly bid/ask klines + best_prices."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     asyncio.run(run_sync_orderbook(settings, watch=watch))
 
 
 @app.command("sync-holder")
 def sync_holder(
-    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом SYNC_HOLDER_WATCH_INTERVAL (Ctrl+C для остановки).")] = False,
+    watch: Annotated[bool, typer.Option("--watch", help="Бесконечный цикл прогонов с интервалом sync_holder_watch_interval (Ctrl+C для остановки).")] = False,
 ) -> None:
     """Holders открытых маркетов → sync profiles, home_profiles, tag_profiles."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     asyncio.run(run_sync_holder(settings, watch=watch))
 
 
@@ -92,9 +92,9 @@ def refresh_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число profiles (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Обновить один profile по proxy_wallet.")] = None,
 ) -> None:
-    """Устаревшие profiles (Polymarket API, synced_at > PROFILE_REFRESH_INTERVAL_DAYS)."""
+    """Устаревшие profiles (Polymarket API, synced_at > profile_refresh_interval_days)."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
     asyncio.run(run_refresh_profile(settings, options))
 
@@ -104,9 +104,9 @@ def refresh_home_profile(
     limit: Annotated[int | None, typer.Option("--limit", help="Ограничить число home_profiles (для теста).")] = None,
     wallet: Annotated[str | None, typer.Option("--wallet", help="Обновить один home profile по proxy_wallet.")] = None,
 ) -> None:
-    """Устаревшие home_profiles (activity cache → activities, synced_at > HOME_PROFILE_REFRESH_INTERVAL_DAYS)."""
+    """Устаревшие home_profiles (activity cache → activities, synced_at > home_profile_refresh_interval_days)."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     options = SyncProfileOptions(wallet=wallet, limit=limit)
     asyncio.run(run_refresh_home_profile(settings, options))
 
@@ -118,7 +118,7 @@ def update_tag_profile(
 ) -> None:
     """Агрегация tag profiles holders из activities + markets → tag_profiles."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     options = TagProfileSyncOptions(wallet=wallet, limit=limit)
     asyncio.run(run_update_tag_profiles(settings, options))
 
@@ -129,7 +129,7 @@ def add_user_cmd(
 ) -> None:
     """Gateway /gamma/public-profile → users; принудительный sync profiles/home_profiles/tag_profiles."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     try:
         asyncio.run(run_add_user(settings, wallet))
     except ValueError as exc:
@@ -143,7 +143,7 @@ def refresh_event_cmd(
 ) -> None:
     """Refresh one event from Gateway (--slug) or all events in DB."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     try:
         asyncio.run(run_refresh_event(settings, slug=slug))
     except ValueError as exc:
@@ -158,7 +158,7 @@ def sync_activity_cmd(
 ) -> None:
     """Удалить activities wallet+event и заново загрузить всю activity по event из Gateway."""
     _configure_logging()
-    settings = Settings()
+    settings = load_settings()
     try:
         asyncio.run(run_sync_activity(settings, wallet, event))
     except ValueError as exc:
@@ -172,7 +172,7 @@ def serve(
     port: Annotated[int | None, typer.Option(help="Порт (по умолчанию из конфига).")] = None,
 ) -> None:
     """Запуск REST API поверх MongoDB."""
-    settings = Settings()
+    settings = load_settings()
     uvicorn.run(
         "poly_house.api.app:app",
         host=host or settings.server_host,

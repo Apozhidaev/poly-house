@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from poly_house.config import Settings
+from poly_house.config import load_settings
 from poly_house.db import create_client
 from poly_house.api.routes import (
     activity,
@@ -24,7 +24,7 @@ from poly_house.api.routes import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    settings = Settings()
+    settings = load_settings()
     client = create_client(settings)
     app.state.db = client[settings.mongo_db]
     yield

@@ -1,69 +1,74 @@
 # MongoDB
-MONGO_URI=mongodb://localhost:27017
-MONGO_DB=poly_house_dev
+mongo_uri: mongodb://localhost:27017
+mongo_db: poly_house_dev
 
 # Polymarket Gateway
-GATEWAY_URL=http://localhost:8080
+gateway_url: http://localhost:8080
 
 # sync-event --watch: период между стартами прогонов, сек (время работы вычитается из паузы)
-SYNC_EVENT_WATCH_INTERVAL=1800
+sync_event_watch_interval: 1800
 
 # sync-orderbook --watch: период между стартами прогонов, сек
-SYNC_ORDERBOOK_WATCH_INTERVAL=60
+sync_orderbook_watch_interval: 60
 
 # sync-orderbook: хранить best_prices не дольше N секунд
-BEST_PRICES_WINDOW=86400
+best_prices_window: 86400
 
 # sync-trade --watch: период между стартами прогонов, сек
-SYNC_TRADE_WATCH_INTERVAL=86400
+sync_trade_watch_interval: 86400
 
 # sync-holder --watch: период между стартами прогонов, сек
-SYNC_HOLDER_WATCH_INTERVAL=86400
+sync_holder_watch_interval: 86400
 
 # первый прогон: загружать events, обновлявшиеся за последние N дней
-UPDATED_IN_DAYS=30
+updated_in_days: 30
 
 # первый прогон refresh-home-profile: activity cache за последние N дней (источник: Gateway /data/closed-positions)
-ACTIVITY_CACHE_IN_DAYS=365
+activity_cache_in_days: 365
 
 # refresh-profile: считать profile свежим, если synced_at моложе N дней
-PROFILE_REFRESH_INTERVAL_DAYS=1
+profile_refresh_interval_days: 1
 
 # refresh-home-profile: считать home profile свежим, если synced_at моложе N дней
-HOME_PROFILE_REFRESH_INTERVAL_DAYS=1
+home_profile_refresh_interval_days: 1
 
-# необязательный фильтр events по тегам (JSON-массив), пусто = без фильтра
-# EVENTS_TAG_IDS=[2,100265]
+# необязательный фильтр events по тегам, пусто = без фильтра
+# events_tag_ids:
+#   - 2
+#   - 100265
 
 # исключить events с этими тегами (exclude_tag_id в API)
-# EVENTS_EXCLUDE_TAG_IDS=[1]
+# events_exclude_tag_ids:
+#   - 1
 
-# необязательный фильтр events по slug (JSON-массив), пусто = без фильтра
-# EVENTS_SLUGS=["fed-decision-in-october","some-other-event"]
+# необязательный фильтр events по slug, пусто = без фильтра
+# events_slugs:
+#   - fed-decision-in-october
+#   - some-other-event
 
 # пропускать event, если среди nested markets есть outcomes != ["Yes", "No"]
-# MARKETS_YES_NO_ONLY=true
+# markets_yes_no_only: true
 
 # оставлять только events с neg_risk == значению (null/absent в API = false)
-# EVENTS_NEG_RISK=false
+# events_neg_risk: false
 
 # размеры страниц API
 # /gamma/events: max limit = 100
-EVENTS_PAGE_LIMIT=100
-TRADES_PAGE_LIMIT=1000
-TRADES_MAX_OFFSET=3000
+events_page_limit: 100
+trades_page_limit: 1000
+trades_max_offset: 3000
 
 # sync-holder: лимит Gateway /data/holders (max 500)
-HOLDERS_LIMIT=500
+holders_limit: 500
 
 # activity: пагинация Gateway /data/activity
-ACTIVITY_PAGE_LIMIT=500
-ACTIVITY_MAX_OFFSET=3000
+activity_page_limit: 500
+activity_max_offset: 3000
 
-# activity cache: пагинация Gateway /data/closed-positions
-ACTIVITY_CACHE_PAGE_LIMIT=50
-ACTIVITY_CACHE_MAX_OFFSET=100000
+# activity cache: пагинация Gateway /data/positions?status=CLOSED
+activity_cache_page_limit: 50
+activity_cache_max_offset: 100000
 
 # REST API
-SERVER_HOST=127.0.0.1
-SERVER_PORT=8000
+server_host: 127.0.0.1
+server_port: 8000
