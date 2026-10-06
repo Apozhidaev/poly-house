@@ -32,25 +32,16 @@ profile_refresh_interval_days: 1
 # refresh-home-profile: считать home profile свежим, если synced_at моложе N дней
 home_profile_refresh_interval_days: 1
 
-# необязательный фильтр events по тегам, пусто = без фильтра
-# events_tag_ids:
-#   - 2
-#   - 100265
-
-# исключить events с этими тегами (exclude_tag_id в API)
-# events_exclude_tag_ids:
-#   - 1
-
-# необязательный фильтр events по slug, пусто = без фильтра
-# events_slugs:
-#   - fed-decision-in-october
-#   - some-other-event
-
-# пропускать event, если среди nested markets есть outcomes != ["Yes", "No"]
-# markets_yes_no_only: true
-
-# оставлять только events с neg_risk == значению (null/absent в API = false)
-# events_neg_risk: false
+# sync-event: комбинации фильтров (пустой список = один проход без API-фильтров)
+# events_filters:
+#   - tag_ids: [102486]
+#     markets_yes_no_only: true
+#   - slugs:
+#       - fed-decision-in-october
+#   - tag_ids: [2]
+#     exclude_tag_ids: [1]
+#     neg_risk: false
+events_filters: []
 
 # размеры страниц API
 # /gamma/events: max limit = 100

@@ -7,6 +7,14 @@ import yaml
 from pydantic import BaseModel
 
 
+class EventsFilter(BaseModel):
+    tag_ids: list[int] = []
+    exclude_tag_ids: list[int] = []
+    slugs: list[str] = []
+    markets_yes_no_only: bool = False
+    neg_risk: bool | None = None
+
+
 class Settings(BaseModel):
     mongo_uri: str = "mongodb://localhost:27017"
     mongo_db: str = "poly_house"
@@ -34,20 +42,8 @@ class Settings(BaseModel):
     # refresh-home-profile: считать home profile свежим, если synced_at моложе N дней
     home_profile_refresh_interval_days: int = 1
 
-    # необязательный фильтр events по тегам (tag_id=1&tag_id=2)
-    events_tag_ids: list[int] = []
-
-    # исключить events с этими тегами (exclude_tag_id в API)
-    events_exclude_tag_ids: list[int] = []
-
-    # необязательный фильтр events по slug (slug=a&slug=b)
-    events_slugs: list[str] = []
-
-    # пропускать event, если среди nested markets есть outcomes != ["Yes", "No"]
-    markets_yes_no_only: bool = False
-
-    # оставлять только events с neg_risk == значению (null/absent в API = false)
-    events_neg_risk: bool | None = None
+    # sync-event: комбинации фильтров (пустой список = один проход без API-фильтров)
+    events_filters: list[EventsFilter] = []
 
     # размеры страниц API
     events_page_limit: int = 100  # /gamma/events max 100

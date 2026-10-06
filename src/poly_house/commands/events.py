@@ -9,7 +9,7 @@ import structlog
 from pymongo import ReplaceOne, UpdateOne
 
 from poly_house.clients.poly_gate import PolyGateClient
-from poly_house.config import Settings
+from poly_house.config import EventsFilter, Settings
 from poly_house.db import Database, Doc
 from poly_house.models import Event, Market
 from poly_house.commands.sync_state import (
@@ -34,15 +34,15 @@ def parse_event_with_markets(raw: dict[str, Any]) -> EventWithMarkets:
     return EventWithMarkets(event=event, markets=markets)
 
 
-def _keep_event(entry: EventWithMarkets, settings: Settings) -> bool:
+def _keep_event(entry: EventWithMarkets, filt: EventsFilter) -> bool:
     if not entry.event.relevant:
         return False
     if not entry.markets:
         return False
-    if settings.events_neg_risk is not None:
-        if entry.event.neg_risk != settings.events_neg_risk:
+    if filt.neg_risk is not None:
+        if entry.event.neg_risk != filt.neg_risk:
             return False
-    if settings.markets_yes_no_only:
+    if filt.markets_yes_no_only:
         if any(m.outcomes != ["Yes", "No"] for m in entry.markets):
             return False
     return True
@@ -76,7 +76,7 @@ async def _refresh_tag_events_count(db: Database) -> None:
 async def _fetch_pages(
     gateway: PolyGateClient,
     watermark: str,
-    settings: Settings,
+    filt: EventsFilter,
     *,
     page_limit: int,
     max_pages: int | None,
@@ -95,9 +95,9 @@ async def _fetch_pages(
         raw, next_cursor = await gateway.events_page(
             limit=page_limit,
             cursor=cursor,
-            tag_ids=settings.events_tag_ids,
-            exclude_tag_ids=settings.events_exclude_tag_ids,
-            slugs=settings.events_slugs,
+            tag_ids=filt.tag_ids,
+            exclude_tag_ids=filt.exclude_tag_ids,
+            slugs=filt.slugs,
             closed=closed,
         )
         if not raw:
@@ -114,7 +114,7 @@ async def _fetch_pages(
                 updated_at
             ) > datetime.fromisoformat(max_updated_at):
                 max_updated_at = updated_at
-        kept = [entry for entry in fresh if _keep_event(entry, settings)]
+        kept = [entry for entry in fresh if _keep_event(entry, filt)]
         pages.append(kept)
         logger.info(
             "events_page_fetched",
@@ -174,6 +174,16 @@ async def _write_page(
         await db.events.bulk_write(event_ops)
 
 
+def _max_updated_at(left: str | None, right: str | None) -> str | None:
+    if left is None:
+        return right
+    if right is None:
+        return left
+    if datetime.fromisoformat(right) > datetime.fromisoformat(left):
+        return right
+    return left
+
+
 async def sync_events(
     db: Database,
     gateway: PolyGateClient,
@@ -186,27 +196,52 @@ async def sync_events(
 ) -> list[EventWithMarkets]:
     """Инкрементальный sync events + nested markets; возвращает записанные events."""
     watermark = await get_events_watermark(db, settings)
-    logger.info("events_sync_start", watermark=watermark, open_only=open_only)
-
-    pages, max_updated_at = await _fetch_pages(
-        gateway,
-        watermark,
-        settings,
-        page_limit=page_limit or settings.events_page_limit,
-        max_pages=max_pages,
+    filters = settings.events_filters or [EventsFilter()]
+    logger.info(
+        "events_sync_start",
+        watermark=watermark,
         open_only=open_only,
-        stop=stop,
+        filters=len(filters),
     )
 
-    written: list[EventWithMarkets] = []
+    all_pages: list[list[EventWithMarkets]] = []
+    max_updated_at: str | None = None
+    limit = page_limit or settings.events_page_limit
+    for index, filt in enumerate(filters):
+        if stop is not None and stop.is_set():
+            break
+        logger.info(
+            "events_filter_start",
+            index=index,
+            tag_ids=filt.tag_ids,
+            exclude_tag_ids=filt.exclude_tag_ids,
+            slugs=filt.slugs,
+            markets_yes_no_only=filt.markets_yes_no_only,
+            neg_risk=filt.neg_risk,
+        )
+        pages, filter_max_updated_at = await _fetch_pages(
+            gateway,
+            watermark,
+            filt,
+            page_limit=limit,
+            max_pages=max_pages,
+            open_only=open_only,
+            stop=stop,
+        )
+        all_pages.extend(pages)
+        max_updated_at = _max_updated_at(max_updated_at, filter_max_updated_at)
+
+    by_event_id: dict[int, EventWithMarkets] = {}
     synced_at = datetime.now(UTC)
-    for page in reversed(pages):
+    for page in reversed(all_pages):
         entries = list(reversed(page))
         if not entries:
             continue
         await _write_page(db, entries, synced_at)
-        written.extend(entries)
+        for entry in entries:
+            by_event_id[entry.event.id] = entry
 
+    written = list(by_event_id.values())
     await _refresh_tag_events_count(db)
 
     interrupted = stop is not None and stop.is_set()
