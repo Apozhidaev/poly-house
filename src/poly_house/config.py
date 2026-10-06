@@ -26,6 +26,7 @@ class Settings(BaseModel):
     sync_orderbook_watch_interval: float = 60.0  # sync-orderbook --watch
     sync_trade_watch_interval: float = 86400.0  # sync-trade --watch
     sync_holder_watch_interval: float = 86400.0  # sync-holder --watch
+    update_event_view_watch_interval: float = 60.0  # update-event-view --watch
 
     # sync-orderbook: хранить best_prices не дольше N секунд
     best_prices_window: int = 86400

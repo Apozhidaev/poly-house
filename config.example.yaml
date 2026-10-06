@@ -20,6 +20,9 @@ sync_trade_watch_interval: 86400
 # sync-holder --watch: период между стартами прогонов, сек
 sync_holder_watch_interval: 86400
 
+# update-event-view --watch: период между стартами прогонов, сек
+update_event_view_watch_interval: 60
+
 # первый прогон: загружать events, обновлявшиеся за последние N дней
 updated_in_days: 30
 

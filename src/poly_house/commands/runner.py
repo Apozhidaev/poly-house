@@ -25,6 +25,7 @@ from poly_house.commands.home_profiles import (
 from poly_house.commands.profiles import sync_profiles
 from poly_house.commands.holders import sync_holder_profiles
 from poly_house.commands.orderbook import sync_orderbook
+from poly_house.commands.event_view import update_event_view
 from poly_house.commands.tag_profiles import update_tag_profiles
 from poly_house.commands.trades import sync_trades
 
@@ -67,14 +68,28 @@ async def _run(
         await client.close()
 
 
-async def _run_db_only(settings: Settings, run_once: DbRunOnce) -> None:
+async def _run_db_only(
+    settings: Settings,
+    run_once: DbRunOnce,
+    *,
+    watch: bool = False,
+    watch_interval: float | None = None,
+) -> None:
     """Обвязка для команд без внешних API."""
     client = create_client(settings)
     db = client[settings.mongo_db]
     await ensure_indexes(db)
 
+    async def once(stop: asyncio.Event | None) -> None:
+        await run_once(db, stop)
+
     try:
-        await run_once(db, None)
+        if watch:
+            if watch_interval is None:
+                raise ValueError("watch_interval is required when watch=True")
+            await _watch_loop(once, interval=watch_interval)
+        else:
+            await once(None)
     finally:
         await client.close()
 
@@ -299,6 +314,26 @@ async def run_update_tag_profiles(
         )
 
     await _run_db_only(settings, once)
+
+
+async def run_update_event_view(settings: Settings, *, watch: bool = False) -> None:
+    async def once(db: Database, stop: asyncio.Event | None) -> None:
+        started = time.monotonic()
+        events, markets, deleted = await update_event_view(db, stop=stop)
+        logger.info(
+            "event_view_update_run_complete",
+            events=events,
+            markets=markets,
+            deleted=deleted,
+            seconds=round(time.monotonic() - started, 1),
+        )
+
+    await _run_db_only(
+        settings,
+        once,
+        watch=watch,
+        watch_interval=settings.update_event_view_watch_interval,
+    )
 
 
 async def run_add_user(settings: Settings, wallet: str) -> None:

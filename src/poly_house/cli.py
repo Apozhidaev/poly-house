@@ -19,6 +19,7 @@ from poly_house.commands.runner import (
     run_sync_trades,
     run_sync_orderbook,
     run_update_tag_profiles,
+    run_update_event_view,
     run_add_user,
     run_refresh_event,
     run_sync_activity,
@@ -121,6 +122,22 @@ def update_tag_profile(
     settings = load_settings()
     options = TagProfileSyncOptions(wallet=wallet, limit=limit)
     asyncio.run(run_update_tag_profiles(settings, options))
+
+
+@app.command("update-event-view")
+def update_event_view_cmd(
+    watch: Annotated[
+        bool,
+        typer.Option(
+            "--watch",
+            help="Бесконечный цикл прогонов с интервалом update_event_view_watch_interval (Ctrl+C для остановки).",
+        ),
+    ] = False,
+) -> None:
+    """Открытые events → events_view с open markets, trade_stats и best_bids/best_asks."""
+    _configure_logging()
+    settings = load_settings()
+    asyncio.run(run_update_event_view(settings, watch=watch))
 
 
 @app.command("add-user")

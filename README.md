@@ -70,6 +70,10 @@ uv run poly-house update-tag-profile
 uv run poly-house update-tag-profile --limit 10
 uv run poly-house update-tag-profile --wallet 0x...
 
+# update-event-view — open events → events_view (markets + trade_stats + best prices)
+uv run poly-house update-event-view
+uv run poly-house update-event-view --watch             # период update_event_view_watch_interval между стартами
+
 # add-user — один пользователь + profiles / home_profiles / tag_profiles
 uv run poly-house add-user 0x...
 
@@ -89,6 +93,7 @@ uv run poly-house sync-activity --wallet 0x... --event some-event-slug
 - **refresh-profile**: для wallet'ов с устаревшим `profiles.synced_at` (> `profile_refresh_interval_days`) — Gateway `/data/leaderboard`, `/data/accounting/snapshot`, `/data/user-pnl` → upsert `profiles`. Без activity cache / activities. Первичное создание — inline при `sync-holder`.
 - **refresh-home-profile**: для wallet'ов с устаревшим `home_profiles.synced_at` (> `home_profile_refresh_interval_days`) — activity cache из Gateway `/data/positions?status=CLOSED` в `activity_caches` (ключ `proxy_wallet` + `event_slug`); activity по pending cache entries через `/data/activity?event_id=...` (только `event_slug` из `events`) в `activities`; upsert `home_profiles` (метрики только по activities с `condition_id` из `markets` с `closed=true`). Первичное создание — inline при `sync-holder`.
 - **update-tag-profile**: для каждого wallet из `profiles` — activities из `activities`, у которых `condition_id` есть в `markets`; агрегирует в `market_activities` (по `condition_id`: `volume` = sum `usdc_size`, `pnl` = signed sum TRADE BUY/SELL); по `tag_ids` маркета группирует метрики и upsert в `tag_profiles` (уникальность `(proxy_wallet, tag_id)`, `_id` — MongoDB ObjectId). Поля: `markets_count`, `pnl` (sum per-market `pnl`), `volume` (sum per-market `volume`), `win_rate` (доля market_activities с `pnl > 0`), `hit_rate` (`win_holder_count / markets_count`), `error_rate` (`lose_holder_count / markets_count`), `pnl_growth` / `pnl_stability` (линейная регрессия по per-market `pnl` с `use_cumulative=True`; `null` при одном маркете). Маркет с несколькими тегами учитывается в каждом теге. Нужны `sync-event`, `profiles` и `activities`.
+- **update-event-view**: открытые events (`closed=false`) → коллекция `events_view`; у каждого event — `markets` (только `closed=false` из `market_ids`); у маркета — поля маркета + `trade_stats` (как `/trades/market-stats`) + `best_bids`/`best_asks` (последние из `best_prices` по `synced_at`, слоты outcome 0/1 или `null`). Закрытые events удаляются из view. `--watch`: период `update_event_view_watch_interval`.
 - Все ключи payload'ов при записи конвертируются из camelCase в snake_case (`conditionId` → `condition_id`) — в MongoDB и в ответах REST API имена полей питоновские.
 
 ### REST API
