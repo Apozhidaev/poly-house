@@ -10,6 +10,7 @@ from poly_house.api.routes import (
     activity,
     best_prices,
     events,
+    events_view,
     home_profiles,
     klines,
     markets,
@@ -35,6 +36,7 @@ app = FastAPI(
     title="poly-house", description="Polymarket warehouse API", lifespan=lifespan
 )
 app.include_router(events.router)
+app.include_router(events_view.router)
 app.include_router(markets.router)
 app.include_router(tags.router)
 app.include_router(trades.router)
