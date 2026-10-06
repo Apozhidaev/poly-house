@@ -46,7 +46,8 @@ async def list_events(
     items = await cursor.to_list(page.limit)
     if include_market:
         await _attach_markets(db, items)
-    return {"items": items}
+    total = await db.events.count_documents(query)
+    return {"items": items, "total": total}
 
 
 @router.get("/{event_id}")
