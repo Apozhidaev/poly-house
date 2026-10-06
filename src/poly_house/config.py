@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # исключить events с этими тегами (exclude_tag_id в API)
     events_exclude_tag_ids: list[int] = []
 
+    # необязательный фильтр events по slug (slug=a&slug=b)
+    events_slugs: list[str] = []
+
     # пропускать event, если среди nested markets есть outcomes != ["Yes", "No"]
     markets_yes_no_only: bool = False
 

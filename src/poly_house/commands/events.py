@@ -97,6 +97,7 @@ async def _fetch_pages(
             cursor=cursor,
             tag_ids=settings.events_tag_ids,
             exclude_tag_ids=settings.events_exclude_tag_ids,
+            slugs=settings.events_slugs,
             closed=closed,
         )
         if not raw:

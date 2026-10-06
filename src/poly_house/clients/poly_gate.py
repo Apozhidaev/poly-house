@@ -47,6 +47,7 @@ class PolyGateClient:
         cursor: str | None = None,
         tag_ids: list[int] | None = None,
         exclude_tag_ids: list[int] | None = None,
+        slugs: list[str] | None = None,
         closed: bool | None = None,
     ) -> tuple[list[dict[str, Any]], str | None]:
         """Страница events (keyset) по убыванию updatedAt: (events, next_cursor)."""
@@ -60,6 +61,8 @@ class PolyGateClient:
             params["related_tags"] = True
         if exclude_tag_ids:
             params["exclude_tag_id"] = exclude_tag_ids
+        if slugs:
+            params["slug"] = slugs
         if closed is not None:
             params["closed"] = closed
         if cursor:
