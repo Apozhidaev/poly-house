@@ -106,7 +106,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 
 | Endpoint | Фильтры |
 |---|---|
-| `GET /events` | `closed`, `tag_id`, `slug`, `include_market`; `items` + `total` |
+| `GET /events` | `closed`, `tag_id` (repeatable, any-match), `slug`, `include_market`; `items` + `total` |
 | `GET /events/{id}` | — |
 | `GET /events-view` | пагинация; `items` + `total` |
 | `GET /markets` | `closed`, `event_id`, `tag_ids` (any), `all_tag_ids` (all), `exclude_tag_ids`, `slug`, `condition_id`, `resolved`, `temporal` |

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from poly_house.api.deps import Db, Page
 
@@ -31,7 +31,7 @@ async def list_events(
     db: Db,
     page: Page,
     closed: bool | None = None,
-    tag_id: int | None = None,
+    tag_id: Annotated[list[int] | None, Query()] = None,
     slug: str | None = None,
     include_market: bool = False,
 ) -> dict[str, Any]:
@@ -39,7 +39,7 @@ async def list_events(
     if closed is not None:
         query["closed"] = closed
     if tag_id:
-        query["tag_ids"] = tag_id
+        query["tag_ids"] = {"$in": tag_id}
     if slug:
         query["slug"] = slug
     cursor = db.events.find(query).skip(page.offset).limit(page.limit)
