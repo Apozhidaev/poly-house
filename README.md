@@ -83,7 +83,7 @@ uv run poly-house sync-activity --wallet 0x... --event some-event-slug
 
 Как это работает:
 
-- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: список комбинаций `events_filters` (`tag_ids`, `exclude_tag_ids`, `slugs`, `neg_risk`, `markets_yes_no_only`; пустой список = один проход без API-фильтров). `--watch`: цикл; период между стартами прогонов `sync_event_watch_interval` (время работы вычитается из паузы).
+- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После прогона на tags обновляются `events_count` / `open_events_count` (число events и events с `closed=false` по тегу). После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: список комбинаций `events_filters` (`tag_ids`, `exclude_tag_ids`, `slugs`, `neg_risk`, `markets_yes_no_only`; пустой список = один проход без API-фильтров). `--watch`: цикл; период между стартами прогонов `sync_event_watch_interval` (время работы вычитается из паузы).
 - **sync-event --open**: то же, с `closed=false` в API; watermark общий — `events_watermark`; `--watch` — тот же период.
 - **refresh-event**: один event по `--slug` или все events из базы — Gateway `/gamma/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`. В bulk-режиме ошибки по slug пропускаются с warning в логе.
 - Первый прогон загружает events, обновлявшиеся за последние `updated_in_days` дней (по умолчанию 30).
@@ -113,7 +113,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /markets/deadline-soon` | `tag_id` (repeatable), `neg_risk`, `q`, `future_only`; sort `deadline` ASC; `items` + `total` |
 | `GET /markets/tag-distribution` | `tag_id` (required); co-occurrence тегов по `tag_ids` маркетов; sort `markets_count` DESC; `items` + `total`; пагинация `limit`, `offset` |
 | `GET /markets/{id}` | — |
-| `GET /tags` | `slug` |
+| `GET /tags` | `slug`, `has_open_events` |
 | `GET /tags/{id}` | — |
 | `GET /users` | пагинация `limit`, `offset` |
 | `GET /users/{proxy_wallet}` | — |

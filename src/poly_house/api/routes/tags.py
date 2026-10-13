@@ -10,10 +10,19 @@ router = APIRouter(prefix="/tags", tags=["tags"])
 
 
 @router.get("")
-async def list_tags(db: Db, page: Page, slug: str | None = None) -> dict[str, Any]:
+async def list_tags(
+    db: Db,
+    page: Page,
+    slug: str | None = None,
+    has_open_events: bool | None = None,
+) -> dict[str, Any]:
     query: dict[str, Any] = {}
     if slug:
         query["slug"] = slug
+    if has_open_events is True:
+        query["open_events_count"] = {"$gt": 0}
+    elif has_open_events is False:
+        query["open_events_count"] = {"$eq": 0}
     cursor = db.tags.find(query).skip(page.offset).limit(page.limit)
     return {"items": await cursor.to_list(page.limit)}
 

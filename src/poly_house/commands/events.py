@@ -49,7 +49,7 @@ def _keep_event(entry: EventWithMarkets, filt: EventsFilter) -> bool:
 
 
 async def _refresh_tag_events_count(db: Database) -> None:
-    """Set `events_count` on each tag doc from cached `events` (distinct events per tag)."""
+    """Set `events_count` / `open_events_count` on each tag from cached `events`."""
     tag_docs = await db.tags.find({}, projection={"_id": 1}).to_list(length=None)
     if not tag_docs:
         return
@@ -57,16 +57,37 @@ async def _refresh_tag_events_count(db: Database) -> None:
     pipeline = [
         {"$match": {"tag_ids.0": {"$exists": True}}},
         {"$unwind": "$tag_ids"},
-        {"$group": {"_id": "$tag_ids", "events_count": {"$sum": 1}}},
+        {
+            "$group": {
+                "_id": "$tag_ids",
+                "events_count": {"$sum": 1},
+                "open_events_count": {
+                    "$sum": {"$cond": [{"$eq": ["$closed", False]}, 1, 0]}
+                },
+            }
+        },
     ]
     cursor = await db.events.aggregate(pipeline)
     docs = await cursor.to_list(length=None)
-    counts: dict[int, int] = {doc["_id"]: doc["events_count"] for doc in docs}
+    counts: dict[int, dict[str, int]] = {
+        doc["_id"]: {
+            "events_count": doc["events_count"],
+            "open_events_count": doc["open_events_count"],
+        }
+        for doc in docs
+    }
 
     ops = [
         UpdateOne(
             {"_id": doc["_id"]},
-            {"$set": {"events_count": counts.get(doc["_id"], 0)}},
+            {
+                "$set": {
+                    "events_count": counts.get(doc["_id"], {}).get("events_count", 0),
+                    "open_events_count": counts.get(doc["_id"], {}).get(
+                        "open_events_count", 0
+                    ),
+                }
+            },
         )
         for doc in tag_docs
     ]

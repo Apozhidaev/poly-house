@@ -22,6 +22,7 @@ class Tag(BaseModel):
     label: str
     slug: str
     events_count: int = Field(default=0)
+    open_events_count: int = Field(default=0)
 
     @property
     def weight(self) -> float:
