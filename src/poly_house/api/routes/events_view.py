@@ -18,7 +18,12 @@ async def list_events_view(
     query: dict[str, Any] = {}
     if tag_id:
         query["tag_ids"] = {"$in": tag_id}
-    cursor = db.events_view.find(query).skip(page.offset).limit(page.limit)
+    cursor = (
+        db.events_view.find(query)
+        .sort("created_at", -1)
+        .skip(page.offset)
+        .limit(page.limit)
+    )
     items = await cursor.to_list(page.limit)
     total = await db.events_view.count_documents(query)
     return {"items": items, "total": total}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -15,6 +16,12 @@ from poly_house.utils.trade_stats import (
 logger = structlog.get_logger()
 
 BULK_SIZE = 100
+
+
+def _as_datetime(value: Any) -> Any:
+    if isinstance(value, str):
+        return datetime.fromisoformat(value)
+    return value
 
 
 async def update_event_view(
@@ -77,9 +84,13 @@ async def update_event_view(
             market_doc["trade_stats"] = trade_stats
             market_doc["best_bids"] = list(bids)
             market_doc["best_asks"] = list(asks)
+            market_doc["created_at"] = _as_datetime(market_doc.get("created_at"))
+            market_doc["updated_at"] = _as_datetime(market_doc.get("updated_at"))
             nested_markets.append(market_doc)
         markets_written += len(nested_markets)
         doc = dict(event)
+        doc["created_at"] = _as_datetime(doc.get("created_at"))
+        doc["updated_at"] = _as_datetime(doc.get("updated_at"))
         doc["markets"] = nested_markets
         ops.append(ReplaceOne({"_id": event_id}, doc, upsert=True))
 
