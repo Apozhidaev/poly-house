@@ -25,9 +25,9 @@ async def list_markets(
     closed: bool | None = None,
     neg_risk: bool | None = None,
     event_id: int | None = None,
-    tag_ids: OptionalTagIds = None,
-    all_tag_ids: OptionalTagIds = None,
-    exclude_tag_ids: OptionalTagIds = None,
+    tag_id: OptionalTagIds = None,
+    all_tag_id: OptionalTagIds = None,
+    exclude_tag_id: OptionalTagIds = None,
     slug: str | None = None,
     condition_id: str | None = None,
     resolved: bool | None = None,
@@ -42,17 +42,17 @@ async def list_markets(
         query["neg_risk"] = neg_risk
     if event_id:
         query["event_id"] = event_id
-    if tag_ids:
-        query["tag_ids"] = {"$in": tag_ids}
-    if all_tag_ids:
+    if tag_id:
+        query["tag_ids"] = {"$in": tag_id}
+    if all_tag_id:
         query["tag_ids"] = {
             **query.get("tag_ids", {}),
-            "$all": all_tag_ids,
+            "$all": all_tag_id,
         }
-    if exclude_tag_ids:
+    if exclude_tag_id:
         query["tag_ids"] = {
             **query.get("tag_ids", {}),
-            "$nin": exclude_tag_ids,
+            "$nin": exclude_tag_id,
         }
     if slug:
         query["slug"] = slug
@@ -100,12 +100,12 @@ async def list_deadline_soon_markets(
     db: Db,
     page: Page,
     neg_risk: bool | None = None,
-    tag_ids: OptionalTagIds = None,
+    tag_id: OptionalTagIds = None,
     q: str | None = None,
     future_only: bool = False,
 ) -> dict[str, Any]:
     query = deadline_soon_market_query(
-        tag_ids=tag_ids, neg_risk=neg_risk, q=q, future_only=future_only
+        tag_ids=tag_id, neg_risk=neg_risk, q=q, future_only=future_only
     )
     total = await db.markets.count_documents(query)
     cursor = (
