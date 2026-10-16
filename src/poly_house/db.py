@@ -26,6 +26,7 @@ async def ensure_indexes(db: Database) -> None:
     await db.markets.create_index("event_id")
     await db.markets.create_index("slug", unique=True)
     await db.markets.create_index("tag_ids")
+    await db.markets.create_index("series_ids")
     await db.markets.create_index("synced_at")
     await db.markets.create_index([("closed", 1), ("deadline", 1)])
 

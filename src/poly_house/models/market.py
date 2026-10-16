@@ -131,6 +131,7 @@ class Market(BaseModel):
         doc["event_id"] = event.id
         doc["event_slug"] = event.slug
         doc["tag_ids"] = sorted(t.id for t in event.tags)
+        doc["series_ids"] = [s.id for s in event.series]
         doc["synced_at"] = synced_at
         return doc
 
