@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
 
+from poly_house.models.series import Series
 from poly_house.models.tag import Tag, parse_id
 
 
@@ -46,7 +47,7 @@ class Event(BaseModel):
     calendar: bool | None = None
     deadline: datetime | None = None
     tags: list[Tag] = []
-    series: list[dict[str, Any]] = []
+    series: list[Series] = []
 
     @field_validator("neg_risk", mode="before")
     @classmethod
@@ -69,10 +70,6 @@ class Event(BaseModel):
         doc["_id"] = self.id
         doc["tag_ids"] = sorted(t.id for t in self.tags)
         doc["market_ids"] = market_ids or []
-        doc["series_ids"] = [
-            parse_id(s["id"])
-            for s in self.series
-            if isinstance(s, dict) and s.get("id") is not None
-        ]
+        doc["series_ids"] = [s.id for s in self.series]
         doc["synced_at"] = synced_at
         return doc

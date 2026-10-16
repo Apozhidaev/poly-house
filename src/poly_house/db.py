@@ -31,6 +31,8 @@ async def ensure_indexes(db: Database) -> None:
 
     await db.tags.create_index("slug", unique=True)
 
+    await db.series.create_index("slug", unique=True)
+
     await db.trades.create_index([("condition_id", 1), ("timestamp", 1)])
     await db.trades.create_index("proxy_wallet")
     await db.trades.create_index("timestamp")

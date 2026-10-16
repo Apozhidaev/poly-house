@@ -31,7 +31,7 @@ uv run basedpyright src/poly_house/
 Синхронизация разбита на команды:
 
 ```bash
-# sync-event — events + nested markets + tags
+# sync-event — events + nested markets + tags + series
 uv run poly-house sync-event
 uv run poly-house sync-event --open
 uv run poly-house sync-event --watch                    # период sync_event_watch_interval между стартами
@@ -83,9 +83,9 @@ uv run poly-house sync-activity --wallet 0x... --event some-event-slug
 
 Как это работает:
 
-- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets` и `tags` (только `event.tags`) пишутся вместе с event; `seriesIds` — из event. После прогона на tags обновляются `events_count` / `open_events_count` (число events и events с `closed=false` по тегу). После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: список комбинаций `events_filters` (`tag_ids`, `exclude_tag_ids`, `slugs`, `neg_risk`, `markets_yes_no_only`; пустой список = один проход без API-фильтров). `--watch`: цикл; период между стартами прогонов `sync_event_watch_interval` (время работы вычитается из паузы).
+- **sync-event**: events из Gateway (`GET /gamma/events?order=updatedAt&ascending=false`) до watermark'а (`sync_state.events_watermark`); параметр `closed` не передаётся. Nested `markets`, `tags` (только `event.tags`) и `series` (только `event.series` → коллекция `series`) пишутся вместе с event; `series_ids` — из event. После прогона на tags обновляются `events_count` / `open_events_count` (число events и events с `closed=false` по тегу). После успешного прогона watermark сдвигается на максимальный `event.updated_at`. Фильтры: список комбинаций `events_filters` (`tag_ids`, `exclude_tag_ids`, `slugs`, `neg_risk`, `markets_yes_no_only`; пустой список = один проход без API-фильтров). `--watch`: цикл; период между стартами прогонов `sync_event_watch_interval` (время работы вычитается из паузы).
 - **sync-event --open**: то же, с `closed=false` в API; watermark общий — `events_watermark`; `--watch` — тот же период.
-- **refresh-event**: один event по `--slug` или все events из базы — Gateway `/gamma/events/slug/{slug}` → `tags`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`. В bulk-режиме ошибки по slug пропускаются с warning в логе.
+- **refresh-event**: один event по `--slug` или все events из базы — Gateway `/gamma/events/slug/{slug}` → `tags`, `series`, `events`, nested `markets` (тот же `_write_page`, что у sync-event); без watermark и без фильтров `_keep_event`. В bulk-режиме ошибки по slug пропускаются с warning в логе.
 - Первый прогон загружает events, обновлявшиеся за последние `updated_in_days` дней (по умолчанию 30).
 - **sync-trade**: берёт из базы маркеты с `synced_at` позже собственного watermark'а (`sync_state.trades_watermark`; первый прогон — все маркеты) и качает их трейды через Gateway `/data/trades?taker_only=true` по watermark `timestamp` для каждого маркета (cursor-пагинация; потолок API: `limit=1000`, cap `trades_max_offset`). Пользователи извлекаются из трейдов. После успешного прогона watermark сдвигается на максимальный `synced_at` обработанных маркетов. `--watch`: цикл; период между стартами `sync_trade_watch_interval` (время работы вычитается из паузы).
 - **sync-orderbook**: для open markets (`active`, `closed=false`, `accepting_orders`, непустые `clob_token_ids`) — Gateway orderbook → upsert hourly bid/ask в `klines` и snapshot best bid/ask в `best_prices` (`timestamp` как в orderbook, `synced_at` — время прогона; хранение `best_prices_window` секунд по `synced_at`, старше удаляются на каждом прогоне). `--watch`: период между стартами `sync_orderbook_watch_interval`.

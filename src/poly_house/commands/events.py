@@ -158,8 +158,9 @@ async def _fetch_pages(
 async def _write_page(
     db: Database, entries: list[EventWithMarkets], synced_at: datetime
 ) -> None:
-    """Пишем страницу: tags → events → markets."""
+    """Пишем страницу: tags → series → events → markets."""
     tag_ops: dict[int, ReplaceOne[Doc]] = {}
+    series_ops: dict[int, ReplaceOne[Doc]] = {}
     event_ops: list[ReplaceOne[Doc]] = []
     market_ops: list[ReplaceOne[Doc]] = []
 
@@ -167,6 +168,12 @@ async def _write_page(
         for tag in entry.event.tags:
             tag_ops[tag.id] = ReplaceOne(
                 {"_id": tag.id}, tag.to_doc(synced_at=synced_at), upsert=True
+            )
+        for series in entry.event.series:
+            series_ops[series.id] = ReplaceOne(
+                {"_id": series.id},
+                series.to_doc(synced_at=synced_at),
+                upsert=True,
             )
 
         market_ids: list[int] = [market.id for market in entry.markets]
@@ -189,6 +196,8 @@ async def _write_page(
 
     if tag_ops:
         await db.tags.bulk_write(list(tag_ops.values()))
+    if series_ops:
+        await db.series.bulk_write(list(series_ops.values()))
     if market_ops:
         await db.markets.bulk_write(market_ops)
     if event_ops:
