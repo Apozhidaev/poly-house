@@ -117,6 +117,7 @@ Swagger UI: <http://127.0.0.1:8000/docs>
 | `GET /tags/{id}` | — |
 | `GET /series` | `slug` |
 | `GET /series/{id}` | — |
+| `GET /series/{id}/market-stats` | resolved markets; `resolved_count`, `resolved_outcomes`, `win_rates` |
 | `GET /users` | пагинация `limit`, `offset` |
 | `GET /users/{proxy_wallet}` | — |
 | `GET /profile` | пагинация `limit`, `offset` |
