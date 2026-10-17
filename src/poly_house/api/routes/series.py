@@ -76,6 +76,33 @@ async def get_series_market_stats(series_id: int, db: Db) -> dict[str, Any]:
     }
 
 
+@router.get("/{series_id}/timeline")
+async def get_series_timeline(series_id: int, db: Db) -> list[list[Any]]:
+    series = await db.series.find_one({"_id": series_id})
+    if series is None:
+        raise HTTPException(status_code=404, detail="Series not found")
+
+    cursor = (
+        db.markets.find(
+            {
+                "series_ids": series_id,
+                "resolved_outcome_index": {"$ne": None},
+                "deadline": {"$ne": None},
+            },
+            projection={"deadline": 1, "resolved_outcome_index": 1},
+        ).sort("deadline", 1)
+    )
+    markets = await cursor.to_list(length=None)
+
+    points: list[list[Any]] = []
+    value = 0
+    for market in markets:
+        delta = 1 if market["resolved_outcome_index"] == 0 else -1
+        value += delta
+        points.append([market["deadline"], value])
+    return points
+
+
 @router.get("/{series_id}")
 async def get_series(series_id: int, db: Db) -> dict[str, Any]:
     doc = await db.series.find_one({"_id": series_id})
